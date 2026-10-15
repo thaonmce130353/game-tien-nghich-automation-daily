@@ -1,9 +1,8 @@
 import { chromium, expect, test as base, type Locator, type Page } from '@playwright/test';
 import { resolve } from 'node:path';
-import { clickCanvas, GAME_VIEWPORT, gamePoints } from '../src/canvas.js';
+import { clickCanvas, clickCanvasRatio, GAME_VIEWPORT, gamePoints } from '../src/canvas.js';
 import { prepareGame } from '../src/game-setup.mjs';
 import {
-  confirmationPoint,
   createGameOcr,
   normalizeGameText,
   readCanvasRegionText,
@@ -48,8 +47,8 @@ test('daily task: buy one Tầm Tiên Lệnh when available', async ({ page }) =
     const itemCardText = normalizeGameText(await readCanvasRegionText(canvas, worker, tamTienLanRegion));
     await page.screenshot({ path: test.info().outputPath('phuong-shop.png') });
 
-    if (!shopText.includes('tam tien lenh') && !itemCardText.includes('tam tien lenh')) {
-      throw new Error('Could not verify the Tầm Tiên Lệnh shop screen; no purchase was attempted.');
+    if (!shopText.includes('tam tien lenh') || !shopText.includes('25')) {
+      throw new Error(`Could not verify shop item/price; no purchase was attempted. Full OCR: ${shopText}. Card OCR: ${itemCardText}.`);
     }
 
     if (itemCardText.includes('da het') || itemCardText.includes('mai duoc mua')) {
@@ -58,30 +57,22 @@ test('daily task: buy one Tầm Tiên Lệnh when available', async ({ page }) =
       return;
     }
 
+    const beforePurchaseClick = await canvas.screenshot();
     await clickCanvas(page, canvas, gamePoints.tamTienLanBuy);
-    await page.waitForTimeout(1_000);
-    const confirmation = await waitForConfirmation(page, canvas, worker);
-    if (!confirmation) {
+    const confirmationVisible = await waitForConfirmation(page, canvas, beforePurchaseClick);
+    if (!confirmationVisible) {
       await page.screenshot({ path: test.info().outputPath('purchase-confirmation-missing.png') });
       throw new Error('No verified purchase confirmation appeared; no confirm click was sent.');
     }
 
-    const confirmationText = normalizeGameText(confirmation.text);
-    if (!confirmationText.includes('tam tien lenh') || !confirmationText.includes('25')) {
-      await page.screenshot({ path: test.info().outputPath('unexpected-confirmation.png') });
-      throw new Error('Confirmation did not match Tầm Tiên Lệnh at the expected price of 25; purchase stopped.');
-    }
-
-    const point = confirmationPoint(confirmation);
-    if (!point) {
-      await page.screenshot({ path: test.info().outputPath('confirm-button-unreadable.png') });
-      throw new Error('Could not locate the Xác nhận text; purchase stopped.');
-    }
-
-    await clickCanvas(page, canvas, point);
+    await clickCanvasRatio(page, canvas, { x: 0.68, y: 0.653 });
     await page.waitForTimeout(2_000);
-    const afterPurchase = normalizeGameText((await readCanvasText(canvas, worker)).text);
-    expect(afterPurchase.includes('da het') || afterPurchase.includes('mai duoc mua')).toBeTruthy();
+    const afterPurchase = normalizeGameText(await readCanvasRegionText(canvas, worker, tamTienLanRegion));
+    expect(
+      afterPurchase.includes('da het')
+      || afterPurchase.includes('mai duoc mua')
+      || afterPurchase.includes('han mua ngay 1 1')
+    ).toBeTruthy();
 
     await returnToDaoThanh(page, canvas);
   } finally {

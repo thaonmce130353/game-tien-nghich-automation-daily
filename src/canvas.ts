@@ -29,3 +29,13 @@ export async function clickCanvas(
     box.y + point.y * (box.height / height)
   );
 }
+
+export async function clickCanvasRatio(
+  page: Page,
+  canvas: Locator,
+  ratio: { x: number; y: number }
+): Promise<void> {
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('Game canvas is not measurable.');
+  await page.mouse.click(box.x + ratio.x * box.width, box.y + ratio.y * box.height);
+}

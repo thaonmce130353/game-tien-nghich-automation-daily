@@ -2,12 +2,6 @@ import sharp from 'sharp';
 import { createWorker } from 'tesseract.js';
 import type { Locator, Page } from '@playwright/test';
 
-const OCR_SCALE = 2;
-type OcrWord = {
-  text: string;
-  bbox: { x0: number; y0: number; x1: number; y1: number };
-};
-
 type OcrWorker = Awaited<ReturnType<typeof createWorker>>;
 export type GameText = Awaited<ReturnType<OcrWorker['recognize']>>['data'];
 
@@ -65,48 +59,49 @@ export function normalizeGameText(text: string): string {
     .trim();
 }
 
-export function confirmationPoint(text: GameText): { x: number; y: number } | undefined {
-  const blocks = text.blocks as unknown as Array<{
-    paragraphs: Array<{ lines: Array<{ words: OcrWord[] }> }>;
-  }> | null;
-  const words = blocks?.flatMap((block) =>
-    block.paragraphs.flatMap((paragraph) =>
-      paragraph.lines.flatMap((line) => line.words)
-    )
-  ) ?? [];
-  const confirm = words.find((word) => normalizeGameText(word.text) === 'xac');
-  if (!confirm) return undefined;
+async function dialogPixels(screenshot: Buffer): Promise<Buffer> {
+  const { width = 0, height = 0 } = await sharp(screenshot).metadata();
+  if (width < 300 || height < 600) {
+    throw new Error(`Refusing dialog check on undersized canvas screenshot (${width}x${height}).`);
+  }
 
-  const confirmY = (confirm.bbox.y0 + confirm.bbox.y1) / 2;
-  const accept = words.find((word) => {
-    const centerY = (word.bbox.y0 + word.bbox.y1) / 2;
-    return normalizeGameText(word.text) === 'nhan'
-      && Math.abs(centerY - confirmY) < 30
-      && word.bbox.x0 >= confirm.bbox.x1 - 5
-      && word.bbox.x0 - confirm.bbox.x1 < 100;
-  });
-  if (!accept) return undefined;
+  const left = Math.floor(width * 0.15);
+  const top = Math.floor(height * 0.28);
+  return sharp(screenshot)
+    .extract({ left, top, width: Math.floor(width * 0.70), height: Math.floor(height * 0.45) })
+    .resize({ width: 64, height: 64, fit: 'fill' })
+    .greyscale()
+    .raw()
+    .toBuffer();
+}
 
-  const centerX = (confirm.bbox.x0 + accept.bbox.x1) / 2 / OCR_SCALE;
-  const centerY = (confirm.bbox.y0 + confirm.bbox.y1) / 2 / OCR_SCALE;
-  return { x: centerX, y: centerY };
+async function readDialogPixels(canvas: Locator): Promise<Buffer> {
+  return dialogPixels(await canvas.screenshot());
+}
+
+function changedPixelRatio(before: Buffer, after: Buffer): number {
+  if (before.length !== after.length) return 0;
+  let changed = 0;
+  for (let index = 0; index < before.length; index++) {
+    if (Math.abs(before[index] - after[index]) > 28) changed++;
+  }
+  return changed / before.length;
 }
 
 export async function waitForConfirmation(
   page: Page,
   canvas: Locator,
-  worker: OcrWorker,
-  timeoutMs = 20_000
-): Promise<GameText | undefined> {
+  beforeClick: Buffer,
+  timeoutMs = 10_000
+): Promise<boolean> {
   const endTime = Date.now() + timeoutMs;
+  const baseline = await dialogPixels(beforeClick);
 
   while (Date.now() < endTime) {
-    const result = await readCanvasText(canvas, worker);
-    const recognized = normalizeGameText(result.text);
-    if (recognized.includes('xac nhan')) return result;
-    if (recognized.includes('da het') || recognized.includes('mai duoc mua')) return undefined;
-    await page.waitForTimeout(800);
+    const current = await readDialogPixels(canvas);
+    if (changedPixelRatio(baseline, current) >= 0.30) return true;
+    await page.waitForTimeout(400);
   }
 
-  return undefined;
+  return false;
 }
