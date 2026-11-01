@@ -10,6 +10,7 @@
     const RELOAD_COOLDOWN_MS = 15000;
     const RELOAD_DELAY_MS = 750;
     const ENTRY_ACTION_DELAY_MS = 5000;
+    const ENTRY_BUTTON_RETRY_MS = 3000;
     const RECOVERY_TTL_MS = 10 * 60 * 1000;
     const HOOK_MARKER = '__tnAutoReconnectJoyplayHooked';
 
@@ -18,6 +19,77 @@
     let connectionProgressSeen = false;
     let entryWaitReported = false;
     let storageErrorReported = false;
+    let lastEntryDiagnosticAt = 0;
+
+    function getEntryDiagnosticSnapshot() {
+        const snapshot = {
+            canvas: [],
+            domButton: false,
+            viewMgr: typeof window.ViewMgr === 'function',
+            loginViewVisible: false,
+            loginViewHandler: false,
+            loginCtrl: typeof window.LoginCtrl === 'function',
+            startLogin: false,
+            reqEnterGame: false,
+            roleData: false,
+            serverData: false,
+            mainCtrl: !!(window.MainCtrl && window.MainCtrl.gMainCtrl),
+            stateManager: typeof window.StateMgr === 'function',
+            gameEntered: false
+        };
+
+        try {
+            snapshot.gameEntered = isGameAlreadyEntered();
+            snapshot.canvas = Array.from(document.querySelectorAll('canvas')).map((canvas) =>
+                `${canvas.width}x${canvas.height}`
+            );
+            snapshot.domButton = !!findVisibleEnterGameButton();
+
+            if (snapshot.viewMgr && typeof window.ViewMgr.gInst === 'function') {
+                const viewMgr = window.ViewMgr.gInst();
+                if (viewMgr) {
+                    snapshot.loginViewVisible = typeof viewMgr.viewIsVisible === 'function'
+                        ? !!viewMgr.viewIsVisible('loginUi')
+                        : !!viewMgr.getViewByName('loginUi');
+                    const loginView = viewMgr.getViewByName &&
+                        viewMgr.getViewByName('loginUi');
+                    snapshot.loginViewHandler = !!(loginView &&
+                        typeof loginView.loginBtnClick === 'function');
+                }
+            }
+
+            if (snapshot.loginCtrl && typeof window.LoginCtrl.gInst === 'function') {
+                const controller = window.LoginCtrl.gInst();
+                snapshot.startLogin = !!(controller && typeof controller.startLogin === 'function');
+                snapshot.reqEnterGame = !!(controller && typeof controller.reqEnterGame === 'function');
+                snapshot.roleData = !!(controller && controller.m_roleData);
+                snapshot.serverData = !!(controller && controller.m_curSelectServerData);
+            }
+        } catch (error) {
+            snapshot.error = true;
+            console.error('[Tiên Nghịch Auto] Không thể thu thập chẩn đoán vào game.', error);
+        }
+
+        return snapshot;
+    }
+
+    function logEntryDiagnostics(state, force = false) {
+        const now = Date.now();
+        if (!force && now - lastEntryDiagnosticAt < 15000) return;
+        lastEntryDiagnosticAt = now;
+
+        const snapshot = getEntryDiagnosticSnapshot();
+        sendReconnectLog(
+            `🔎 Reconnect debug: phase=${state.phase}; socket=${connectionProgressSeen ? 'connected' : 'not-connected'}; ` +
+            `canvas=${snapshot.canvas.join(',') || 'none'}; DOM button=${snapshot.domButton}; ` +
+            `loginUi=${snapshot.loginViewVisible}/${snapshot.loginViewHandler}; ` +
+            `LoginCtrl=${snapshot.loginCtrl} (start=${snapshot.startLogin}, enter=${snapshot.reqEnterGame}); ` +
+            `role=${snapshot.roleData}; server=${snapshot.serverData}; ` +
+            `MainCtrl=${snapshot.mainCtrl}; StateMgr=${snapshot.stateManager}; inGame=${snapshot.gameEntered}; ` +
+            `entryTries=${state.entryAttemptCount || 0}; snapshotError=${!!snapshot.error}`,
+            'info'
+        );
+    }
 
     function sendReconnectLog(message, logType = 'info') {
         try {
@@ -117,7 +189,16 @@
     }
 
     function isGameAlreadyEntered() {
-        return !!(window.MainCtrl && window.MainCtrl.gMainCtrl);
+        const stateMgrClass = window.StateMgr;
+        const stateGroup = window.EStateGroup;
+        if (!stateMgrClass || typeof stateMgrClass.gInst !== 'function' ||
+            !stateGroup || typeof stateGroup.main === 'undefined') {
+            return false;
+        }
+
+        const stateMgr = stateMgrClass.gInst();
+        return !!(stateMgr && typeof stateMgr.isCurState === 'function' &&
+            stateMgr.isCurState(stateGroup.main));
     }
 
     function confirmGameEntered() {
@@ -155,8 +236,17 @@
         }
         if (!button && typeof loginButtonHandler !== 'function') return false;
 
+        const now = Date.now();
+        if (state.phase === 'login-button-clicked' &&
+            now - (state.lastEntryAttemptAt || state.updatedAt) < ENTRY_BUTTON_RETRY_MS) {
+            return true;
+        }
+
+        const attempt = Number.isInteger(state.entryAttemptCount) ? state.entryAttemptCount + 1 : 1;
         state.phase = 'login-button-clicked';
-        state.updatedAt = Date.now();
+        state.updatedAt = now;
+        state.lastEntryAttemptAt = now;
+        state.entryAttemptCount = attempt;
         if (!writeRecoveryState(state)) return true;
         try {
             if (button) {
@@ -169,7 +259,12 @@
                     stopPropagation() {}
                 });
             }
-            sendReconnectLog('🎮 Đã kích hoạt nút “Vào Game” trong giao diện đăng nhập.', 'action');
+            if (attempt === 1) {
+                sendReconnectLog(
+                    `🎮 Đang thử vào game qua ${button ? 'nút DOM' : 'handler loginUi'}; lần thử ${attempt}.`,
+                    'action'
+                );
+            }
         } catch (error) {
             console.error('[Tiên Nghịch Auto] Không thể kích hoạt nút vào game.', error);
             sendReconnectLog('❌ Không thể kích hoạt nút “Vào Game”; xem console để biết chi tiết.', 'err');
@@ -202,6 +297,11 @@
             state.phase = 'entry-requested';
             state.updatedAt = Date.now();
             if (!writeRecoveryState(state)) return;
+            sendReconnectLog(
+                `📡 Gửi reqEnterGame: role=${!!controller.m_roleData}; server=${!!controller.m_curSelectServerData}; ` +
+                `reconnect=${!!controller.m_isReconnecting}.`,
+                'info'
+            );
             controller.reqEnterGame();
             sendReconnectLog('🎮 Đã yêu cầu vào game sau khi máy chủ xác nhận đăng nhập.', 'action');
         } catch (error) {
@@ -213,6 +313,25 @@
                 current.updatedAt = Date.now();
                 writeRecoveryState(current);
             }
+        }
+    }
+
+    function tryRequestEntryFromLoginController(state) {
+        if (state.phase !== 'login-started' && state.phase !== 'login-button-clicked') return false;
+
+        try {
+            const controller = getLoginController();
+            if (!controller || typeof controller.reqEnterGame !== 'function' ||
+                !controller.m_roleData || !controller.m_curSelectServerData) {
+                return false;
+            }
+
+            requestGameEntry(controller);
+            return true;
+        } catch (error) {
+            console.error('[Tiên Nghịch Auto] Không thể gửi yêu cầu vào game từ LoginCtrl.', error);
+            sendReconnectLog('❌ Không thể gửi yêu cầu vào game; xem console để biết chi tiết.', 'err');
+            return true;
         }
     }
 
@@ -416,6 +535,7 @@
             if (!writeRecoveryState(state)) return;
         }
 
+        logEntryDiagnostics(state, true);
         scheduleEntryAction();
     }
 
@@ -426,11 +546,13 @@
         const state = readRecoveryState();
         if (state && (state.phase === 'awaiting-entry' || state.phase === 'login-started' ||
             state.phase === 'login-button-clicked')) {
+            logEntryDiagnostics(state);
             if (isGameAlreadyEntered()) {
                 confirmGameEntered();
                 return;
             }
-            if (state.phase !== 'login-button-clicked' && tryClickEnterGame(state)) return;
+            if (tryRequestEntryFromLoginController(state)) return;
+            if (tryClickEnterGame(state)) return;
         } else if (state && state.phase === 'entry-requested' && isGameAlreadyEntered()) {
             confirmGameEntered();
         }
