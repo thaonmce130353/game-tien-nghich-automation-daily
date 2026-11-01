@@ -61,7 +61,8 @@
         autoTamTienDai: false,          // Nhận quà miễn phí Tâm Tiên Đài và Chiêu Mộ
         buyTamTienGifts: true,          // Tự mua quà Tiên Ngọc Tâm Tiên Đài
         autoTienHuu: false,             // Tặng nhanh quà Bạn Bè (Tiên Hữu)
-        autoArena: false,               // Đấu Tiên Đài PvP (3-5 trận, delay 2.5s chọn đối thủ thấp)
+        autoArena: false,               // Đấu Tiên Đài PvP (giới hạn lượt, chọn đối thủ thấp)
+        arenaBattleLimit: 5,             // Số trận Đấu Tiên Đài tối đa mỗi lần chạy Auto
         autoMaDaoUyPhai: false,         // Tác chiến nhanh, Thưởng ủy phái Cam/Tím, Quà Tiên & Đạo Cụ Phường
         autoTienMinh: false,            // Tiên Minh: Trả giá, Cung phụng, Viện trợ 5 sao, Tăng cấp, Boss
         autoCuoiNgay: false,            // Nhận thư, Like BXH Đạo Thành 3 lần, Nhận rương Sôi Nổi (25-100)
@@ -758,9 +759,13 @@
                                     <label class="tn-opt-item" style="border-left: 3px solid #a6e3a1;">
                                         <div>
                                             <div style="font-weight:bold; color:#a6e3a1;">🏟️ Đấu Tiên Đài (PvP Delay 2.5s)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Tích Bỏ qua, chọn đối thủ lực chiến thấp khiêu chiến 3-5 lần chống anti-spam.</div>
+                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Chọn đối thủ lực chiến thấp và giới hạn tổng số trận miễn phí + vé mỗi lần chạy Auto.</div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoArena" ${CONFIG.activeFeature === 'autoArena' ? 'checked' : ''}>
+                                    </label>
+                                    <label class="tn-opt-item" style="margin:0 0 4px 10px; padding:4px 8px; border-left:3px solid #a6e3a1;">
+                                        <div style="font-size:10px; color:#a6e3a1;">Giới hạn (Free + Dùng Đấu Tiên Lệnh):</div>
+                                        <input type="number" id="tn-opt-arena-battle-limit" min="1" step="1" value="${CONFIG.arenaBattleLimit}" style="width:52px; padding:2px 4px; background:#181825; color:#cdd6f4; border:1px solid #45475a; border-radius:4px;">
                                     </label>
                                     <label class="tn-opt-item" style="border-left: 3px solid #f9e2af;">
                                         <div>
@@ -1039,6 +1044,15 @@
                 cb.addEventListener('change', (e) => {
                     const key = cb.dataset.key;
                     if (e.target.checked) {
+                        if (key === 'autoTamTienDai') {
+                            CONFIG.buyTamTienGifts = true;
+                            const buyTamTienGiftsEl = document.getElementById('tn-opt-buy-tam-tien-gifts');
+                            if (buyTamTienGiftsEl) buyTamTienGiftsEl.checked = true;
+                        } else {
+                            CONFIG.buyTamTienGifts = false;
+                            const buyTamTienGiftsEl = document.getElementById('tn-opt-buy-tam-tien-gifts');
+                            if (buyTamTienGiftsEl) buyTamTienGiftsEl.checked = false;
+                        }
                         // Tắt tất cả các chức năng chính khác
                         mutexCheckboxes.forEach(other => {
                             if (other !== cb) other.checked = false;
@@ -1053,6 +1067,11 @@
                         addLogToUI("🎯 Chế độ Auto đã kích hoạt: " + title, "info");
                     } else {
                         CONFIG[key] = false;
+                        if (key === 'autoTamTienDai') {
+                            CONFIG.buyTamTienGifts = false;
+                            const buyTamTienGiftsEl = document.getElementById('tn-opt-buy-tam-tien-gifts');
+                            if (buyTamTienGiftsEl) buyTamTienGiftsEl.checked = false;
+                        }
                         if (CONFIG.activeFeature === key) CONFIG.activeFeature = null;
                         saveConfig();
                         sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
@@ -1096,6 +1115,18 @@
                             : "⏸️ Đã tắt mua quà Tâm Tiên Đài bằng Tiên Ngọc.",
                         "info"
                     );
+                });
+            }
+
+            const arenaBattleLimitEl = document.getElementById('tn-opt-arena-battle-limit');
+            if (arenaBattleLimitEl) {
+                arenaBattleLimitEl.addEventListener('change', (e) => {
+                    const input = e.target;
+                    const limit = Number(input.value);
+                    CONFIG.arenaBattleLimit = Number.isInteger(limit) && limit >= 1 ? limit : 5;
+                    input.value = String(CONFIG.arenaBattleLimit);
+                    saveConfig();
+                    sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                 });
             }
 
@@ -1350,10 +1381,12 @@
                 Object.assign(CONFIG, data.config);
                 saveConfig();
             } else if (data.action === 'TOGGLE_AUTO') {
+                const wasRunning = CONFIG.running;
                 CONFIG.running = data.running;
                 if (data.config) Object.assign(CONFIG, data.config);
                 saveConfig();
                 if (CONFIG.running) {
+                    if (!wasRunning && typeof resetArenaRun === 'function') resetArenaRun();
                     isTowerChallenging = false;
                     waitingForFloorUpdate = false;
                     executeCycle(false);
@@ -1522,24 +1555,6 @@
                         }
                     }
 
-                    if (vm.viewIsVisible && (vm.viewIsVisible('arenaFightSucUi') || vm.viewIsVisible('arenaFightFailUi'))) {
-                        if (ctx.ArenaCtrl && ctx.ArenaCtrl.gInst) {
-                            const ac = ctx.ArenaCtrl.gInst();
-                            if (typeof ac.backToArena === 'function') ac.backToArena();
-                            else {
-                                vm.closeView('arenaFightSucUi');
-                                vm.closeView('arenaFightFailUi');
-                                if (typeof ac.opAnUi === 'function') ac.opAnUi();
-                            }
-                            if (typeof ac.send14201 === 'function') ac.send14201();
-                        } else {
-                            vm.closeView('arenaFightSucUi');
-                            vm.closeView('arenaFightFailUi');
-                        }
-                        sendLog("🏟️ [Đấu Tiên Đài] Kết thúc trận đấu, tự động quay lại đài để khiêu chiến tiếp!", "action");
-                        acted = true;
-                    }
-
                     const resultViewNames = [
                         'fightSuccessUi', 'fightFailUi', 'winUi', 'fightWinUi', 'fightResultUi', 'adventureResultUi', 'guildAskedFightResultUi'
                     ];
@@ -1554,7 +1569,6 @@
             } catch (e) { }
             return acted;
         }
-
         function getNextDungeonId(ctx, dungeonType) {
             const dd = ctx.DailyDungeonCtrl.gInst();
             if (!dd) return 0;
@@ -1698,6 +1712,80 @@
             return false;
         }
 
+        let arenaRunState = {
+            battlesCompleted: 0,
+            pendingBattle: false,
+            pendingSince: 0,
+            resultRecorded: false,
+            returnRequestedAt: 0,
+            limitReachedLogged: false,
+            noAttemptsLogged: false
+        };
+
+        function resetArenaRun() {
+            arenaRunState.battlesCompleted = 0;
+            arenaRunState.limitReachedLogged = false;
+            arenaRunState.noAttemptsLogged = false;
+        }
+
+        function recordArenaBattleResult(succeeded) {
+            if (!arenaRunState.pendingBattle || arenaRunState.resultRecorded) return;
+            arenaRunState.resultRecorded = true;
+            arenaRunState.battlesCompleted++;
+            const result = succeeded ? "thắng" : "thua";
+            sendLog(`✅ [Đấu Tiên Đài] Máy chủ xác nhận trận ${arenaRunState.battlesCompleted} đã kết thúc (${result}).`, "action");
+        }
+
+        function handleArenaFightResult(ctx) {
+            try {
+                if (!ctx.ViewMgr || !ctx.ViewMgr.gInst) return false;
+                const vm = ctx.ViewMgr.gInst();
+                if (!vm.viewIsVisible) return false;
+
+                const successVisible = vm.viewIsVisible('arenaFightSucUi');
+                const failureVisible = vm.viewIsVisible('arenaFightFailUi');
+                if (!successVisible && !failureVisible) {
+                    if (arenaRunState.returnRequestedAt && vm.viewIsVisible('arenaUi')) {
+                        arenaRunState.pendingBattle = false;
+                        arenaRunState.pendingSince = 0;
+                        arenaRunState.resultRecorded = false;
+                        arenaRunState.returnRequestedAt = 0;
+                        const returnedAt = Date.now();
+                        lastArenaCheckTime = returnedAt;
+                        lastArenaFetchTime = returnedAt;
+                        const ac = ctx.ArenaCtrl && ctx.ArenaCtrl.gInst ? ctx.ArenaCtrl.gInst() : null;
+                        if (ac && typeof ac.send14201 === 'function') ac.send14201();
+                        sendLog("✅ [Đấu Tiên Đài] Đã xác nhận quay lại giao diện khiêu chiến.", "action");
+                    }
+                    return false;
+                }
+
+                recordArenaBattleResult(successVisible);
+                const now = Date.now();
+                if (!arenaRunState.returnRequestedAt || now - arenaRunState.returnRequestedAt >= 2500) {
+                    const ac = ctx.ArenaCtrl && ctx.ArenaCtrl.gInst ? ctx.ArenaCtrl.gInst() : null;
+                    if (!ac) {
+                        sendLog("⚠️ [Đấu Tiên Đài] Không tìm thấy bộ điều khiển để quay lại sau trận đấu.", "err");
+                        return true;
+                    }
+
+                    if (typeof ac.backToArena === 'function') {
+                        ac.backToArena();
+                    } else {
+                        vm.closeView('arenaFightSucUi');
+                        vm.closeView('arenaFightFailUi');
+                        if (typeof ac.opAnUi === 'function') ac.opAnUi();
+                    }
+                    arenaRunState.returnRequestedAt = now;
+                    sendLog("🏟️ [Đấu Tiên Đài] Đã yêu cầu quay lại đài; chờ giao diện xác nhận trước trận tiếp theo.", "info");
+                }
+                return true;
+            } catch (e) {
+                sendLog(`⚠️ [Đấu Tiên Đài] Lỗi khi xử lý kết quả trận đấu: ${e.message || e}`, "err");
+                return true;
+            }
+        }
+
         // 4. TỰ ĐỘNG KHIÊU CHIẾN ĐẤU TIÊN ĐÀI
         function handleArena(ctx) {
             if (!CONFIG.autoArena) return false;
@@ -1705,7 +1793,37 @@
 
             try {
                 if (!ctx.ArenaCtrl || !ctx.ArenaCtrl.gInst) return false;
+                const configuredLimit = Number(CONFIG.arenaBattleLimit);
+                const battleLimit = Number.isInteger(configuredLimit) && configuredLimit >= 1 ? configuredLimit : 5;
+                if (arenaRunState.battlesCompleted >= battleLimit) {
+                    if (!arenaRunState.limitReachedLogged) {
+                        sendLog(`ℹ️ [Đấu Tiên Đài] Đã đạt giới hạn ${battleLimit} trận của lần chạy Auto; bỏ qua các lượt còn lại.`, "info");
+                        arenaRunState.limitReachedLogged = true;
+                    }
+                    return false;
+                }
+
                 const ac = ctx.ArenaCtrl.gInst();
+                if (arenaRunState.pendingBattle) {
+                    const vm = ctx.ViewMgr && ctx.ViewMgr.gInst ? ctx.ViewMgr.gInst() : null;
+                    const fightCanStart = ctx.FightCtrl && ctx.FightCtrl.gInst
+                        ? ctx.FightCtrl.gInst().gCanFight()
+                        : false;
+                    const resultVisible = vm && vm.viewIsVisible &&
+                        (vm.viewIsVisible('arenaFightSucUi') || vm.viewIsVisible('arenaFightFailUi'));
+                    const arenaVisible = vm && vm.viewIsVisible && vm.viewIsVisible('arenaUi');
+                    if (arenaRunState.pendingSince && now - arenaRunState.pendingSince >= 15000 &&
+                        arenaVisible && !resultVisible && fightCanStart) {
+                        arenaRunState.pendingBattle = false;
+                        arenaRunState.pendingSince = 0;
+                        arenaRunState.resultRecorded = false;
+                        arenaRunState.returnRequestedAt = 0;
+                        lastArenaCheckTime = now - 1500;
+                        sendLog("⚠️ [Đấu Tiên Đài] Khiêu chiến chưa vào trận sau 15 giây; đã mở khóa và sẽ thử lại.", "warn");
+                    } else {
+                        return false;
+                    }
+                }
 
                 if (ctx.ViewMgr && ctx.ViewMgr.gInst) {
                     const vm = ctx.ViewMgr.gInst();
@@ -1726,9 +1844,15 @@
                     ticketCount = ctx.PropsCtrl.gInst().findGoodsNum(1000110) || 0;
                 }
                 const totalAvailable = freeCount + ticketCount;
-                if (totalAvailable <= 0) return false;
+                if (totalAvailable <= 0) {
+                    if (!arenaRunState.noAttemptsLogged) {
+                        sendLog("ℹ️ [Đấu Tiên Đài] Không còn lượt miễn phí hoặc Đấu Tiên Lệnh; bỏ qua khiêu chiến.", "info");
+                        arenaRunState.noAttemptsLogged = true;
+                    }
+                    return false;
+                }
 
-                if (now - lastArenaCheckTime < 1800) return false;
+                if (now - lastArenaCheckTime < 2500) return false;
 
                 const enemyList = ac.m_enemyList;
                 if (!enemyList || enemyList.length === 0) {
@@ -1779,6 +1903,9 @@
                 }
 
                 if (challenged) {
+                    arenaRunState.pendingBattle = true;
+                    arenaRunState.pendingSince = now;
+                    arenaRunState.noAttemptsLogged = false;
                     const powerStr = minFc < Infinity && minFc > 0 ? minFc.toLocaleString('vi-VN') : '--';
                     sendLog(`🏟️ [Đấu Tiên Đài] Đang khiêu chiến ${bestName} (LC thấp nhất: ${powerStr}, còn ${freeCount} miễn phí, ${ticketCount} vé)...`, "action");
                     setTimeout(() => {
@@ -1786,7 +1913,9 @@
                     }, 1200);
                     return true;
                 }
-            } catch (e) { }
+            } catch (e) {
+                sendLog(`⚠️ [Đấu Tiên Đài] Lỗi khi xử lý khiêu chiến: ${e.message || e}`, "err");
+            }
             return false;
         }
 
@@ -2930,6 +3059,11 @@
 
                 sendRoleInfo();
                 hookGameEvents(ctx);
+
+                if ((CONFIG.autoArena || CONFIG.autoSkipFight) && handleArenaFightResult(ctx)) {
+                    lastActionTime = now;
+                    return;
+                }
 
                 // ⚡ BỎ QUA TRẬN ĐẤU THẦN TỐC: LUÔN CHẠY KÈM TẤT CẢ TÍNH NĂNG KHÁC!
                 if (CONFIG.autoSkipFight) {

@@ -61,7 +61,8 @@
         autoTamTienDai: false,          // Nhận quà miễn phí Tâm Tiên Đài và Chiêu Mộ
         buyTamTienGifts: true,          // Tự mua quà Tiên Ngọc Tâm Tiên Đài
         autoTienHuu: false,             // Tặng nhanh quà Bạn Bè (Tiên Hữu)
-        autoArena: false,               // Đấu Tiên Đài PvP (3-5 trận, delay 2.5s chọn đối thủ thấp)
+        autoArena: false,               // Đấu Tiên Đài PvP (giới hạn lượt, chọn đối thủ thấp)
+        arenaBattleLimit: 5,             // Số trận Đấu Tiên Đài tối đa mỗi lần chạy Auto
         autoMaDaoUyPhai: false,         // Tác chiến nhanh, Thưởng ủy phái Cam/Tím, Quà Tiên & Đạo Cụ Phường
         autoTienMinh: false,            // Tiên Minh: Trả giá, Cung phụng, Viện trợ 5 sao, Tăng cấp, Boss
         autoCuoiNgay: false,            // Nhận thư, Like BXH Đạo Thành 3 lần, Nhận rương Sôi Nổi (25-100)

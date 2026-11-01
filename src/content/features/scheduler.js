@@ -28,6 +28,11 @@
                 sendRoleInfo();
                 hookGameEvents(ctx);
 
+                if ((CONFIG.autoArena || CONFIG.autoSkipFight) && handleArenaFightResult(ctx)) {
+                    lastActionTime = now;
+                    return;
+                }
+
                 // ⚡ BỎ QUA TRẬN ĐẤU THẦN TỐC: LUÔN CHẠY KÈM TẤT CẢ TÍNH NĂNG KHÁC!
                 if (CONFIG.autoSkipFight) {
                     if (handleBattle(ctx)) {

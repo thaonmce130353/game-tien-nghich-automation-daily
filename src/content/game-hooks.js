@@ -156,24 +156,6 @@
                         }
                     }
 
-                    if (vm.viewIsVisible && (vm.viewIsVisible('arenaFightSucUi') || vm.viewIsVisible('arenaFightFailUi'))) {
-                        if (ctx.ArenaCtrl && ctx.ArenaCtrl.gInst) {
-                            const ac = ctx.ArenaCtrl.gInst();
-                            if (typeof ac.backToArena === 'function') ac.backToArena();
-                            else {
-                                vm.closeView('arenaFightSucUi');
-                                vm.closeView('arenaFightFailUi');
-                                if (typeof ac.opAnUi === 'function') ac.opAnUi();
-                            }
-                            if (typeof ac.send14201 === 'function') ac.send14201();
-                        } else {
-                            vm.closeView('arenaFightSucUi');
-                            vm.closeView('arenaFightFailUi');
-                        }
-                        sendLog("🏟️ [Đấu Tiên Đài] Kết thúc trận đấu, tự động quay lại đài để khiêu chiến tiếp!", "action");
-                        acted = true;
-                    }
-
                     const resultViewNames = [
                         'fightSuccessUi', 'fightFailUi', 'winUi', 'fightWinUi', 'fightResultUi', 'adventureResultUi', 'guildAskedFightResultUi'
                     ];
@@ -188,4 +170,3 @@
             } catch (e) { }
             return acted;
         }
-

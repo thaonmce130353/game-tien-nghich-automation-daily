@@ -100,6 +100,15 @@
                 cb.addEventListener('change', (e) => {
                     const key = cb.dataset.key;
                     if (e.target.checked) {
+                        if (key === 'autoTamTienDai') {
+                            CONFIG.buyTamTienGifts = true;
+                            const buyTamTienGiftsEl = document.getElementById('tn-opt-buy-tam-tien-gifts');
+                            if (buyTamTienGiftsEl) buyTamTienGiftsEl.checked = true;
+                        } else {
+                            CONFIG.buyTamTienGifts = false;
+                            const buyTamTienGiftsEl = document.getElementById('tn-opt-buy-tam-tien-gifts');
+                            if (buyTamTienGiftsEl) buyTamTienGiftsEl.checked = false;
+                        }
                         // Tắt tất cả các chức năng chính khác
                         mutexCheckboxes.forEach(other => {
                             if (other !== cb) other.checked = false;
@@ -114,6 +123,11 @@
                         addLogToUI("🎯 Chế độ Auto đã kích hoạt: " + title, "info");
                     } else {
                         CONFIG[key] = false;
+                        if (key === 'autoTamTienDai') {
+                            CONFIG.buyTamTienGifts = false;
+                            const buyTamTienGiftsEl = document.getElementById('tn-opt-buy-tam-tien-gifts');
+                            if (buyTamTienGiftsEl) buyTamTienGiftsEl.checked = false;
+                        }
                         if (CONFIG.activeFeature === key) CONFIG.activeFeature = null;
                         saveConfig();
                         sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
@@ -157,6 +171,18 @@
                             : "⏸️ Đã tắt mua quà Tâm Tiên Đài bằng Tiên Ngọc.",
                         "info"
                     );
+                });
+            }
+
+            const arenaBattleLimitEl = document.getElementById('tn-opt-arena-battle-limit');
+            if (arenaBattleLimitEl) {
+                arenaBattleLimitEl.addEventListener('change', (e) => {
+                    const input = e.target;
+                    const limit = Number(input.value);
+                    CONFIG.arenaBattleLimit = Number.isInteger(limit) && limit >= 1 ? limit : 5;
+                    input.value = String(CONFIG.arenaBattleLimit);
+                    saveConfig();
+                    sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                 });
             }
 
