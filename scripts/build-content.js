@@ -13,7 +13,6 @@ const sourceFiles = [
     'ui-markup.js',
     'ui-events.js',
     'game-bridge.js',
-    'features/auto-reconnect-joyplay.js',
     'game-hooks.js',
     'features/tong-tian-tower.js',
     'features/daily-dungeons.js',
@@ -73,7 +72,8 @@ function validateContent(bundle = createContentBundle()) {
 function buildContent() {
     const bundle = validateContent(createContentBundle());
     fs.writeFileSync(outputPath, bundle);
-    console.log(`Built ${path.relative(root, outputPath)} from ${sourceFiles.length} ordered source files.`);
+    const builtAt = new Date().toLocaleString();
+    console.log(`[${builtAt}] Built ${path.relative(root, outputPath)} from ${sourceFiles.length} ordered source files.`);
 }
 
 if (require.main === module) {

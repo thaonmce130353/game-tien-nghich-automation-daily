@@ -53,7 +53,7 @@
                     flex: 1;
                     overflow-y: auto;
                     max-height: none;
-                    min-height: 160px;
+                    min-height: 400px;
                     padding-right: 4px;
                 }
                 .tn-feature-panels::-webkit-scrollbar { width: 4px; }

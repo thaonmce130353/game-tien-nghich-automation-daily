@@ -19,7 +19,6 @@
         let lastAbyssClimbTime = 0;
         let lastArenaCheckTime = 0;
         let lastArenaFetchTime = 0;
-
         function sendLog(message, logType = 'info') {
             try {
                 if (typeof addLogToUI === 'function') { try { addLogToUI(message, logType); } catch(e){} }

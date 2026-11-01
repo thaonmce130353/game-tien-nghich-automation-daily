@@ -106,14 +106,6 @@
                 updateRoleDisplay(data.role);
             } else if (data.action === 'LOG') {
                 addLogToUI(data.message, data.logType);
-            } else if (data.action === 'AUTO_RECONNECT_GAME_READY') {
-                sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
-                addLogToUI(
-                    CONFIG.running
-                        ? '✅ Game đã vào lại; đã gửi lại cấu hình auto đang chạy.'
-                        : 'ℹ️ Game đã vào lại; auto vẫn đang tạm dừng.',
-                    CONFIG.running ? 'action' : 'info'
-                );
             }
         });
 

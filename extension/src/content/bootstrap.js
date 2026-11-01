@@ -86,6 +86,8 @@
         if (saved) Object.assign(CONFIG, JSON.parse(saved));
     } catch (e) { }
 
+    delete CONFIG.keepGameLive;
+
     if (CONFIG.activeFeature === 'autoForge') CONFIG.activeFeature = null;
     delete CONFIG.autoForge;
 
