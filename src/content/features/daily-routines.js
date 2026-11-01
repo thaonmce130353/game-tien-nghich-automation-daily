@@ -5,9 +5,418 @@
         ];
         const TAM_TIEN_REQUEST_TIMEOUT_MS = 20000;
         const TIEN_HUU_REQUEST_TIMEOUT_MS = 20000;
+        const CUOI_NGAY_REQUEST_TIMEOUT_MS = 20000;
         let tamTienDaiState = null;
         let tienHuuState = null;
+        let cuoiNgayState = null;
         let lastDailyRoutineError = '';
+
+        function createCuoiNgayState(emailCtrl, rankCtrl, acvCtrl) {
+            return {
+                dayKey: new Date().toDateString(),
+                emailCtrl,
+                rankCtrl,
+                acvCtrl,
+                phase: 'mail',
+                failed: false,
+                loggedErrors: new Set(),
+                mail: {
+                    opened: false,
+                    listBefore: null,
+                    requestedAt: 0,
+                    loaded: false,
+                    types: [],
+                    typeIndex: 0,
+                    pending: null,
+                    claimed: 0
+                },
+                rank: {
+                    opened: false,
+                    model: null,
+                    view: null,
+                    types: [],
+                    dataBefore: new Map(),
+                    worshipBefore: null,
+                    requestedAt: 0,
+                    loaded: false,
+                    rankIndex: 1,
+                    pending: null,
+                    worshipped: 0,
+                    skipped: 0
+                },
+                tasks: {
+                    opened: false,
+                    taskListBefore: null,
+                    requestedAt: 0,
+                    loaded: false,
+                    pending: null,
+                    taskClaims: 0,
+                    chestClaims: 0
+                }
+            };
+        }
+
+        function logCuoiNgayError(state, key, message) {
+            state.failed = true;
+            if (state.loggedErrors.has(key)) return;
+            state.loggedErrors.add(key);
+            sendLog(`⚠️ [M8 - Cuối Ngày] ${message}`, "err");
+        }
+
+        function finishCuoiNgay(state) {
+            state.phase = 'done';
+            const confirmedClaims = state.mail.claimed + state.rank.worshipped +
+                state.tasks.taskClaims + state.tasks.chestClaims;
+            if (state.failed) {
+                sendLog("⚠️ [M8 - Cuối Ngày] Đã kiểm tra xong nhưng một số thao tác chưa được máy chủ xác nhận; xem các lỗi phía trên.", "err");
+            } else if (confirmedClaims > 0) {
+                sendLog(`✅ [M8 - Cuối Ngày] Máy chủ xác nhận ${state.mail.claimed} lượt nhận nhanh Thư, ${state.rank.worshipped} lượt Hành Lễ và ${state.tasks.taskClaims + state.tasks.chestClaims} thưởng Nhiệm Vụ/Rương.`, "action");
+            } else {
+                sendLog("ℹ️ [M8 - Cuối Ngày] Đã kiểm tra trạng thái; không còn phần thưởng đang chờ nhận, không gửi lại thao tác đã hoàn tất.", "info");
+            }
+        }
+
+        function handleCuoiNgayMail(ctx, state) {
+            const emailCtrl = state.emailCtrl;
+            const tabTypes = ctx.EmailConst && ctx.EmailConst.EmailTabType;
+            if (!emailCtrl || !tabTypes ||
+                typeof emailCtrl.openElUi !== 'function' ||
+                typeof emailCtrl.reqDataBeforeEnter !== 'function' ||
+                typeof emailCtrl.isCanReward !== 'function' ||
+                typeof emailCtrl.send16007 !== 'function') {
+                logCuoiNgayError(state, 'mail-api', 'API Thư chưa sẵn sàng; bỏ qua bước nhận Thư.');
+                state.phase = 'rank';
+                return true;
+            }
+
+            if (!state.mail.opened) {
+                state.mail.listBefore = emailCtrl.mailDat && emailCtrl.mailDat.list;
+                state.mail.requestedAt = Date.now();
+                state.mail.opened = true;
+                const opened = emailCtrl.openElUi();
+                if (opened === false) {
+                    logCuoiNgayError(state, 'mail-locked', 'Không thể mở giao diện Thư; hãy kiểm tra điều kiện mở tính năng trong game.');
+                    state.phase = 'rank';
+                    return true;
+                }
+                emailCtrl.reqDataBeforeEnter();
+                sendLog("ℹ️ [M8 - Cuối Ngày - Thư] Đã mở Thư; đang tải trạng thái trước khi nhận nhanh.", "info");
+                return true;
+            }
+
+            if (!state.mail.loaded) {
+                const mailList = emailCtrl.mailDat && emailCtrl.mailDat.list;
+                if (Array.isArray(mailList) && mailList !== state.mail.listBefore) {
+                    state.mail.loaded = true;
+                    state.mail.types = [tabTypes.type_1, tabTypes.type_2];
+                } else if (Date.now() - state.mail.requestedAt >= CUOI_NGAY_REQUEST_TIMEOUT_MS) {
+                    logCuoiNgayError(state, 'mail-timeout', 'Hết thời gian chờ trạng thái Thư từ máy chủ; không xác nhận đã nhận.');
+                    state.phase = 'rank';
+                    return true;
+                } else {
+                    return true;
+                }
+            }
+
+            if (state.mail.pending) {
+                if (!emailCtrl.isCanReward(state.mail.pending.type)) {
+                    state.mail.claimed++;
+                    sendLog("✅ [M8 - Cuối Ngày - Thư] Máy chủ xác nhận đã nhận nhanh thư có đính kèm.", "action");
+                    state.mail.typeIndex++;
+                    state.mail.pending = null;
+                } else if (Date.now() - state.mail.pending.startedAt >= CUOI_NGAY_REQUEST_TIMEOUT_MS) {
+                    logCuoiNgayError(state, 'mail-claim-timeout', 'Máy chủ chưa xác nhận nhận nhanh Thư; không thử gửi lại để tránh nhận trùng.');
+                    state.mail.typeIndex++;
+                    state.mail.pending = null;
+                }
+                return true;
+            }
+
+            if (state.mail.typeIndex >= state.mail.types.length) {
+                state.phase = 'rank';
+                return true;
+            }
+
+            const type = state.mail.types[state.mail.typeIndex];
+            if (!Number.isFinite(type)) {
+                logCuoiNgayError(state, 'mail-type', 'Không tìm thấy loại Thư hợp lệ; bỏ qua bước nhận Thư.');
+                state.phase = 'rank';
+                return true;
+            }
+            if (!emailCtrl.isCanReward(type)) {
+                sendLog(`ℹ️ [M8 - Cuối Ngày - Thư] Không có thư chờ nhận ở loại ${type}; bỏ qua.`, "info");
+                state.mail.typeIndex++;
+                return true;
+            }
+
+            state.mail.pending = { type, startedAt: Date.now() };
+            emailCtrl.send16007(type);
+            sendLog(`ℹ️ [M8 - Cuối Ngày - Thư] Đã yêu cầu Nhận nhanh loại ${type}; đang chờ máy chủ xác nhận.`, "info");
+            return true;
+        }
+
+        function handleCuoiNgayRank(ctx, state) {
+            const rankCtrl = state.rankCtrl;
+            const rankConst = ctx.RankConst;
+            const viewMgr = ctx.ViewMgr && typeof ctx.ViewMgr.gInst === 'function'
+                ? ctx.ViewMgr.gInst()
+                : null;
+            if (!rankCtrl || !rankConst || !rankConst.RankType ||
+                typeof rankCtrl.getCurlModel !== 'function' ||
+                typeof rankCtrl.showRankMainView !== 'function' ||
+                typeof rankCtrl.send15005 !== 'function' ||
+                typeof rankCtrl.send15006 !== 'function' ||
+                !viewMgr || typeof viewMgr.getViewByName !== 'function' ||
+                !ctx.ViewConst || !ctx.ViewConst.rankUi ||
+                !ctx.egret || !ctx.egret.TouchEvent) {
+                logCuoiNgayError(state, 'rank-api', 'API BXH/Hành Lễ chưa sẵn sàng; bỏ qua bước BXH.');
+                state.phase = 'tasks';
+                return true;
+            }
+
+            if (!state.rank.opened) {
+                if (!state.rank.requestedAt) {
+                    state.rank.model = rankCtrl.getCurlModel();
+                    if (!state.rank.model ||
+                        typeof state.rank.model.getRankDataByType !== 'function' ||
+                        typeof state.rank.model.getCanWorship !== 'function') {
+                        logCuoiNgayError(state, 'rank-model', 'Không tìm thấy BXH Sức Mạnh để kiểm tra Hành Lễ.');
+                        state.phase = 'tasks';
+                        return true;
+                    }
+                    state.rank.requestedAt = Date.now();
+                    rankCtrl.showRankMainView();
+                }
+
+                state.rank.view = viewMgr.getViewByName(ctx.ViewConst.rankUi);
+                if (!state.rank.view) {
+                    if (Date.now() - state.rank.requestedAt >= CUOI_NGAY_REQUEST_TIMEOUT_MS) {
+                        logCuoiNgayError(state, 'rank-view-timeout', 'Hết thời gian chờ giao diện BXH Sức Mạnh; không Hành Lễ.');
+                        state.phase = 'tasks';
+                    }
+                    return true;
+                }
+                if (!state.rank.view.itemList ||
+                    typeof state.rank.view.itemList.getElementAt !== 'function' ||
+                    typeof state.rank.view.reqRankList !== 'function') {
+                    logCuoiNgayError(state, 'rank-view', 'Giao diện BXH chính chưa sẵn sàng để bấm các biểu tượng Hành Lễ.');
+                    state.phase = 'tasks';
+                    return true;
+                }
+
+                const rankTypes = state.rank.view.crtRankTypeArr;
+                if (!Array.isArray(rankTypes) || rankTypes.length === 0) {
+                    logCuoiNgayError(state, 'rank-types', 'BXH Sức Mạnh chưa có hạng mục khả dụng để Hành Lễ.');
+                    state.phase = 'tasks';
+                    return true;
+                }
+                state.rank.types = rankTypes.slice();
+                state.rank.types.forEach((type) => {
+                    state.rank.dataBefore.set(type, state.rank.model.getRankDataByType(type));
+                });
+                state.rank.worshipBefore = state.rank.model.worship_dic;
+                state.rank.requestedAt = Date.now();
+                state.rank.opened = true;
+                rankCtrl.send15005();
+                state.rank.view.reqRankList();
+                sendLog("ℹ️ [M8 - Cuối Ngày - BXH] Đã mở BXH Sức Mạnh; đang tải trạng thái các biểu tượng Hành Lễ.", "info");
+                return true;
+            }
+
+            if (!state.rank.loaded) {
+                const worshipData = state.rank.model.worship_dic;
+                const rankDataLoaded = state.rank.types.every((type) => {
+                    const rankData = state.rank.model.getRankDataByType(type);
+                    return rankData && rankData !== state.rank.dataBefore.get(type) &&
+                        Array.isArray(rankData.list);
+                });
+                if (rankDataLoaded && worshipData && worshipData !== state.rank.worshipBefore) {
+                    state.rank.loaded = true;
+                } else if (Date.now() - state.rank.requestedAt >= CUOI_NGAY_REQUEST_TIMEOUT_MS) {
+                    logCuoiNgayError(state, 'rank-timeout', 'Hết thời gian chờ trạng thái BXH Sức Mạnh/Hành Lễ; không xác nhận đã tương tác.');
+                    state.phase = 'tasks';
+                    return true;
+                } else {
+                    return true;
+                }
+            }
+
+            if (state.rank.pending) {
+                const type = state.rank.pending.type;
+                if (!state.rank.model.getCanWorship(type, 1)) {
+                    state.rank.worshipped++;
+                    sendLog(`✅ [M8 - Cuối Ngày - BXH] Máy chủ xác nhận đã Hành Lễ qua biểu tượng BXH loại ${type}.`, "action");
+                    state.rank.rankIndex++;
+                    state.rank.pending = null;
+                } else if (Date.now() - state.rank.pending.startedAt >= CUOI_NGAY_REQUEST_TIMEOUT_MS) {
+                    logCuoiNgayError(state, `rank-claim-timeout-${type}`, `Máy chủ chưa xác nhận Hành Lễ qua biểu tượng BXH loại ${type}; không gửi lại.`);
+                    state.rank.rankIndex++;
+                    state.rank.pending = null;
+                    return true;
+                } else {
+                    return true;
+                }
+            }
+
+            if (state.rank.rankIndex > state.rank.types.length) {
+                if (state.rank.skipped > 0 && state.rank.worshipped === 0) {
+                    sendLog(`ℹ️ [M8 - Cuối Ngày - BXH] Không còn lượt Hành Lễ khả dụng; đã bỏ qua ${state.rank.skipped} biểu tượng.`, "info");
+                } else if (state.rank.skipped > 0) {
+                    sendLog(`ℹ️ [M8 - Cuối Ngày - BXH] Đã bỏ qua ${state.rank.skipped} biểu tượng không còn lượt Hành Lễ khả dụng.`, "info");
+                }
+                state.phase = 'tasks';
+                return true;
+            }
+
+            const type = state.rank.types[state.rank.rankIndex - 1];
+            if (!state.rank.model.getCanWorship(type, 1)) {
+                state.rank.rankIndex++;
+                state.rank.skipped++;
+                return true;
+            }
+
+            const itemList = state.rank.view.itemList;
+            let rankItem = null;
+            for (let index = 0; index < itemList.numElements; index++) {
+                const item = itemList.getElementAt(index);
+                if (item && item.rankType === type) {
+                    rankItem = item;
+                    break;
+                }
+            }
+            const button = rankItem && rankItem.moBaiBtn;
+            if (!rankItem || !rankItem.needMoBai || !button ||
+                button.visible === false ||
+                typeof button.dispatchEventWith !== 'function') {
+                logCuoiNgayError(state, `rank-button-${type}`, `Không tìm thấy biểu tượng Hành Lễ khả dụng trên BXH Sức Mạnh loại ${type}.`);
+                state.rank.rankIndex++;
+                return true;
+            }
+
+            state.rank.pending = { type, startedAt: Date.now() };
+            button.dispatchEventWith(ctx.egret.TouchEvent.TOUCH_TAP, true);
+            sendLog(`ℹ️ [M8 - Cuối Ngày - BXH] Đã bấm biểu tượng Hành Lễ loại ${type}; đang chờ máy chủ xác nhận.`, "info");
+            return true;
+        }
+
+        function handleCuoiNgayTasks(ctx, state) {
+            const acvCtrl = state.acvCtrl;
+            const taskState = ctx.AcvConst && ctx.AcvConst.ETaskState;
+            if (!acvCtrl || !taskState ||
+                typeof acvCtrl.openAcvAct !== 'function' ||
+                typeof acvCtrl.send30501 !== 'function' ||
+                typeof acvCtrl.send12501 !== 'function' ||
+                typeof acvCtrl.send30503 !== 'function' ||
+                typeof acvCtrl.send30504 !== 'function') {
+                logCuoiNgayError(state, 'task-api', 'API Nhiệm Vụ/Rương chưa sẵn sàng; bỏ qua bước nhận thưởng.');
+                finishCuoiNgay(state);
+                return true;
+            }
+
+            if (!state.tasks.opened) {
+                state.tasks.taskListBefore = acvCtrl.taskDt;
+                state.tasks.requestedAt = Date.now();
+                state.tasks.opened = true;
+                acvCtrl.openAcvAct(0);
+                acvCtrl.send30501();
+                acvCtrl.send12501();
+                sendLog("ℹ️ [M8 - Cuối Ngày - Nhiệm Vụ] Đã mở Nhiệm Vụ; đang tải trạng thái nhiệm vụ và rương.", "info");
+                return true;
+            }
+
+            if (!state.tasks.loaded) {
+                if (Array.isArray(acvCtrl.taskDt) &&
+                    acvCtrl.taskDt !== state.tasks.taskListBefore &&
+                    Array.isArray(acvCtrl.tskStateLs)) {
+                    state.tasks.loaded = true;
+                } else if (Date.now() - state.tasks.requestedAt >= CUOI_NGAY_REQUEST_TIMEOUT_MS) {
+                    logCuoiNgayError(state, 'task-timeout', 'Hết thời gian chờ trạng thái Nhiệm Vụ/Rương; không xác nhận đã nhận.');
+                    finishCuoiNgay(state);
+                    return true;
+                } else {
+                    return true;
+                }
+            }
+
+            if (state.tasks.pending) {
+                const pending = state.tasks.pending;
+                if (pending.kind === 'task') {
+                    const task = acvCtrl.taskDt.find((entry) => entry && entry.task_id === pending.taskId);
+                    if (task && Number(task.status) === taskState.gain) {
+                        state.tasks.taskClaims++;
+                        sendLog(`✅ [M8 - Cuối Ngày - Nhiệm Vụ] Máy chủ xác nhận đã nhận nhiệm vụ #${pending.taskId}.`, "action");
+                        state.tasks.pending = null;
+                    }
+                } else if (acvCtrl.tskStateLs[pending.index] === taskState.gain) {
+                    state.tasks.chestClaims++;
+                    sendLog(`✅ [M8 - Cuối Ngày - Rương] Máy chủ xác nhận đã nhận rương năng động #${pending.index + 1}.`, "action");
+                    state.tasks.pending = null;
+                }
+
+                if (state.tasks.pending &&
+                    Date.now() - state.tasks.pending.startedAt >= CUOI_NGAY_REQUEST_TIMEOUT_MS) {
+                    logCuoiNgayError(state, 'task-claim-timeout', 'Máy chủ chưa xác nhận một yêu cầu nhận thưởng Nhiệm Vụ/Rương; không gửi lại.');
+                    state.tasks.pending = null;
+                }
+                return true;
+            }
+
+            const task = acvCtrl.taskDt.find((entry) =>
+                entry && Number(entry.status) === taskState.finish
+            );
+            if (task) {
+                state.tasks.pending = {
+                    kind: 'task',
+                    taskId: task.task_id,
+                    startedAt: Date.now()
+                };
+                acvCtrl.send30503(task.task_id);
+                sendLog(`ℹ️ [M8 - Cuối Ngày - Nhiệm Vụ] Đã yêu cầu nhận nhiệm vụ #${task.task_id}; đang chờ máy chủ xác nhận.`, "info");
+                return true;
+            }
+
+            const chestIndex = acvCtrl.tskStateLs.findIndex((status) =>
+                status === taskState.finish
+            );
+            if (chestIndex >= 0) {
+                state.tasks.pending = {
+                    kind: 'chest',
+                    index: chestIndex,
+                    startedAt: Date.now()
+                };
+                acvCtrl.send30504(chestIndex);
+                sendLog(`ℹ️ [M8 - Cuối Ngày - Rương] Đã yêu cầu nhận rương năng động #${chestIndex + 1}; đang chờ máy chủ xác nhận.`, "info");
+                return true;
+            }
+
+            finishCuoiNgay(state);
+            return true;
+        }
+
+        function handleCuoiNgay(ctx) {
+            const emailCtrl = ctx.EmailCtrl && typeof ctx.EmailCtrl.gInst === 'function'
+                ? ctx.EmailCtrl.gInst()
+                : null;
+            const rankCtrl = ctx.RankCtrl && typeof ctx.RankCtrl.gInst === 'function'
+                ? ctx.RankCtrl.gInst()
+                : null;
+            const acvCtrl = ctx.AcvCtrl && typeof ctx.AcvCtrl.gInst === 'function'
+                ? ctx.AcvCtrl.gInst()
+                : null;
+            const dayKey = new Date().toDateString();
+            if (!cuoiNgayState || cuoiNgayState.dayKey !== dayKey ||
+                cuoiNgayState.emailCtrl !== emailCtrl ||
+                cuoiNgayState.rankCtrl !== rankCtrl ||
+                cuoiNgayState.acvCtrl !== acvCtrl) {
+                cuoiNgayState = createCuoiNgayState(emailCtrl, rankCtrl, acvCtrl);
+            }
+
+            const state = cuoiNgayState;
+            if (state.phase === 'done') return true;
+            if (state.phase === 'mail') return handleCuoiNgayMail(ctx, state);
+            if (state.phase === 'rank') return handleCuoiNgayRank(ctx, state);
+            return handleCuoiNgayTasks(ctx, state);
+        }
 
         function isTamTienGiftSupported(gift) {
             if (!gift) return false;
@@ -490,17 +899,7 @@
                 }
                 // 5. Cuối Ngày (Thư, Like BXH, Sôi Nổi)
                 if (CONFIG.activeFeature === 'autoCuoiNgay') {
-                    if (ctx.MailCtrl && ctx.MailCtrl.gInst && typeof ctx.MailCtrl.gInst().claimAllMails === 'function') {
-                        ctx.MailCtrl.gInst().claimAllMails();
-                    }
-                    if (ctx.RankCtrl && ctx.RankCtrl.gInst && typeof ctx.RankCtrl.gInst().likeTopPlayers === 'function') {
-                        ctx.RankCtrl.gInst().likeTopPlayers(3);
-                    }
-                    if (ctx.TaskCtrl && ctx.TaskCtrl.gInst && typeof ctx.TaskCtrl.gInst().claimActiveChests === 'function') {
-                        ctx.TaskCtrl.gInst().claimActiveChests([25, 50, 75, 100]);
-                    }
-                    sendLog("📬 [M8 - Cuối Ngày] Đã nhận sạch Thư, Like BXH 3 lần & mở Rương Sôi Nổi 100!", "action");
-                    return true;
+                    return handleCuoiNgay(ctx);
                 }
                 return false;
             } catch (error) {

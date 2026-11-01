@@ -1,5 +1,6 @@
 
         let wasAutoRunning = false;
+        const CUOI_NGAY_ACTION_INTERVAL_MS = 800;
 
         function executeCycle(isManualOnce = false) {
             if (!CONFIG.running && !isManualOnce) {
@@ -19,17 +20,29 @@
                     tienHuuState.dayKey === new Date().toDateString()) {
                     sendLog("ℹ️ [M8 - Tiên Hữu] Tặng nhanh hôm nay đã hoàn tất; không gửi lại.", "info");
                 }
+                if (CONFIG.activeFeature === 'autoCuoiNgay') {
+                    if (cuoiNgayState && cuoiNgayState.phase === 'done' &&
+                        cuoiNgayState.dayKey === new Date().toDateString()) {
+                        sendLog("ℹ️ [M8 - Cuối Ngày] Trạng thái hôm nay đã được kiểm tra; không lặp lại thao tác.", "info");
+                    } else {
+                        sendLog("ℹ️ [M8 - Cuối Ngày] Auto đã bắt đầu/khởi động lại; đang kiểm tra trạng thái game trước khi nhận.", "info");
+                    }
+                }
             }
 
             const now = Date.now();
-            if (now - lastActionTime < (CONFIG.intervalMs || 1200)) return;
+            const active = CONFIG.activeFeature;
+            const actionInterval = active === 'autoCuoiNgay'
+                ? CUOI_NGAY_ACTION_INTERVAL_MS
+                : (CONFIG.intervalMs || 1200);
+            if (now - lastActionTime < actionInterval) return;
 
             isExecuting = true;
             try {
                 const ctx = window;
                 if (!ctx.DailyDungeonCtrl && !ctx.TowerCtrl && !ctx.CampCtrl && !ctx.WJCtrl &&
                     !ctx.GodWeaponCtrl && !ctx.HangupCtrl && !ctx.WelfareCtrl && !ctx.RecruitCtrl &&
-                    !ctx.FriendCtrl) return;
+                    !ctx.FriendCtrl && !ctx.EmailCtrl && !ctx.RankCtrl && !ctx.AcvCtrl) return;
 
                 sendRoleInfo();
                 hookGameEvents(ctx);
@@ -53,8 +66,6 @@
                 }
 
                 // 🎯 ĐỘC QUYỀN 1 CHỨC NĂNG CHÍNH (MUTEX): CHỐNG XUNG ĐỘT
-                const active = CONFIG.activeFeature;
-
                 // 1. ĐẠO THÀNH: Rèn Tiên Khí & Nâng Khí Đỉnh
                 if (active === 'autoForge' || (CONFIG.autoForge && !active)) {
                     if (handleForge(ctx)) { lastActionTime = now; return; }
