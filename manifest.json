@@ -1,0 +1,55 @@
+{
+  "manifest_version": 3,
+  "name": "Auto Tiên Nghịch Mobile",
+  "version": "1.0.0",
+  "description": "Tiện ích Auto Tiên Nghịch Mobile. Tự động thực hiện các nhiệm vụ trong game.",
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    },
+    "default_title": "Auto Tiên Nghịch Mobile"
+  },
+  "permissions": [
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://tiennghich.joyplay.vn/*",
+    "https://tiennghich.acejoygame.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://tiennghich.joyplay.vn/*",
+        "https://tiennghich.acejoygame.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_end",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "content.js",
+        "icon128.png",
+        "icon48.png",
+        "icon16.png"
+      ],
+      "matches": [
+        "https://tiennghich.joyplay.vn/*",
+        "https://tiennghich.acejoygame.com/*"
+      ]
+    }
+  ]
+}
