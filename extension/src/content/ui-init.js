@@ -24,25 +24,6 @@
             }
         }
 
-        function autoReconnectJoyplay() {
-            try {
-                const btns = Array.from(document.querySelectorAll('button, a, div[role="button"], span'));
-                for (const b of btns) {
-                    const txt = (b.innerText || b.textContent || '').trim().toLowerCase();
-                    if (txt === 'thử lại' || txt === 'kết nối lại' || txt === 'tải lại' || txt === 'reconnect' || txt === 'đồng ý') {
-                        const rect = b.getBoundingClientRect();
-                        if (rect.width > 0 && rect.height > 0 && rect.top >= 0) {
-                            b.click();
-                            console.log('[Tiên Nghịch Auto] Đã tự động nhấn nút kết nối lại:', txt);
-                            break;
-                        }
-                    }
-                }
-            } catch(e) {}
-        }
-        setInterval(autoReconnectJoyplay, 3000);
-
-
         function updateRoleDisplay(role) {
             if (!role) return;
             const nameEl = document.getElementById('tn-role-name');
@@ -125,6 +106,14 @@
                 updateRoleDisplay(data.role);
             } else if (data.action === 'LOG') {
                 addLogToUI(data.message, data.logType);
+            } else if (data.action === 'AUTO_RECONNECT_GAME_READY') {
+                sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
+                addLogToUI(
+                    CONFIG.running
+                        ? '✅ Game đã vào lại; đã gửi lại cấu hình auto đang chạy.'
+                        : 'ℹ️ Game đã vào lại; auto vẫn đang tạm dừng.',
+                    CONFIG.running ? 'action' : 'info'
+                );
             }
         });
 

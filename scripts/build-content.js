@@ -13,6 +13,7 @@ const sourceFiles = [
     'ui-markup.js',
     'ui-events.js',
     'game-bridge.js',
+    'features/auto-reconnect-joyplay.js',
     'game-hooks.js',
     'features/tong-tian-tower.js',
     'features/daily-dungeons.js',

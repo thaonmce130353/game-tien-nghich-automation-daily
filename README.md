@@ -63,6 +63,7 @@ Each feature module contains its handler and feature-specific state in one file.
 | `extension/src/content/features/dragon-minigame.js` | Điêu Long Khắc Tinh |
 | `extension/src/content/features/daily-routines.js` | Mail quick claims, leaderboard worship, daily task/chest claims, Tiên Hữu quick gifting, and guild routines |
 | `extension/src/content/features/scheduler.js` | Existing feature dispatch and automation cycle |
+| `extension/src/content/features/auto-reconnect-joyplay.js` | Joyplay game disconnect detection and reconnect |
 
 Some existing handlers intentionally cover multiple related options, such as hangup rewards/quick hang and the shared daily routines. They remain together to avoid changing behavior.
 
