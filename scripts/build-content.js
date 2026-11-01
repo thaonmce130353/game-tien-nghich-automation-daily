@@ -23,7 +23,6 @@ const sourceFiles = [
     'features/sweep-dungeons.js',
     'features/hangup-rewards.js',
     'features/daily-tasks.js',
-    'features/auto-forge.js',
     'features/extreme-yin.js',
     'features/main-stage.js',
     'features/xian-yuan.js',

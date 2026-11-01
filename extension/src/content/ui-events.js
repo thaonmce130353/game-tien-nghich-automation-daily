@@ -81,7 +81,7 @@
             // CẤU HÌNH ĐỘC QUYỀN 1 CHỨC NĂNG DUY NHẤT (MUTEX) ĐỂ TRÁNH XUNG ĐỘT
             const mainFeatures = [
                 'autoTongTian', 'autoClimbDailyDungeons', 'autoClimbYMAbyss', 'autoClimbCamp',
-                'autoSweepDungeons', 'autoExtremeYin', 'autoArena', 'autoForge',
+                'autoSweepDungeons', 'autoExtremeYin', 'autoArena',
                 'autoMainStage', 'autoHangupReward', 'autoQuickHang', 'autoXianYuan', 'autoDailyTask'
             ];
 

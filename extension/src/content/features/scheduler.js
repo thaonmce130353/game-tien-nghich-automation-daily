@@ -76,12 +76,8 @@
                 }
 
                 // 🎯 ĐỘC QUYỀN 1 CHỨC NĂNG CHÍNH (MUTEX): CHỐNG XUNG ĐỘT
-                // 1. ĐẠO THÀNH: Rèn Tiên Khí & Nâng Khí Đỉnh
-                if (active === 'autoForge' || (CONFIG.autoForge && !active)) {
-                    if (handleForge(ctx)) { lastActionTime = now; return; }
-                }
-                // 2. ĐẠO THÀNH: Đấu Tiên Đài
-                else if (active === 'autoArena' || (CONFIG.autoArena && !active)) {
+                // 1. ĐẠO THÀNH: Đấu Tiên Đài
+                if (active === 'autoArena' || (CONFIG.autoArena && !active)) {
                     if (handleArena(ctx)) { lastActionTime = now; return; }
                 }
                 // --- ĐIỀU PHỐI 8 MODULE ƯU TIÊN VÀ CÁC HOẠT ĐỘNG ---

@@ -68,7 +68,6 @@
         autoCuoiNgay: false,            // Nhận thư, Like BXH Đạo Thành 3 lần, Nhận rương Sôi Nổi (25-100)
         
         // Các tính năng kinh điển bổ trợ
-        autoForge: false,               // Tự động rèn Tiên Khí & Nâng Khí Đỉnh
         autoClimbYMAbyss: false,        // Leo Vực U Minh
         autoSweepDungeons: false,       // Quét sạch phụ bản đã vượt
         autoMainStage: false,           // Ải Chính Tuyến Ma Đạo
@@ -86,6 +85,9 @@
         const saved = localStorage.getItem('TN_AUTO_CFG_V293');
         if (saved) Object.assign(CONFIG, JSON.parse(saved));
     } catch (e) { }
+
+    if (CONFIG.activeFeature === 'autoForge') CONFIG.activeFeature = null;
+    delete CONFIG.autoForge;
 
     CONFIG.running = false;
 

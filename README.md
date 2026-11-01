@@ -50,7 +50,6 @@ Each feature module contains its handler and feature-specific state in one file.
 | `extension/src/content/features/sweep-dungeons.js` | Dungeon sweep |
 | `extension/src/content/features/hangup-rewards.js` | Hangup rewards and quick hang |
 | `extension/src/content/features/daily-tasks.js` | Daily tasks |
-| `extension/src/content/features/auto-forge.js` | Rèn Tiên Khí & Nâng Khí Đỉnh |
 | `extension/src/content/features/extreme-yin.js` | Cực Âm Địa |
 | `extension/src/content/features/main-stage.js` | Main-stage progression |
 | `extension/src/content/features/xian-yuan.js` | Quà Tiên Duyên |

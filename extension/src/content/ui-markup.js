@@ -104,13 +104,6 @@
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoCuoiNgay" ${CONFIG.activeFeature === 'autoCuoiNgay' ? 'checked' : ''}>
                                     </label>
-                                    <label class="tn-opt-item" style="border-left: 3px solid #f5c2e7;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#f5c2e7;">🔨 Rèn Tiên Khí & Nâng Khí Đỉnh</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Tự rèn trang bị phẩm cao & nâng cấp Khí Đỉnh khi đủ Đá Sao Trời.</div>
-                                        </div>
-                                        <input type="checkbox" class="tn-mutex-feature" data-key="autoForge" ${CONFIG.activeFeature === 'autoForge' ? 'checked' : ''}>
-                                    </label>
                                 </div>
                             </div>
 
