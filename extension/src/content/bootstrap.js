@@ -87,11 +87,15 @@
         if (saved) Object.assign(CONFIG, JSON.parse(saved));
     } catch (e) { }
 
+    CONFIG.running = false;
+
     function saveConfig() {
         try {
             localStorage.setItem('TN_AUTO_CFG_V293', JSON.stringify(CONFIG));
         } catch (e) { }
     }
+
+    saveConfig();
 
     const isTopWindow = (window === window.top);
     const isStandaloneGame = isTopWindow && !!window.DailyDungeonCtrl;

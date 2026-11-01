@@ -37,6 +37,7 @@
                     display: flex;
                     flex-direction: column;
                     gap: 6px;
+                    min-height: 0;
                 }
                 .tn-col-right {
                     flex: 1;
@@ -51,7 +52,7 @@
                 .tn-feature-panels {
                     flex: 1;
                     overflow-y: auto;
-                    max-height: 440px;
+                    max-height: none;
                     padding-right: 4px;
                 }
                 .tn-feature-panels::-webkit-scrollbar { width: 4px; }
@@ -248,7 +249,7 @@
                     flex-direction: column;
                     gap: 5px;
                     margin-bottom: 10px;
-                    max-height: 190px;
+                    max-height: none;
                     overflow-y: auto;
                     padding-right: 4px;
                 }
@@ -289,16 +290,12 @@
                     background: #11111b;
                     border-radius: 6px;
                     padding: 6px 8px;
-                    height: 70px;
+                    flex: 1 1 0;
+                    min-height: 0;
                     overflow-y: auto;
                     font-family: Consolas, monospace;
                     font-size: 10px;
                     border: 1px solid rgba(255, 255, 255, 0.05);
-                }
-                #tn-auto-hud.tn-user-resized #tn-log-content {
-                    flex: 1;
-                    min-height: 70px;
-                    height: auto;
                 }
                 #tn-log-content::-webkit-scrollbar { width: 4px; }
                 #tn-log-content::-webkit-scrollbar-thumb { background: #313244; }

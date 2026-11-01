@@ -20,6 +20,14 @@
                     tienHuuState.dayKey === new Date().toDateString()) {
                     sendLog("ℹ️ [M8 - Tiên Hữu] Tặng nhanh hôm nay đã hoàn tất; không gửi lại.", "info");
                 }
+                if (CONFIG.activeFeature === 'autoTienMinh') {
+                    if (tienMinhState && tienMinhState.phase === 'done' &&
+                        tienMinhState.dayKey === new Date().toDateString()) {
+                        sendLog("ℹ️ [M8 - Tiên Minh] Trạng thái hôm nay đã được kiểm tra; không lặp lại thao tác.", "info");
+                    } else {
+                        sendLog("ℹ️ [M8 - Tiên Minh] Auto đã bắt đầu/khởi động lại; đang kiểm tra trạng thái game trước khi tiếp tục.", "info");
+                    }
+                }
                 if (CONFIG.activeFeature === 'autoCuoiNgay') {
                     if (cuoiNgayState && cuoiNgayState.phase === 'done' &&
                         cuoiNgayState.dayKey === new Date().toDateString()) {
@@ -42,7 +50,9 @@
                 const ctx = window;
                 if (!ctx.DailyDungeonCtrl && !ctx.TowerCtrl && !ctx.CampCtrl && !ctx.WJCtrl &&
                     !ctx.GodWeaponCtrl && !ctx.HangupCtrl && !ctx.WelfareCtrl && !ctx.RecruitCtrl &&
-                    !ctx.FriendCtrl && !ctx.EmailCtrl && !ctx.RankCtrl && !ctx.AcvCtrl) return;
+                    !ctx.FriendCtrl && !ctx.EmailCtrl && !ctx.RankCtrl && !ctx.AcvCtrl &&
+                    !ctx.GuildCtrl && !ctx.GldWrCtrl &&
+                    CONFIG.activeFeature !== 'autoTienMinh') return;
 
                 sendRoleInfo();
                 hookGameEvents(ctx);
