@@ -3,8 +3,9 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '..');
-const sourceRoot = path.join(root, 'src', 'content');
-const outputPath = path.join(root, 'content.js');
+const extensionRoot = path.join(root, 'extension');
+const sourceRoot = path.join(extensionRoot, 'src', 'content');
+const outputPath = path.join(extensionRoot, 'content.js');
 const sourceFiles = [
     'bootstrap.js',
     'ui-init.js',
