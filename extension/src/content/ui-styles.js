@@ -53,6 +53,7 @@
                     flex: 1;
                     overflow-y: auto;
                     max-height: none;
+                    min-height: 160px;
                     padding-right: 4px;
                 }
                 .tn-feature-panels::-webkit-scrollbar { width: 4px; }
@@ -229,6 +230,7 @@
                     display: flex;
                     flex-direction: column;
                     max-height: none;
+                    min-height: 0;
                 }
                 #tn-auto-hud.tn-user-resized .tn-tab-panel.active {
                     flex: 1;
