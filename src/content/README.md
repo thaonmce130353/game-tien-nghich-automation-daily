@@ -61,7 +61,7 @@ Each feature module contains its handler and feature-specific state in one file.
 | `features/immortal-relic.js` | Di Tích Tiên Giới |
 | `features/memory-minigame.js` | Ảo Cảnh Pháp Trận |
 | `features/dragon-minigame.js` | Điêu Long Khắc Tinh |
-| `features/daily-routines.js` | Shared daily claims and guild routines |
+| `features/daily-routines.js` | Daily claims, Tiên Hữu quick gifting, and guild routines |
 | `features/scheduler.js` | Existing feature dispatch and automation cycle |
 
 Some existing handlers intentionally cover multiple related options, such as hangup rewards/quick hang and the shared daily routines. They remain together to avoid changing behavior.

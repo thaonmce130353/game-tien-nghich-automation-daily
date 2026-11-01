@@ -1390,6 +1390,8 @@
                     isTowerChallenging = false;
                     waitingForFloorUpdate = false;
                     executeCycle(false);
+                } else {
+                    wasAutoRunning = false;
                 }
             } else if (data.action === 'RUN_SWEEP') {
                 handleSweepDungeons(window, true);
@@ -2660,7 +2662,9 @@
             { typeKey: 'type_3', label: 'Quà Pháp Trận' }
         ];
         const TAM_TIEN_REQUEST_TIMEOUT_MS = 20000;
+        const TIEN_HUU_REQUEST_TIMEOUT_MS = 20000;
         let tamTienDaiState = null;
+        let tienHuuState = null;
         let lastDailyRoutineError = '';
 
         function isTamTienGiftSupported(gift) {
@@ -2972,6 +2976,146 @@
             return true;
         }
 
+        function handleTienHuu(ctx) {
+            const friendCtrl = ctx.FriendCtrl && ctx.FriendCtrl.gInst
+                ? ctx.FriendCtrl.gInst()
+                : null;
+            const dayKey = new Date().toDateString();
+            if (!tienHuuState || tienHuuState.friendCtrl !== friendCtrl ||
+                tienHuuState.dayKey !== dayKey) {
+                tienHuuState = {
+                    friendCtrl,
+                    dayKey,
+                    phase: 'ready',
+                    startedAt: 0,
+                    giveCount: 0,
+                    acceptCount: 0,
+                    pendingGifts: [],
+                    pendingAccepts: []
+                };
+            }
+
+            const state = tienHuuState;
+            const now = Date.now();
+            if (state.phase === 'done' || state.phase === 'error') return true;
+
+            if (!friendCtrl) {
+                sendLog("⚠️ [M8 - Tiên Hữu] Không tìm thấy bộ điều khiển bạn bè.", "err");
+                state.phase = 'error';
+                return true;
+            }
+
+            if (!friendCtrl.m_friend_data) {
+                if (state.phase === 'loading') {
+                    if (now - state.startedAt >= TIEN_HUU_REQUEST_TIMEOUT_MS) {
+                        sendLog("⚠️ [M8 - Tiên Hữu] Hết thời gian chờ danh sách bạn bè từ máy chủ.", "err");
+                        state.phase = 'error';
+                    }
+                    return true;
+                }
+                if (typeof friendCtrl.send11801Msg !== 'function') {
+                    sendLog("⚠️ [M8 - Tiên Hữu] API tải danh sách bạn bè chưa sẵn sàng.", "err");
+                    state.phase = 'error';
+                    return true;
+                }
+                try {
+                    friendCtrl.send11801Msg();
+                    state.phase = 'loading';
+                    state.startedAt = now;
+                    sendLog("ℹ️ [M8 - Tiên Hữu] Đang tải danh sách bạn bè để kiểm tra Tặng nhanh.", "info");
+                } catch (error) {
+                    sendLog(`⚠️ [M8 - Tiên Hữu] Không thể tải danh sách bạn bè: ${error.message || error}`, "err");
+                    state.phase = 'error';
+                }
+                return true;
+            }
+
+            if (state.phase === 'loading') state.phase = 'ready';
+
+            if (state.phase === 'sending') {
+                const sentCount = state.pendingGifts.filter((friend) =>
+                    Number(friend.energy_give_status) === 1
+                ).length;
+                const acceptedCount = state.pendingAccepts.filter((friend) =>
+                    Number(friend.energy_accept_status) === 1
+                ).length;
+                const giveCount = Number(friendCtrl.m_energy_give_count);
+                const acceptCount = Number(friendCtrl.m_energy_accept_count);
+                const confirmedGifts = Math.max(
+                    sentCount,
+                    Number.isFinite(giveCount) ? giveCount - state.giveCount : 0
+                );
+                const confirmedAccepts = Math.max(
+                    acceptedCount,
+                    Number.isFinite(acceptCount) ? acceptCount - state.acceptCount : 0
+                );
+
+                if (confirmedGifts > 0 || confirmedAccepts > 0) {
+                    const results = [];
+                    if (confirmedGifts > 0) results.push(`đã tặng ${confirmedGifts} bạn bè`);
+                    if (confirmedAccepts > 0) results.push(`đã nhận thể lực từ ${confirmedAccepts} bạn bè`);
+                    sendLog(`✅ [M8 - Tiên Hữu] Máy chủ xác nhận Tặng nhanh: ${results.join(', ')}.`, "success");
+                    state.phase = 'done';
+                } else if (now - state.startedAt >= TIEN_HUU_REQUEST_TIMEOUT_MS) {
+                    sendLog("⚠️ [M8 - Tiên Hữu] Máy chủ chưa xác nhận thao tác Tặng nhanh.", "err");
+                    state.phase = 'error';
+                }
+                return true;
+            }
+
+            if (typeof friendCtrl.getFriendListByType !== 'function' ||
+                typeof friendCtrl.getAndSendLove !== 'function' ||
+                !ctx.FriendConst || !ctx.FriendConst.friendRelationType) {
+                sendLog("⚠️ [M8 - Tiên Hữu] API Tặng nhanh chưa sẵn sàng.", "err");
+                state.phase = 'error';
+                return true;
+            }
+
+            let friends;
+            try {
+                friends = friendCtrl.getFriendListByType(ctx.FriendConst.friendRelationType.friend);
+            } catch (error) {
+                sendLog(`⚠️ [M8 - Tiên Hữu] Không thể đọc danh sách bạn bè: ${error.message || error}`, "err");
+                state.phase = 'error';
+                return true;
+            }
+            if (!Array.isArray(friends)) {
+                sendLog("⚠️ [M8 - Tiên Hữu] Danh sách bạn bè không hợp lệ.", "err");
+                state.phase = 'error';
+                return true;
+            }
+
+            const pendingGifts = friends.filter((friend) =>
+                friend && Number(friend.energy_give_status) === 0
+            );
+            const maxDailyAccepts = Number(ctx.FriendConst.GET_VIGOR_MAX_NUM);
+            const acceptCount = Number(friendCtrl.m_energy_accept_count);
+            const pendingAccepts = Number.isFinite(maxDailyAccepts) &&
+                Number.isFinite(acceptCount) && acceptCount < maxDailyAccepts
+                ? friends.filter((friend) => friend && Number(friend.energy_accept_status) === 2)
+                : [];
+
+            if (pendingGifts.length === 0 && pendingAccepts.length === 0) {
+                sendLog("ℹ️ [M8 - Tiên Hữu] Đã Tặng nhanh hoặc không có bạn bè cần gửi/nhận thể lực.", "info");
+                state.phase = 'done';
+                return true;
+            }
+
+            state.phase = 'sending';
+            state.startedAt = now;
+            state.giveCount = Number(friendCtrl.m_energy_give_count) || 0;
+            state.acceptCount = acceptCount || 0;
+            state.pendingGifts = pendingGifts;
+            state.pendingAccepts = pendingAccepts;
+            try {
+                friendCtrl.getAndSendLove();
+            } catch (error) {
+                sendLog(`⚠️ [M8 - Tiên Hữu] Không thể thực hiện Tặng nhanh: ${error.message || error}`, "err");
+                state.phase = 'error';
+            }
+            return true;
+        }
+
         function handleDailyRoutine(ctx) {
             try {
                 // 1. Trợ chiến linh thú
@@ -2987,12 +3131,8 @@
                     return handleTamTienDai(ctx);
                 }
                 // 3. Tiên Hữu (Bạn bè)
-                if (CONFIG.activeFeature === 'autoTienHuu' && ctx.FriendCtrl && ctx.FriendCtrl.gInst) {
-                    const fc = ctx.FriendCtrl.gInst();
-                    if (typeof fc.sendAllGifts === 'function') {
-                        fc.sendAllGifts();
-                        sendLog("🤝 [M8 - Tiên Hữu] Đã bấm Tặng nhanh cho toàn bộ bạn bè!", "action");
-                    }
+                if (CONFIG.activeFeature === 'autoTienHuu') {
+                    return handleTienHuu(ctx);
                 }
                 // 4. Tiên Minh (Bang Hội)
                 if (CONFIG.activeFeature === 'autoTienMinh' && ctx.GuildCtrl && ctx.GuildCtrl.gInst) {
@@ -3046,6 +3186,11 @@
                     tamTienDaiState && tamTienDaiState.phase === 'done') {
                     sendLog("ℹ️ [M8 - Tâm Tiên Đài] Lượt xử lý hôm nay đã hoàn tất trước đó; không nhận hoặc mua lại quà.", "info");
                 }
+                if (CONFIG.activeFeature === 'autoTienHuu' &&
+                    tienHuuState && tienHuuState.phase === 'done' &&
+                    tienHuuState.dayKey === new Date().toDateString()) {
+                    sendLog("ℹ️ [M8 - Tiên Hữu] Tặng nhanh hôm nay đã hoàn tất; không gửi lại.", "info");
+                }
             }
 
             const now = Date.now();
@@ -3055,7 +3200,8 @@
             try {
                 const ctx = window;
                 if (!ctx.DailyDungeonCtrl && !ctx.TowerCtrl && !ctx.CampCtrl && !ctx.WJCtrl &&
-                    !ctx.GodWeaponCtrl && !ctx.HangupCtrl && !ctx.WelfareCtrl && !ctx.RecruitCtrl) return;
+                    !ctx.GodWeaponCtrl && !ctx.HangupCtrl && !ctx.WelfareCtrl && !ctx.RecruitCtrl &&
+                    !ctx.FriendCtrl) return;
 
                 sendRoleInfo();
                 hookGameEvents(ctx);

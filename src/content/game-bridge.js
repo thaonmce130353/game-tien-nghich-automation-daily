@@ -207,6 +207,8 @@
                     isTowerChallenging = false;
                     waitingForFloorUpdate = false;
                     executeCycle(false);
+                } else {
+                    wasAutoRunning = false;
                 }
             } else if (data.action === 'RUN_SWEEP') {
                 handleSweepDungeons(window, true);

@@ -14,6 +14,11 @@
                     tamTienDaiState && tamTienDaiState.phase === 'done') {
                     sendLog("ℹ️ [M8 - Tâm Tiên Đài] Lượt xử lý hôm nay đã hoàn tất trước đó; không nhận hoặc mua lại quà.", "info");
                 }
+                if (CONFIG.activeFeature === 'autoTienHuu' &&
+                    tienHuuState && tienHuuState.phase === 'done' &&
+                    tienHuuState.dayKey === new Date().toDateString()) {
+                    sendLog("ℹ️ [M8 - Tiên Hữu] Tặng nhanh hôm nay đã hoàn tất; không gửi lại.", "info");
+                }
             }
 
             const now = Date.now();
@@ -23,7 +28,8 @@
             try {
                 const ctx = window;
                 if (!ctx.DailyDungeonCtrl && !ctx.TowerCtrl && !ctx.CampCtrl && !ctx.WJCtrl &&
-                    !ctx.GodWeaponCtrl && !ctx.HangupCtrl && !ctx.WelfareCtrl && !ctx.RecruitCtrl) return;
+                    !ctx.GodWeaponCtrl && !ctx.HangupCtrl && !ctx.WelfareCtrl && !ctx.RecruitCtrl &&
+                    !ctx.FriendCtrl) return;
 
                 sendRoleInfo();
                 hookGameEvents(ctx);
