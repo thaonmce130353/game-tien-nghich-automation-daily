@@ -53,7 +53,7 @@
             bar.append(refresh, status);
 
             const listBox = document.createElement('div');
-            listBox.className = 'tn-opt-list';
+            listBox.style.cssText = 'display:flex;flex-direction:column;gap:5px;';
 
             const note = document.createElement('div');
             note.style.cssText = 'font-size:9.5px;color:#a6adc8;line-height:1.35;margin-top:6px;';
@@ -61,7 +61,11 @@
 
             refresh.addEventListener('click', () => { status.textContent = 'Đang tải...'; bannerUiRequest(); });
 
-            panel.append(intro, bar, listBox, note);
+            // Một khối .tn-opt-list duy nhất làm con đầu tiên của tab để bố cục HUD xếp nội dung từ trên xuống.
+            const wrap = document.createElement('div');
+            wrap.className = 'tn-opt-list';
+            wrap.append(intro, bar, listBox, note);
+            panel.appendChild(wrap);
 
             function render(res) {
                 listBox.textContent = '';
