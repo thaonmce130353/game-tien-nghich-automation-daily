@@ -166,9 +166,11 @@
     function reconnectTopPrepare(reason, resume) {
         const existing = reconnectReadState();
         if (existing && existing.phase === 'reload' && existing.topMarked) return false;
+        const runConfig = Object.assign({}, CONFIG, { running: false });
         reconnectWriteState({
             phase: 'reload', reason, resume: !!resume, startedAt: Date.now(),
-            lastAttemptAt: 0, attempts: 0, topMarked: true
+            lastAttemptAt: 0, attempts: 0, topMarked: true,
+            runConfig: resume ? runConfig : undefined
         });
         return true;
     }

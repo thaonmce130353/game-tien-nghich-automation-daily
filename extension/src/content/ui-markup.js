@@ -45,22 +45,23 @@
                     <div class="tn-col-right">
                         <div class="tn-section-title" style="margin:0 0 6px 0; font-size:12px; display:flex; justify-content:space-between; align-items:center;">
                             <span>⚙️ BẢNG TÍNH NĂNG TỰ ĐỘNG (5 TAB GAME)</span>
-                            <span style="font-size:10px; color:#a6adc8; font-weight:normal;">(Tự lưu cấu hình)</span>
+                            <span style="font-size:10px; color:#a6adc8; font-weight:normal;">(Mỗi lần tải lại là mới)</span>
                         </div>
 
                         <!-- THANH ĐIỀU HƯỚNG 5 TAB GAME -->
                         <div class="tn-tab-bar">
-                            <button class="tn-tab-btn" data-tab="daoThanh" title="Khu vực Đạo Thành">🏛️ Đạo Thành</button>
+                            <button class="tn-tab-btn active" data-tab="daoThanh" title="Khu vực Đạo Thành">🏛️ Đạo Thành</button>
                             <button class="tn-tab-btn" data-tab="tuSi" title="Khu vực Tu Sĩ">🧘 Tu Sĩ</button>
                             <button class="tn-tab-btn" data-tab="troChien" title="Khu vực Trợ Chiến">⚔️ Trợ Chiến</button>
-                            <button class="tn-tab-btn active" data-tab="lichLuyen" title="Khu vực Lịch Luyện">🗺️ Lịch Luyện</button>
+                            <button class="tn-tab-btn" data-tab="lichLuyen" title="Khu vực Lịch Luyện">🗺️ Lịch Luyện</button>
                             <button class="tn-tab-btn" data-tab="maDao" title="Khu vực Ma Đạo">🔥 Ma Đạo</button>
+                            <button class="tn-tab-btn" data-tab="banner" title="Banner hero đang mở">🎴 Banner</button>
                         </div>
 
                         <!-- DANH SÁCH TÍNH NĂNG TRONG 5 TAB -->
                         <div class="tn-feature-panels">
                             <!-- TAB 1: ĐẠO THÀNH -->
-                            <div id="tn-tab-panel-dao-thanh" class="tn-tab-panel">
+                            <div id="tn-tab-panel-dao-thanh" class="tn-tab-panel active">
                                 <div class="tn-opt-list">
                                     <label class="tn-opt-item" style="border-left: 3px solid #89dceb;">
                                         <div>
@@ -140,7 +141,7 @@
                             </div>
 
                             <!-- TAB 4: LỊCH LUYỆN (MODULE 1 ĐẾN 7 ĐẦY ĐỦ) -->
-                            <div id="tn-tab-panel-lich-luyen" class="tn-tab-panel active">
+                            <div id="tn-tab-panel-lich-luyen" class="tn-tab-panel">
                                 <div class="tn-opt-list">
                                     <!-- MODULE 1 -->
                                     <label class="tn-opt-item" style="border-left: 3px solid #f5c2e7;">
@@ -217,6 +218,8 @@
                             </div>
 
                             <!-- TAB 5: MA ĐẠO (Treo máy, Ủy phái, Quà Tiên, Nhiệm vụ) -->
+                            <div id="tn-tab-panel-banner" class="tn-tab-panel"></div>
+
                             <div id="tn-tab-panel-ma-dao" class="tn-tab-panel">
                                 <div class="tn-opt-list">
                                     <label class="tn-opt-item" style="border-left: 3px solid #f9e2af;">

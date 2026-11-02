@@ -50,7 +50,8 @@
                 tuSi: document.getElementById('tn-tab-panel-tu-si'),
                 troChien: document.getElementById('tn-tab-panel-tro-chien'),
                 lichLuyen: document.getElementById('tn-tab-panel-lich-luyen'),
-                maDao: document.getElementById('tn-tab-panel-ma-dao')
+                maDao: document.getElementById('tn-tab-panel-ma-dao'),
+                banner: document.getElementById('tn-tab-panel-banner')
             };
 
             function switchTab(tabKey) {
@@ -65,7 +66,6 @@
                     }
                 }
                 CONFIG.activeTab = tabKey;
-                saveConfig();
             }
 
             tabButtons.forEach(btn => {
@@ -112,7 +112,6 @@
                         return;
                     }
                     CONFIG.towerDailyRoutine = e.target.checked;
-                    saveConfig();
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                     addLogToUI(
                         CONFIG.towerDailyRoutine
@@ -145,7 +144,6 @@
                             CONFIG[k] = (k === key);
                         });
                         CONFIG.activeFeature = key;
-                        saveConfig();
                         sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                         const title = cb.closest('label').querySelector('div div') ? cb.closest('label').querySelector('div div').innerText : key;
                         addLogToUI("🎯 Chế độ Auto đã kích hoạt: " + title, "info");
@@ -158,7 +156,6 @@
                         }
                         if (key === 'autoTongTian') setTowerDailyRoutine(false);
                         if (CONFIG.activeFeature === key) CONFIG.activeFeature = null;
-                        saveConfig();
                         sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                         addLogToUI("⏸️ Đã tắt tính năng: " + key, "warn");
                     }
@@ -171,7 +168,6 @@
                 skipEl.checked = Boolean(CONFIG.autoSkipFight);
                 skipEl.addEventListener('change', (e) => {
                     CONFIG.autoSkipFight = e.target.checked;
-                    saveConfig();
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                     addLogToUI(CONFIG.autoSkipFight ? "⏩ Bật bỏ qua trận đấu thần tốc!" : "⏸️ Tắt bỏ qua trận đấu", "info");
                 });
@@ -182,7 +178,6 @@
                 speedEl.checked = Boolean(CONFIG.maxSpeed);
                 speedEl.addEventListener('change', (e) => {
                     CONFIG.maxSpeed = e.target.checked;
-                    saveConfig();
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                 });
             }
@@ -192,7 +187,6 @@
                 reconnectEl.checked = Boolean(CONFIG.autoReconnect);
                 reconnectEl.addEventListener('change', (e) => {
                     CONFIG.autoReconnect = e.target.checked;
-                    saveConfig();
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                     addLogToUI(
                         CONFIG.autoReconnect
@@ -208,7 +202,6 @@
                 buyTamTienGiftsEl.checked = Boolean(CONFIG.buyTamTienGifts);
                 buyTamTienGiftsEl.addEventListener('change', (e) => {
                     CONFIG.buyTamTienGifts = e.target.checked;
-                    saveConfig();
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                     addLogToUI(
                         CONFIG.buyTamTienGifts
@@ -226,7 +219,6 @@
                     const limit = Number(input.value);
                     CONFIG.arenaBattleLimit = Number.isInteger(limit) && limit >= 1 ? limit : 5;
                     input.value = String(CONFIG.arenaBattleLimit);
-                    saveConfig();
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                 });
             }
@@ -238,7 +230,6 @@
                     const limit = Number(input.value);
                     CONFIG.tienMinhDungeonLimit = Number.isInteger(limit) && limit >= 1 && limit <= 6 ? limit : 3;
                     input.value = String(CONFIG.tienMinhDungeonLimit);
-                    saveConfig();
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                 });
             }
@@ -246,8 +237,11 @@
             const btnMain = document.getElementById('tn-btn-main');
             if (btnMain) {
                 btnMain.addEventListener('click', () => {
+                    if (!CONFIG.running && !hasRunnableSelection()) {
+                        addLogToUI("⚠️ Hãy chọn ít nhất 1 tính năng (hoặc tick 1 banner ở tab Banner) trước khi bắt đầu.", "warn");
+                        return;
+                    }
                     CONFIG.running = !CONFIG.running;
-                    saveConfig();
                     updateBadge(CONFIG.running);
                     sendCommandToGame('TOGGLE_AUTO', { running: CONFIG.running, config: CONFIG });
                     addLogToUI(CONFIG.running ? "🚀 Đã bắt đầu treo leo ải Auto!" : "⏸ Đã tạm dừng Auto.", CONFIG.running ? "action" : "warn");

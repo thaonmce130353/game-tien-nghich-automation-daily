@@ -26,11 +26,11 @@
         autoSkipFight: true,            // Bỏ qua trận đấu thần tốc (chạy kèm mọi tính năng)
         maxSpeed: true,                 // Tối đa tốc độ x3 (chạy kèm mọi tính năng)
         autoReconnect: true,            // Tự làm mới & bấm "Vào Game" khi game bị ngắt kết nối (chạy nền)
-        activeFeature: 'autoTongTian',   // Duy nhất 1 tính năng chính hoạt động khi Auto (Chống xung đột)
+        activeFeature: null,            // Duy nhất 1 tính năng chính hoạt động khi Auto (Chống xung đột); mặc định chưa chọn
         
         // --- 8 MODULE ƯU TIÊN HOÀN CHỈNH ---
         // Module 1: Thông Thiên Tháp & Tứ Linh Tháp
-        autoTongTian: true,             // Quét & Leo Thông Thiên Tháp (Hỗ trợ mua thêm bằng Tiên Ngọc)
+        autoTongTian: false,            // Quét & Leo Thông Thiên Tháp (Hỗ trợ mua thêm bằng Tiên Ngọc)
         buyTowerSweep: true,            // Tự mua thêm lượt quét Thông Thiên Tháp
         towerDailyRoutine: true,        // Nhận thưởng và Quét ải mỗi ngày: Thông Thiên (2 free + 1 mua) & Tứ Linh (10 ải mới + 2 quét free)
         autoTuLinhThap: true,           // Cử tướng Trợ Trận & Leo + Quét 4 Tháp Tứ Linh (Ma/Thiên/Nghịch/Dị)
@@ -61,7 +61,7 @@
         // Module 8: Hoạt Động Ngày, Tiên Minh & Nhận Cuối Ngày
         autoTroChien: false,            // Trợ Chiến Linh Thú (Tab Hoàn & Nhận nhanh)
         autoTamTienDai: false,          // Nhận quà miễn phí Tâm Tiên Đài và Chiêu Mộ
-        buyTamTienGifts: true,          // Tự mua quà Tiên Ngọc Tâm Tiên Đài
+        buyTamTienGifts: false,         // Tự mua quà Tiên Ngọc Tâm Tiên Đài (tự bật khi chọn Tâm Tiên Đài)
         autoTienHuu: false,             // Tặng nhanh quà Bạn Bè (Tiên Hữu)
         autoArena: false,               // Đấu Tiên Đài PvP (giới hạn lượt, chọn đối thủ thấp)
         arenaBattleLimit: 5,             // Số trận Đấu Tiên Đài tối đa mỗi lần chạy Auto
@@ -79,30 +79,29 @@
         autoXianYuan: false,            // Quà Tiên Duyên
         autoDailyTask: false,           // Nhiệm vụ ngày
         
-        activeTab: 'lichLuyen',
+        // Banner hero: tự nhận quà khi banner đang mở (tab Banner)
+        bannerAuto: {},                 // { [unique_id]: true } banner được bật tự nhận quà
+        bannerGoldPrice: 300,           // Quà Tiên Ngọc trong bảng Quà banner: mua mặc định, chỉ khi đúng giá này
+
+        activeTab: 'daoThanh',
         intervalMs: 1200,
         running: false
     };
 
+    // Cấu hình KHÔNG được lưu: mỗi lần tải trang là bắt đầu mới với mặc định ở trên.
+    // Xóa bản lưu cũ của phiên bản trước (nếu còn) để không còn dữ liệu cũ.
+    try { localStorage.removeItem('TN_AUTO_CFG_V293'); } catch (e) { }
+
+    // Ngoại lệ duy nhất: tự vào lại game làm mới trang và cần chạy tiếp lựa chọn đang chạy. Bản chụp
+    // lựa chọn nằm trong sessionStorage của tab, hết hạn sau 3 phút và bị xóa khi vào lại xong.
     try {
-        const saved = localStorage.getItem('TN_AUTO_CFG_V293');
-        if (saved) Object.assign(CONFIG, JSON.parse(saved));
+        const rc = JSON.parse(sessionStorage.getItem('TN_AUTO_RECONNECT_V2') || 'null');
+        if (rc && rc.resume && rc.runConfig && Date.now() - rc.startedAt < 3 * 60 * 1000) {
+            Object.assign(CONFIG, rc.runConfig);
+        }
     } catch (e) { }
 
-    delete CONFIG.keepGameLive;
-
-    if (CONFIG.activeFeature === 'autoForge') CONFIG.activeFeature = null;
-    delete CONFIG.autoForge;
-
     CONFIG.running = false;
-
-    function saveConfig() {
-        try {
-            localStorage.setItem('TN_AUTO_CFG_V293', JSON.stringify(CONFIG));
-        } catch (e) { }
-    }
-
-    saveConfig();
 
     const isTopWindow = (window === window.top);
     const isStandaloneGame = isTopWindow && !!window.DailyDungeonCtrl;

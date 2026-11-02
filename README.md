@@ -37,7 +37,7 @@ Leave the watcher running while editing, then reload the extension and refresh t
 | `docs/README.md` | Index of the game-controller research docs; start here for lookups |
 | `docs/game-controllers.md` | Snapshot of game controller names and safe inspection guidance |
 | `docs/controllers/` | Generated per-controller notes (`INDEX.md` plus one file each); regenerate with `node scripts/describe-controllers.js` |
-| `docs/banner-heroes.md` | Banner hero controllers, roster and observed schedule |
+| `docs/banner-heroes.md` | Banner hero controllers, roster, observed schedule and the Banner tab workflow |
 | `scripts/describe-controllers.js`, `scripts/bundle-method.js` | Generate the controller notes; print one method from the local bundle |
 | `docs/game-client/main.min_eef72ae3.js` | Local-only copy of the game client's `main.min` bundle (see below). Not part of the extension |
 
@@ -54,7 +54,7 @@ Leave the watcher running while editing, then reload the extension and refresh t
 
 | File | Responsibility |
 | --- | --- |
-| `extension/src/content/bootstrap.js` | Initialization guard, shared configuration, and persistence |
+| `extension/src/content/bootstrap.js` | Initialization guard and shared default configuration (nothing is persisted; every load starts fresh) |
 | `extension/src/content/ui-init.js` | Top-frame UI initialization |
 | `extension/src/content/ui-styles.js` | HUD styles |
 | `extension/src/content/ui-markup.js` | HUD and feature-tab markup |

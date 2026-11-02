@@ -7,7 +7,7 @@
                 wasAutoRunning = false;
                 return;
             }
-            if (isExecuting) return;
+            if (isExecuting || bannerGiftBusy) return;
 
             if (CONFIG.running && !wasAutoRunning) {
                 wasAutoRunning = true;

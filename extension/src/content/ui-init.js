@@ -67,6 +67,12 @@
             }
         }
 
+        // Có gì để chạy: một tính năng chính đã chọn, hoặc ít nhất 1 banner đã tick ở tab Banner.
+        function hasRunnableSelection() {
+            return Boolean(CONFIG.activeFeature) ||
+                Object.keys(CONFIG.bannerAuto || {}).some((k) => CONFIG.bannerAuto[k]);
+        }
+
         function sendCommandToGame(action, data = {}) {
             const iframes = document.querySelectorAll('iframe');
             iframes.forEach(f => {
@@ -106,6 +112,11 @@
                 updateRoleDisplay(data.role);
             } else if (data.action === 'LOG') {
                 addLogToUI(data.message, data.logType);
+            } else if (data.action === 'AUTO_FINISHED') {
+                // Lượt chạy một lần (vd: chỉ nhận quà banner) đã xong: trả nút về trạng thái dừng.
+                CONFIG.running = false;
+                updateBadge(false);
+                addLogToUI(data.message || 'Đã xong, Auto tự dừng.', 'info');
             } else if (data.action === 'AUTO_RECONNECT_RELOAD') {
                 if (!reconnectTopPrepare(data.reason, data.resume)) return;
                 addLogToUI('🔄 [Vào lại game] Đang làm mới trang game để vào lại...', 'action');
@@ -113,9 +124,8 @@
             } else if (data.action === 'AUTO_RECONNECT_GAME_READY') {
                 reconnectTopDone();
                 // Làm mới trang đặt lại running=false; chỉ chạy lại Auto nếu trước đó đang chạy.
-                if (data.resume && !CONFIG.running) {
+                if (data.resume && !CONFIG.running && hasRunnableSelection()) {
                     CONFIG.running = true;
-                    saveConfig();
                     updateBadge(true);
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                     sendCommandToGame('TOGGLE_AUTO', { running: true, config: CONFIG });

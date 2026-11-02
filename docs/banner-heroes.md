@@ -41,8 +41,8 @@ It calls only getters (`gInst`, `getCurlModel`, `getBaseConfig`, `getActDat`, `g
 
 ## Implementation
 
-- Game frame: `probeRunBanners` in [exposure-probe.js](../extension/src/content/features/exposure-probe.js).
-- Panel: [exposure-probe-ui.js](../extension/src/content/features/exposure-probe-ui.js).
+- Game frame (local-only, git-ignored): `probeRunBanners` in [exposure-probe.js](../extension/src/content/features/exposure-probe.js).
+- Panel (local-only, git-ignored): [exposure-probe-ui.js](../extension/src/content/features/exposure-probe-ui.js).
 
 ## Banner roster (confirmed)
 
@@ -72,3 +72,18 @@ Hero ids are not names; the names live in the hero config.
 - 1320202 (Đạp Thiên, hero 604020): 2026-10-28 00:00 to 2026-11-03 23:59:59.
 - Each window is exactly 7 days; the two series start 2 days apart. Times are in seconds.
 - All other banners had no activity data (`no-data`). Dates for them are not known to the client; projecting them assumes back-to-back 7-day windows and is unconfirmed.
+
+## Banner workflow (tab "🎴 Banner")
+
+Files: [banner-gifts-ui.js](../extension/src/content/features/banner-gifts-ui.js) (tab), [banner-gifts.js](../extension/src/content/features/banner-gifts.js) (list, gift step, one-pass runner), [banner-workflow.js](../extension/src/content/features/banner-workflow.js) (recruit / challenge / war order steps).
+
+- The tab lists the banners open right now (same source as the Probe's Banner hero view). Ticking a banner only *selects* it in memory; nothing is sent. The workflow runs as one pass when **▶ BẮT ĐẦU TREO LEO ẢI AUTO** is pressed, with no repeat and no automatic retry. If no main feature is selected, Auto stops itself after the pass (`AUTO_FINISHED`). The main loop pauses (`bannerGiftBusy`) while it runs.
+- Same steps for every hero (only names differ), in order. A failed gift step stops the rest for that banner; later steps log their failure and continue.
+  1. **Quà** (view `superHeroEncoreGoodGiftUi`, requests `send19739`): each gift row's own `onBuy()`. `price > 0` (real money) is never touched; `gold == 0` is claimed; `gold == bannerGoldPrice` (300, the Tiên Ngọc gift) is bought by default; other prices are skipped. The row's button must be visible. A press is confirmed by `getGiftBuyCount` increasing after a refresh.
+  2. **Chiêu Mộ**: Sảnh tab Recruit -> `reqTreasure(1)` (the "Chiêu mộ 1 lần" button). Skipped if the Chiêu Mộ trial mission (`superHeroEncore_recruit`) is already done (so a second START does not recruit again) or if the recruit item (`cfg.recruit_item`) count is below 1 (so the Get-Way popup never opens). Reward popups (`backpackGetAwardTipsUi`, `heroPreviewUi`) are closed afterwards.
+  3. **Thí Luyện**: reads the DevilSea trial task list first; if the fight-count/harm mission (`AcvConst.EType.superHeroEncore_fight_count` / `_harm`) is already done, it does not fight. Otherwise Sảnh tab Fight -> `onClickFight()` (Khiêu Chiến) -> `embattleUi` auto-formation + `cBtnH2` (same as Tiên Minh) -> waits for `EntityMgr.getIsFighting()` to end (90 s cap), closing result views.
+  4. **Thưởng Thí Luyện (Lệnh Chiêu Mộ)**: reopens Sảnh tab Fight so the game refreshes the fight info, waits until `checkFightRed(uid)` is true (a damage-threshold reward is reached and unclaimed), then `onClickItemSlot(slot)` on a reached slot, which claims all reached rewards at once (`send19742`). Runs even when the fight was skipped, so rewards left from an earlier fight are collected. Confirmed when `checkFightRed` turns false; reward popups are closed.
+  5. **Chiến Lệnh**: Sảnh tab Zhanling -> `onClickTrial()` opens `devilSeaTrialUi`; for both task tabs it calls each claimable item's `ckickGetBtn()` (status 1, once per task), closes the view, then `onClick({target: onekeyBtn})` ("Nhận nhanh") when that button is enabled.
+- Safety: only while `isActivityOpen(uid)`; refused if a battle result, formation view or fight is active at the start; each hall tab must be unlocked (`getTabIsOpen`); the previous banner selection is restored and all opened views are closed at the end.
+- CONFIG keys: `bannerAuto` (`{unique_id: true}`) and `bannerGoldPrice` (300).
+- Passive reads only: the tab polls from page load, so it must not call `gInst()` or `getBaseConfig()`. `SuperHeroEncoreModel.getBaseConfig()` caches its result in `baseConfigDic` on first call; calling it before the game has loaded the config caches an empty table and the game then never builds the banner buttons. The code reads the existing instance (`bannerPeekInstance`) and `model.baseConfigDic` only after the game has filled them.

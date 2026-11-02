@@ -26,11 +26,11 @@
         autoSkipFight: true,            // Bỏ qua trận đấu thần tốc (chạy kèm mọi tính năng)
         maxSpeed: true,                 // Tối đa tốc độ x3 (chạy kèm mọi tính năng)
         autoReconnect: true,            // Tự làm mới & bấm "Vào Game" khi game bị ngắt kết nối (chạy nền)
-        activeFeature: 'autoTongTian',   // Duy nhất 1 tính năng chính hoạt động khi Auto (Chống xung đột)
+        activeFeature: null,            // Duy nhất 1 tính năng chính hoạt động khi Auto (Chống xung đột); mặc định chưa chọn
         
         // --- 8 MODULE ƯU TIÊN HOÀN CHỈNH ---
         // Module 1: Thông Thiên Tháp & Tứ Linh Tháp
-        autoTongTian: true,             // Quét & Leo Thông Thiên Tháp (Hỗ trợ mua thêm bằng Tiên Ngọc)
+        autoTongTian: false,            // Quét & Leo Thông Thiên Tháp (Hỗ trợ mua thêm bằng Tiên Ngọc)
         buyTowerSweep: true,            // Tự mua thêm lượt quét Thông Thiên Tháp
         towerDailyRoutine: true,        // Nhận thưởng và Quét ải mỗi ngày: Thông Thiên (2 free + 1 mua) & Tứ Linh (10 ải mới + 2 quét free)
         autoTuLinhThap: true,           // Cử tướng Trợ Trận & Leo + Quét 4 Tháp Tứ Linh (Ma/Thiên/Nghịch/Dị)
@@ -61,7 +61,7 @@
         // Module 8: Hoạt Động Ngày, Tiên Minh & Nhận Cuối Ngày
         autoTroChien: false,            // Trợ Chiến Linh Thú (Tab Hoàn & Nhận nhanh)
         autoTamTienDai: false,          // Nhận quà miễn phí Tâm Tiên Đài và Chiêu Mộ
-        buyTamTienGifts: true,          // Tự mua quà Tiên Ngọc Tâm Tiên Đài
+        buyTamTienGifts: false,         // Tự mua quà Tiên Ngọc Tâm Tiên Đài (tự bật khi chọn Tâm Tiên Đài)
         autoTienHuu: false,             // Tặng nhanh quà Bạn Bè (Tiên Hữu)
         autoArena: false,               // Đấu Tiên Đài PvP (giới hạn lượt, chọn đối thủ thấp)
         arenaBattleLimit: 5,             // Số trận Đấu Tiên Đài tối đa mỗi lần chạy Auto
@@ -79,30 +79,29 @@
         autoXianYuan: false,            // Quà Tiên Duyên
         autoDailyTask: false,           // Nhiệm vụ ngày
         
-        activeTab: 'lichLuyen',
+        // Banner hero: tự nhận quà khi banner đang mở (tab Banner)
+        bannerAuto: {},                 // { [unique_id]: true } banner được bật tự nhận quà
+        bannerGoldPrice: 300,           // Quà Tiên Ngọc trong bảng Quà banner: mua mặc định, chỉ khi đúng giá này
+
+        activeTab: 'daoThanh',
         intervalMs: 1200,
         running: false
     };
 
+    // Cấu hình KHÔNG được lưu: mỗi lần tải trang là bắt đầu mới với mặc định ở trên.
+    // Xóa bản lưu cũ của phiên bản trước (nếu còn) để không còn dữ liệu cũ.
+    try { localStorage.removeItem('TN_AUTO_CFG_V293'); } catch (e) { }
+
+    // Ngoại lệ duy nhất: tự vào lại game làm mới trang và cần chạy tiếp lựa chọn đang chạy. Bản chụp
+    // lựa chọn nằm trong sessionStorage của tab, hết hạn sau 3 phút và bị xóa khi vào lại xong.
     try {
-        const saved = localStorage.getItem('TN_AUTO_CFG_V293');
-        if (saved) Object.assign(CONFIG, JSON.parse(saved));
+        const rc = JSON.parse(sessionStorage.getItem('TN_AUTO_RECONNECT_V2') || 'null');
+        if (rc && rc.resume && rc.runConfig && Date.now() - rc.startedAt < 3 * 60 * 1000) {
+            Object.assign(CONFIG, rc.runConfig);
+        }
     } catch (e) { }
 
-    delete CONFIG.keepGameLive;
-
-    if (CONFIG.activeFeature === 'autoForge') CONFIG.activeFeature = null;
-    delete CONFIG.autoForge;
-
     CONFIG.running = false;
-
-    function saveConfig() {
-        try {
-            localStorage.setItem('TN_AUTO_CFG_V293', JSON.stringify(CONFIG));
-        } catch (e) { }
-    }
-
-    saveConfig();
 
     const isTopWindow = (window === window.top);
     const isStandaloneGame = isTopWindow && !!window.DailyDungeonCtrl;
@@ -179,6 +178,12 @@
             }
         }
 
+        // Có gì để chạy: một tính năng chính đã chọn, hoặc ít nhất 1 banner đã tick ở tab Banner.
+        function hasRunnableSelection() {
+            return Boolean(CONFIG.activeFeature) ||
+                Object.keys(CONFIG.bannerAuto || {}).some((k) => CONFIG.bannerAuto[k]);
+        }
+
         function sendCommandToGame(action, data = {}) {
             const iframes = document.querySelectorAll('iframe');
             iframes.forEach(f => {
@@ -218,6 +223,11 @@
                 updateRoleDisplay(data.role);
             } else if (data.action === 'LOG') {
                 addLogToUI(data.message, data.logType);
+            } else if (data.action === 'AUTO_FINISHED') {
+                // Lượt chạy một lần (vd: chỉ nhận quà banner) đã xong: trả nút về trạng thái dừng.
+                CONFIG.running = false;
+                updateBadge(false);
+                addLogToUI(data.message || 'Đã xong, Auto tự dừng.', 'info');
             } else if (data.action === 'AUTO_RECONNECT_RELOAD') {
                 if (!reconnectTopPrepare(data.reason, data.resume)) return;
                 addLogToUI('🔄 [Vào lại game] Đang làm mới trang game để vào lại...', 'action');
@@ -225,9 +235,8 @@
             } else if (data.action === 'AUTO_RECONNECT_GAME_READY') {
                 reconnectTopDone();
                 // Làm mới trang đặt lại running=false; chỉ chạy lại Auto nếu trước đó đang chạy.
-                if (data.resume && !CONFIG.running) {
+                if (data.resume && !CONFIG.running && hasRunnableSelection()) {
                     CONFIG.running = true;
-                    saveConfig();
                     updateBadge(true);
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                     sendCommandToGame('TOGGLE_AUTO', { running: true, config: CONFIG });
@@ -738,22 +747,23 @@
                     <div class="tn-col-right">
                         <div class="tn-section-title" style="margin:0 0 6px 0; font-size:12px; display:flex; justify-content:space-between; align-items:center;">
                             <span>⚙️ BẢNG TÍNH NĂNG TỰ ĐỘNG (5 TAB GAME)</span>
-                            <span style="font-size:10px; color:#a6adc8; font-weight:normal;">(Tự lưu cấu hình)</span>
+                            <span style="font-size:10px; color:#a6adc8; font-weight:normal;">(Mỗi lần tải lại là mới)</span>
                         </div>
 
                         <!-- THANH ĐIỀU HƯỚNG 5 TAB GAME -->
                         <div class="tn-tab-bar">
-                            <button class="tn-tab-btn" data-tab="daoThanh" title="Khu vực Đạo Thành">🏛️ Đạo Thành</button>
+                            <button class="tn-tab-btn active" data-tab="daoThanh" title="Khu vực Đạo Thành">🏛️ Đạo Thành</button>
                             <button class="tn-tab-btn" data-tab="tuSi" title="Khu vực Tu Sĩ">🧘 Tu Sĩ</button>
                             <button class="tn-tab-btn" data-tab="troChien" title="Khu vực Trợ Chiến">⚔️ Trợ Chiến</button>
-                            <button class="tn-tab-btn active" data-tab="lichLuyen" title="Khu vực Lịch Luyện">🗺️ Lịch Luyện</button>
+                            <button class="tn-tab-btn" data-tab="lichLuyen" title="Khu vực Lịch Luyện">🗺️ Lịch Luyện</button>
                             <button class="tn-tab-btn" data-tab="maDao" title="Khu vực Ma Đạo">🔥 Ma Đạo</button>
+                            <button class="tn-tab-btn" data-tab="banner" title="Banner hero đang mở">🎴 Banner</button>
                         </div>
 
                         <!-- DANH SÁCH TÍNH NĂNG TRONG 5 TAB -->
                         <div class="tn-feature-panels">
                             <!-- TAB 1: ĐẠO THÀNH -->
-                            <div id="tn-tab-panel-dao-thanh" class="tn-tab-panel">
+                            <div id="tn-tab-panel-dao-thanh" class="tn-tab-panel active">
                                 <div class="tn-opt-list">
                                     <label class="tn-opt-item" style="border-left: 3px solid #89dceb;">
                                         <div>
@@ -833,7 +843,7 @@
                             </div>
 
                             <!-- TAB 4: LỊCH LUYỆN (MODULE 1 ĐẾN 7 ĐẦY ĐỦ) -->
-                            <div id="tn-tab-panel-lich-luyen" class="tn-tab-panel active">
+                            <div id="tn-tab-panel-lich-luyen" class="tn-tab-panel">
                                 <div class="tn-opt-list">
                                     <!-- MODULE 1 -->
                                     <label class="tn-opt-item" style="border-left: 3px solid #f5c2e7;">
@@ -910,6 +920,8 @@
                             </div>
 
                             <!-- TAB 5: MA ĐẠO (Treo máy, Ủy phái, Quà Tiên, Nhiệm vụ) -->
+                            <div id="tn-tab-panel-banner" class="tn-tab-panel"></div>
+
                             <div id="tn-tab-panel-ma-dao" class="tn-tab-panel">
                                 <div class="tn-opt-list">
                                     <label class="tn-opt-item" style="border-left: 3px solid #f9e2af;">
@@ -1014,7 +1026,8 @@
                 tuSi: document.getElementById('tn-tab-panel-tu-si'),
                 troChien: document.getElementById('tn-tab-panel-tro-chien'),
                 lichLuyen: document.getElementById('tn-tab-panel-lich-luyen'),
-                maDao: document.getElementById('tn-tab-panel-ma-dao')
+                maDao: document.getElementById('tn-tab-panel-ma-dao'),
+                banner: document.getElementById('tn-tab-panel-banner')
             };
 
             function switchTab(tabKey) {
@@ -1029,7 +1042,6 @@
                     }
                 }
                 CONFIG.activeTab = tabKey;
-                saveConfig();
             }
 
             tabButtons.forEach(btn => {
@@ -1076,7 +1088,6 @@
                         return;
                     }
                     CONFIG.towerDailyRoutine = e.target.checked;
-                    saveConfig();
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                     addLogToUI(
                         CONFIG.towerDailyRoutine
@@ -1109,7 +1120,6 @@
                             CONFIG[k] = (k === key);
                         });
                         CONFIG.activeFeature = key;
-                        saveConfig();
                         sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                         const title = cb.closest('label').querySelector('div div') ? cb.closest('label').querySelector('div div').innerText : key;
                         addLogToUI("🎯 Chế độ Auto đã kích hoạt: " + title, "info");
@@ -1122,7 +1132,6 @@
                         }
                         if (key === 'autoTongTian') setTowerDailyRoutine(false);
                         if (CONFIG.activeFeature === key) CONFIG.activeFeature = null;
-                        saveConfig();
                         sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                         addLogToUI("⏸️ Đã tắt tính năng: " + key, "warn");
                     }
@@ -1135,7 +1144,6 @@
                 skipEl.checked = Boolean(CONFIG.autoSkipFight);
                 skipEl.addEventListener('change', (e) => {
                     CONFIG.autoSkipFight = e.target.checked;
-                    saveConfig();
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                     addLogToUI(CONFIG.autoSkipFight ? "⏩ Bật bỏ qua trận đấu thần tốc!" : "⏸️ Tắt bỏ qua trận đấu", "info");
                 });
@@ -1146,7 +1154,6 @@
                 speedEl.checked = Boolean(CONFIG.maxSpeed);
                 speedEl.addEventListener('change', (e) => {
                     CONFIG.maxSpeed = e.target.checked;
-                    saveConfig();
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                 });
             }
@@ -1156,7 +1163,6 @@
                 reconnectEl.checked = Boolean(CONFIG.autoReconnect);
                 reconnectEl.addEventListener('change', (e) => {
                     CONFIG.autoReconnect = e.target.checked;
-                    saveConfig();
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                     addLogToUI(
                         CONFIG.autoReconnect
@@ -1172,7 +1178,6 @@
                 buyTamTienGiftsEl.checked = Boolean(CONFIG.buyTamTienGifts);
                 buyTamTienGiftsEl.addEventListener('change', (e) => {
                     CONFIG.buyTamTienGifts = e.target.checked;
-                    saveConfig();
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                     addLogToUI(
                         CONFIG.buyTamTienGifts
@@ -1190,7 +1195,6 @@
                     const limit = Number(input.value);
                     CONFIG.arenaBattleLimit = Number.isInteger(limit) && limit >= 1 ? limit : 5;
                     input.value = String(CONFIG.arenaBattleLimit);
-                    saveConfig();
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                 });
             }
@@ -1202,7 +1206,6 @@
                     const limit = Number(input.value);
                     CONFIG.tienMinhDungeonLimit = Number.isInteger(limit) && limit >= 1 && limit <= 6 ? limit : 3;
                     input.value = String(CONFIG.tienMinhDungeonLimit);
-                    saveConfig();
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                 });
             }
@@ -1210,8 +1213,11 @@
             const btnMain = document.getElementById('tn-btn-main');
             if (btnMain) {
                 btnMain.addEventListener('click', () => {
+                    if (!CONFIG.running && !hasRunnableSelection()) {
+                        addLogToUI("⚠️ Hãy chọn ít nhất 1 tính năng (hoặc tick 1 banner ở tab Banner) trước khi bắt đầu.", "warn");
+                        return;
+                    }
                     CONFIG.running = !CONFIG.running;
-                    saveConfig();
                     updateBadge(CONFIG.running);
                     sendCommandToGame('TOGGLE_AUTO', { running: CONFIG.running, config: CONFIG });
                     addLogToUI(CONFIG.running ? "🚀 Đã bắt đầu treo leo ải Auto!" : "⏸ Đã tạm dừng Auto.", CONFIG.running ? "action" : "warn");
@@ -1258,6 +1264,272 @@
     // =========================================================================
     // PHẦN 2: ENGINE XỬ LÝ GAME (CHẠY BÊN TRONG NGỮ CẢNH CỦA GAME ENGINE)
     // =========================================================================
+    // DEBUG: EXPOSURE PROBE - bảng điều khiển ở cửa sổ trên cùng (chỉ đọc)
+    const PROBE_SOURCE_REQ = 'TIEN_NGHICH_AUTO_PROBE_REQ';
+    const PROBE_SOURCE_RES = 'TIEN_NGHICH_AUTO_PROBE_RES';
+
+    if (isTopWindow) {
+        let probeBest = null;
+
+        function probeBuildPanel() {
+            if (document.getElementById('tn-probe-root')) return;
+            if (!document.body) { setTimeout(probeBuildPanel, 300); return; }
+
+            const root = document.createElement('div');
+            root.id = 'tn-probe-root';
+            root.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:2147483646;font:11px/1.35 monospace;color:#cdd6f4;';
+
+            const toggle = document.createElement('button');
+            toggle.textContent = '🔍 Probe';
+            toggle.style.cssText = 'background:#313244;color:#cdd6f4;border:1px solid #585b70;border-radius:6px;padding:3px 8px;cursor:pointer;';
+
+            const panel = document.createElement('div');
+            panel.style.cssText = 'display:none;margin-top:4px;width:340px;max-height:50vh;overflow:auto;background:rgba(17,17,27,0.96);border:1px solid #585b70;border-radius:8px;padding:8px;';
+
+            const bar = document.createElement('div');
+            const runBtn = document.createElement('button');
+            runBtn.textContent = 'Quét (chỉ đọc)';
+            const bannerBtn = document.createElement('button');
+            bannerBtn.textContent = 'Banner hero';
+            const dlBtn = document.createElement('button');
+            dlBtn.textContent = 'Xuất JSON';
+            dlBtn.disabled = true;
+            for (const b of [runBtn, bannerBtn, dlBtn]) {
+                b.style.cssText = 'background:#45475a;color:#cdd6f4;border:0;border-radius:4px;padding:3px 8px;margin-right:6px;cursor:pointer;';
+            }
+            bar.appendChild(runBtn);
+            bar.appendChild(bannerBtn);
+            bar.appendChild(dlBtn);
+
+            const note = document.createElement('div');
+            note.style.cssText = 'color:#a6adc8;margin:6px 0;';
+            note.textContent = 'Không gọi gInst() hay bất kỳ method nào.';
+            const out = document.createElement('div');
+
+            panel.append(bar, note, out);
+            root.append(toggle, panel);
+            document.body.appendChild(root);
+
+            function line(text, color) {
+                const d = document.createElement('div');
+                d.textContent = text;
+                if (color) d.style.color = color;
+                out.appendChild(d);
+            }
+
+            function fmtTime(v) {
+                if (!v) return '-';
+                const ms = v > 1e12 ? v : v * 1000;
+                return new Date(ms).toLocaleString();
+            }
+
+            function fmtRemain(sec) {
+                if (sec === null || sec === undefined) return '-';
+                const s = sec > 1e9 ? sec / 1000 : sec;
+                const sign = s < 0 ? '-' : '';
+                const a = Math.abs(Math.round(s));
+                return sign + Math.floor(a / 86400) + 'd ' + Math.floor(a % 86400 / 3600) + 'h';
+            }
+
+            function renderBanner(report) {
+                out.textContent = '';
+                line('Banner hero (chỉ đọc): ' + report.rowCount + ' dòng', '#a6e3a1');
+                const rows = report.rows.slice().sort((a, b) => (b.closeTime || 0) - (a.closeTime || 0));
+                for (const r of rows) {
+                    line((r.selected ? '▶ ' : '• ') + r.ctrl.replace('Ctrl', '') + ' #' + r.uniqueId + ' act=' + r.activityId + ' [' + r.state + ']',
+                        r.state === 'open' ? '#a6e3a1' : r.state === 'upcoming' ? '#89b4fa' : (r.state === 'ended' ? '#6c7086' : '#fab387'));
+                    line('   mở: ' + fmtTime(r.startTime) + ' | đóng: ' + fmtTime(r.closeTime) + ' (' + fmtRemain(r.closeInSec) + ') | kết thúc: ' + fmtTime(r.endTime));
+                }
+                for (const e of report.errors) line('Lỗi: ' + e, '#f38ba8');
+            }
+
+            function render(report) {
+                if (report.kind === 'banner') { renderBanner(report); return; }
+                out.textContent = '';
+                if (report.error) { line('Lỗi: ' + report.error, '#f38ba8'); return; }
+                const cs = report.controllers;
+                const sends = cs.reduce((a, c) => a + c.sendMethods.length, 0);
+                line(`Controller: ${cs.length} | send*: ${sends}`, '#a6e3a1');
+                const flaggedCtrls = cs.filter((c) => c.ctrlFlags.length || Object.keys(c.flaggedMethods).length);
+                line(`Nhóm nhạy cảm: ${flaggedCtrls.length}`, '#fab387');
+                for (const c of flaggedCtrls) {
+                    const cats = new Set([...c.ctrlFlags, ...Object.keys(c.flaggedMethods)]);
+                    const n = Object.values(c.flaggedMethods).reduce((a, l) => a + l.length, 0);
+                    line(`• ${c.name} [${[...cats].join(',')}] send=${c.sendMethods.length} flaggedMethods=${n}`);
+                }
+            }
+
+            bannerBtn.addEventListener('click', () => {
+                probeBest = null;
+                out.textContent = '';
+                line('Đang đọc banner...');
+                const req = { source: PROBE_SOURCE_REQ, kind: 'banner' };
+                document.querySelectorAll('iframe').forEach((f) => {
+                    try { f.contentWindow.postMessage(req, '*'); } catch (e) { }
+                });
+                try { window.postMessage(req, '*'); } catch (e) { }
+                setTimeout(() => { if (!probeBest) line('Không nhận được kết quả từ frame game.', '#f38ba8'); }, 3000);
+            });
+
+            toggle.addEventListener('click', () => {
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            });
+
+            runBtn.addEventListener('click', () => {
+                probeBest = null;
+                out.textContent = '';
+                line('Đang quét...');
+                const req = { source: PROBE_SOURCE_REQ };
+                document.querySelectorAll('iframe').forEach((f) => {
+                    try { f.contentWindow.postMessage(req, '*'); } catch (e) { }
+                });
+                try { window.postMessage(req, '*'); } catch (e) { }
+                setTimeout(() => { if (!probeBest) line('Không nhận được kết quả từ frame game.', '#f38ba8'); }, 3000);
+            });
+
+            dlBtn.addEventListener('click', () => {
+                if (!probeBest) return;
+                const blob = new Blob([JSON.stringify(probeBest, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = probeBest.kind === 'banner' ? 'tn-banner-status.json' : 'tn-exposure-probe.json';
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            });
+
+            window.addEventListener('message', (event) => {
+                const data = event.data;
+                if (!data || data.source !== PROBE_SOURCE_RES || !data.report) return;
+                const frames = [...document.querySelectorAll('iframe')].map((f) => f.contentWindow);
+                if (event.source !== window && !frames.includes(event.source)) return;
+                // Giữ báo cáo có nhiều controller nhất (frame game, không phải frame rỗng).
+                if (!probeBest || data.report.controllerCount > probeBest.controllerCount || (data.report.kind === 'banner' && probeBest.kind !== 'banner')) {
+                    probeBest = data.report;
+                    render(probeBest);
+                    dlBtn.disabled = false;
+                }
+            });
+        }
+
+        probeBuildPanel();
+        setTimeout(probeBuildPanel, 1500);
+    }
+
+    // =========================================================================
+    // BANNER HERO: tab điều khiển ở cửa sổ trên cùng (chọn banner đang mở để tự nhận quà)
+    // =========================================================================
+    const BANNER_REQ_SOURCE = 'TIEN_NGHICH_AUTO_BANNER_REQ';
+    const BANNER_RES_SOURCE = 'TIEN_NGHICH_AUTO_BANNER_RES';
+    const BANNER_POLL_MS = 30000;
+
+    if (isTopWindow) {
+        let bannerUiBuilt = false;
+
+        function bannerUiPost(message) {
+            document.querySelectorAll('iframe').forEach((f) => {
+                try { f.contentWindow.postMessage(message, '*'); } catch (e) { }
+            });
+            try { window.postMessage(message, '*'); } catch (e) { }
+        }
+
+        function bannerUiLog(message, logType) {
+            try {
+                window.postMessage({ source: 'TIEN_NGHICH_AUTO_GAME', action: 'LOG', message, logType: logType || 'info' }, '*');
+            } catch (e) { }
+        }
+
+        function bannerUiRequest() {
+            bannerUiPost({ source: BANNER_REQ_SOURCE });
+        }
+
+        function bannerUiFormatRemain(sec) {
+            const s = sec > 1e9 ? sec / 1000 : sec;
+            if (!(s > 0)) return 'đã đóng';
+            return 'còn ' + Math.floor(s / 86400) + 'd ' + Math.floor(s % 86400 / 3600) + 'h';
+        }
+
+        function bannerUiBuild() {
+            if (bannerUiBuilt) return true;
+            const panel = document.getElementById('tn-tab-panel-banner');
+            if (!panel) return false;
+            bannerUiBuilt = true;
+            if (!CONFIG.bannerAuto || typeof CONFIG.bannerAuto !== 'object') CONFIG.bannerAuto = {};
+
+            const intro = document.createElement('div');
+            intro.style.cssText = 'font-size:9.5px;color:#a6adc8;line-height:1.35;margin-bottom:6px;';
+            intro.textContent = 'Banner hero đang mở. Tick để CHỌN banner; quy trình chỉ chạy đúng một lượt khi bấm ▶ BẮT ĐẦU, và chỉ khi banner còn mở.';
+
+            const bar = document.createElement('div');
+            bar.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;';
+            const refresh = document.createElement('button');
+            refresh.textContent = 'Tải lại danh sách';
+            refresh.style.cssText = 'background:#45475a;color:#cdd6f4;border:0;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:10px;';
+            const status = document.createElement('span');
+            status.style.cssText = 'font-size:10px;color:#a6adc8;';
+            status.textContent = 'Đang tải...';
+            bar.append(refresh, status);
+
+            const listBox = document.createElement('div');
+            listBox.className = 'tn-opt-list';
+
+            const note = document.createElement('div');
+            note.style.cssText = 'font-size:9.5px;color:#a6adc8;line-height:1.35;margin-top:6px;';
+            note.textContent = 'Quy trình mỗi hero: nhận Quà (miễn phí + quà Tiên Ngọc ' + (CONFIG.bannerGoldPrice || 300) + ') → Chiêu mộ 1 lần → Khiêu Chiến Thí Luyện 1 lần → nhận điểm nhiệm vụ → Chiến Lệnh Nhận nhanh. Không mua quà tiền thật.';
+
+            refresh.addEventListener('click', () => { status.textContent = 'Đang tải...'; bannerUiRequest(); });
+
+            panel.append(intro, bar, listBox, note);
+
+            function render(res) {
+                listBox.textContent = '';
+                if (res.error) { status.textContent = 'Lỗi: ' + res.error; return; }
+                if (!res.ready) { status.textContent = 'Chưa có dữ liệu banner từ game.'; return; }
+                status.textContent = res.banners.length ? res.banners.length + ' banner đang mở' : 'Hiện không có banner nào đang mở.';
+                for (const b of res.banners) {
+                    const label = document.createElement('label');
+                    label.className = 'tn-opt-item';
+                    label.style.cssText = 'border-left:3px solid #cba6f7;';
+                    const text = document.createElement('div');
+                    const title = document.createElement('div');
+                    title.style.cssText = 'font-weight:bold;color:#cba6f7;';
+                    title.textContent = '🎴 Quà ' + b.series;
+                    const desc = document.createElement('div');
+                    desc.style.cssText = 'font-size:9.5px;color:#a6adc8;margin-top:2px;line-height:1.3;';
+                    desc.textContent = '#' + b.uniqueId + ' · hero ' + b.heroId + ' · ' + bannerUiFormatRemain(b.remainSec);
+                    text.append(title, desc);
+                    const box = document.createElement('input');
+                    box.type = 'checkbox';
+                    box.checked = Boolean(CONFIG.bannerAuto[b.uniqueId]);
+                    box.addEventListener('change', () => {
+                        if (box.checked) CONFIG.bannerAuto[b.uniqueId] = true;
+                        else delete CONFIG.bannerAuto[b.uniqueId];
+                        bannerUiLog((box.checked ? '🟢' : '⏸️') + ' [Banner Hero] ' + (box.checked ? 'Đã chọn' : 'Bỏ chọn') + ' quà ' + b.series + ' #' + b.uniqueId + ' (chỉ chạy khi bấm BẮT ĐẦU).', 'info');
+                    });
+                    label.append(text, box);
+                    listBox.appendChild(label);
+                }
+            }
+
+            window.addEventListener('message', (event) => {
+                const data = event.data;
+                if (!data || data.source !== BANNER_RES_SOURCE) return;
+                const frames = [...document.querySelectorAll('iframe')].map((f) => f.contentWindow);
+                if (event.source !== window && !frames.includes(event.source)) return;
+                // Frame game trả về dữ liệu thật; frame rỗng trả ready=false nên bỏ qua nếu đã có kết quả tốt.
+                if (!data.ready && listBox.childElementCount > 0) return;
+                render(data);
+            });
+
+            bannerUiRequest();
+            setTimeout(bannerUiRequest, 2000);
+            setInterval(bannerUiRequest, BANNER_POLL_MS);
+            return true;
+        }
+
+        const bannerUiTimer = setInterval(() => { if (bannerUiBuild()) clearInterval(bannerUiTimer); }, 400);
+    }
+
 
     // =========================================================================
     // TỰ ĐỘNG VÀO LẠI GAME KHI BỊ NGẮT KẾT NỐI (CONFIG.autoReconnect)
@@ -1426,9 +1698,11 @@
     function reconnectTopPrepare(reason, resume) {
         const existing = reconnectReadState();
         if (existing && existing.phase === 'reload' && existing.topMarked) return false;
+        const runConfig = Object.assign({}, CONFIG, { running: false });
         reconnectWriteState({
             phase: 'reload', reason, resume: !!resume, startedAt: Date.now(),
-            lastAttemptAt: 0, attempts: 0, topMarked: true
+            lastAttemptAt: 0, attempts: 0, topMarked: true,
+            runConfig: resume ? runConfig : undefined
         });
         return true;
     }
@@ -1739,13 +2013,12 @@
                 return;
             } else if (data.action === 'UPDATE_CONFIG') {
                 Object.assign(CONFIG, data.config);
-                saveConfig();
             } else if (data.action === 'TOGGLE_AUTO') {
                 const wasRunning = CONFIG.running;
                 CONFIG.running = data.running;
                 if (data.config) Object.assign(CONFIG, data.config);
-                saveConfig();
                 if (CONFIG.running) {
+                    if (!wasRunning) bannerRunOnce();
                     if (!wasRunning && typeof resetArenaRun === 'function') resetArenaRun();
                     isTowerChallenging = false;
                     waitingForFloorUpdate = false;
@@ -5419,6 +5692,739 @@
                 return false;
             }
         }
+        // =========================================================================
+        // DEBUG: EXPOSURE PROBE (CHỈ ĐỌC)
+        // Liệt kê các *Ctrl global và method trên prototype của chúng, gắn cờ nhóm nhạy cảm
+        // (mua bán / nạp / nhận thưởng / GM). KHÔNG gọi gInst() và KHÔNG gọi bất kỳ method nào.
+        // =========================================================================
+        const PROBE_CTRL_CATEGORIES = [
+            ['gm', /^GmCtrl$/],
+            ['purchase', /Shop|Market|Recharge|Fund|BankBook|Renewal|LuckyDraw|JewelDraw|SuperVip|^VipCtrl$|CommonBuy/],
+            ['reward', /Welfare|SevenLogin|TotalSign|Rwd|Reward|^AcvCtrl$|^EmailCtrl$|BackRwd|WarOrder|Propitious|Festival|Anniversary|HalfYear|YearCtrl$|Act(Ctrl)?$/]
+        ];
+        const PROBE_METHOD_CATEGORIES = [
+            ['gm', /^gm($|[A-Z_])|Gm[A-Z]/],
+            ['purchase', /buy|purchase|pay|recharge|order/i],
+            ['reward', /reward|rwd|award|receive|claim|draw|getGift/i]
+        ];
+
+        function probeCollectMethods(ctrl) {
+            const methods = new Set();
+            let proto = typeof ctrl === 'function' ? ctrl.prototype : null;
+            let guard = 0;
+            while (proto && proto !== Object.prototype && guard++ < 20) {
+                for (const name of Object.getOwnPropertyNames(proto)) {
+                    if (name === 'constructor') continue;
+                    const desc = Object.getOwnPropertyDescriptor(proto, name);
+                    if (desc && typeof desc.value === 'function') methods.add(name);
+                }
+                proto = Object.getPrototypeOf(proto);
+            }
+            return [...methods].sort();
+        }
+
+        function probeRunExposure() {
+            const controllers = [];
+            const names = Object.getOwnPropertyNames(window).filter((n) => /Ctrl$/.test(n)).sort();
+            for (const name of names) {
+                let ctrl;
+                try { ctrl = window[name]; } catch (e) { continue; }
+                if (typeof ctrl !== 'function') continue;
+
+                const methods = probeCollectMethods(ctrl);
+                const flags = PROBE_CTRL_CATEGORIES.filter(([, re]) => re.test(name)).map(([cat]) => cat);
+                const flagged = {};
+                for (const [cat, re] of PROBE_METHOD_CATEGORIES) {
+                    const hit = methods.filter((m) => re.test(m));
+                    if (hit.length) flagged[cat] = hit;
+                }
+                controllers.push({
+                    name,
+                    hasGInst: typeof ctrl.gInst === 'function',
+                    methodCount: methods.length,
+                    sendMethods: methods.filter((m) => /^send\d+/.test(m)),
+                    onMethods: methods.filter((m) => /^on\d+/.test(m)),
+                    ctrlFlags: flags,
+                    flaggedMethods: flagged
+                });
+            }
+            return {
+                generatedAt: new Date().toISOString(),
+                frame: location.href,
+                controllerCount: controllers.length,
+                controllers
+            };
+        }
+
+        // Banner hero (super hero) lịch sự kiện: chỉ gọi getter, không gọi send*.
+        const PROBE_BANNER_LEGACY = { SuperHeroCtrl: 'activity_id5601', NewSuperHeroCtrl: 'activity_id7701' };
+        const PROBE_BANNER_CFG_KEYS = /time|day|open|start|end|activity|period|round|term|name|type|hero|unit|preview|fight|system/i;
+
+        function probePrimitives(obj, keyFilter) {
+            const out = {};
+            if (!obj || typeof obj !== 'object') return out;
+            for (const k of Object.keys(obj)) {
+                if (keyFilter && !keyFilter.test(k)) continue;
+                const v = obj[k];
+                if (v === null || ['number', 'string', 'boolean'].includes(typeof v)) out[k] = v;
+                else if (v && typeof v.dataNum === 'number') out[k] = v.dataNum;
+            }
+            return out;
+        }
+
+        function probeRunBanners() {
+            const rows = [];
+            const errors = [];
+            const now = window.NetMgr && NetMgr.gInst().getTime();
+            // Chỉ đọc thụ động: không gInst(), không getBaseConfig() (xem bannerPeekInstance).
+            const D = bannerPeekInstance(window.DesenoActivityCtrl);
+            const deseno = D && D.getCurlModel();
+            const openStatus = window.ComCt && ComCt.activityStatus && ComCt.activityStatus.open;
+
+            function describe(ctrlName, uniqueId, activityId) {
+                const dat = deseno && deseno.getActDat ? deseno.getActDat(activityId) : undefined;
+                const closeTime = dat ? dat.close_time : 0;
+                const startTime = dat ? dat.start_time || 0 : 0;
+                const endTime = dat ? dat.end_time : 0;
+                const state = !dat ? 'no-data' : dat.status === openStatus ? 'open' : (startTime > now ? 'upcoming' : closeTime > now ? 'not-open' : 'ended');
+                return {
+                    ctrl: ctrlName, uniqueId, activityId, state, startTime, closeTime, endTime,
+                    closeInSec: closeTime ? closeTime - now : null,
+                    activityData: probePrimitives(dat)
+                };
+            }
+
+            try {
+                const ctrl = bannerPeekInstance(window.SuperHeroEncoreCtrl);
+                const model = ctrl && ctrl.getCurlModel();
+                const cfgs = model && model.baseConfigDic;
+                if (cfgs && Object.keys(cfgs).length) {
+                    for (const key of Object.keys(cfgs)) {
+                        const cfg = cfgs[key];
+                        const row = describe('SuperHeroEncoreCtrl', cfg.activity_id !== undefined ? cfg.activity_id : key, cfg.activity);
+                        row.cfg = probePrimitives(cfg, PROBE_BANNER_CFG_KEYS);
+                        row.selected = ctrl.currentUniqueId === row.uniqueId;
+                        rows.push(row);
+                    }
+                }
+            } catch (e) { errors.push('SuperHeroEncoreCtrl: ' + (e && e.message || e)); }
+
+            for (const name of Object.keys(PROBE_BANNER_LEGACY)) {
+                try {
+                    const inst = bannerPeekInstance(window[name]);
+                    if (!inst) continue;
+                    const activityId = window.DesenoActivityConst && DesenoActivityConst.activityIds[PROBE_BANNER_LEGACY[name]];
+                    const row = describe(name, inst.getActivityId(), activityId);
+                    row.legacyActivityKey = PROBE_BANNER_LEGACY[name];
+                    rows.push(row);
+                } catch (e) { errors.push(name + ': ' + (e && e.message || e)); }
+            }
+
+            return {
+                kind: 'banner',
+                generatedAt: new Date().toISOString(),
+                frame: location.href,
+                now,
+                rowCount: rows.length,
+                controllerCount: rows.length,
+                rows,
+                errors
+            };
+        }
+
+        window.addEventListener('message', (event) => {
+            const data = event.data;
+            if (!data || data.source !== PROBE_SOURCE_REQ) return;
+            if (event.source !== window && event.source !== window.top && event.source !== window.parent) return;
+            let report;
+            try {
+                report = data.kind === 'banner' ? probeRunBanners() : probeRunExposure();
+            } catch (e) {
+                report = { error: String(e && e.message || e), controllers: [], controllerCount: 0 };
+            }
+            try {
+                window.top.postMessage({ source: PROBE_SOURCE_RES, kind: data.kind || 'exposure', report }, '*');
+            } catch (e) { }
+        });
+        // =========================================================================
+        // BANNER HERO: QUÀ (MIỄN PHÍ + QUÀ TIÊN NGỌC) VÀ ĐIỀU PHỐI QUY TRÌNH KHI BANNER ĐANG MỞ
+        // Tick ô banner chỉ là CHỌN. Quy trình chạy đúng MỘT lượt khi bấm "BẮT ĐẦU" (bannerRunOnce),
+        // không lặp, không tự thử lại. Bước Quà: chọn banner -> mở bảng Quà (superHeroEncoreGoodGiftUi)
+        // -> bấm nút của chính dòng quà (onBuy). Các bước sau nằm trong banner-workflow.js. Không gửi
+        // giao thức trực tiếp, không đụng quà tiền thật (price > 0), chỉ làm khi banner còn mở.
+        // =========================================================================
+        const BANNER_GIFT_VIEW = 'superHeroEncoreGoodGiftUi';
+        const BANNER_WAIT_MS = 6000;
+        const BANNER_CONFIRM_MS = 4000;
+        const BANNER_BUSY_VIEWS = [
+            'embattleUi', 'fightSuccessUi', 'fightFailUi', 'winUi', 'fightWinUi', 'fightResultUi',
+            'adventureResultUi', 'guildAskedFightResultUi'
+        ];
+
+        let bannerGiftBusy = false;
+
+        function bannerSleep(ms) {
+            return new Promise((resolve) => setTimeout(resolve, ms));
+        }
+
+        // CHỈ ĐỌC, KHÔNG KÍCH HOẠT: không gọi gInst() (sẽ tạo controller sớm) và không gọi các getter
+        // có bộ nhớ đệm như getBaseConfig() (gọi trước khi game nạp cấu hình sẽ lưu rỗng vĩnh viễn và
+        // làm mất nút banner). Chỉ dùng thể hiện game đã tạo và dữ liệu game đã tự dựng.
+        function bannerPeekInstance(C) {
+            if (typeof C !== 'function') return null;
+            for (const key of Object.keys(C)) {
+                const v = C[key];
+                if (v && typeof v === 'object' && v.constructor === C) return v;
+            }
+            return null;
+        }
+
+        function bannerGetController() {
+            return bannerPeekInstance(window.SuperHeroEncoreCtrl);
+        }
+
+        // Danh sách banner đang mở (chỉ đọc, giống bảng Banner hero trong Probe).
+        function bannerGetOpenList() {
+            const ctrl = bannerGetController();
+            const model = ctrl && typeof ctrl.getCurlModel === 'function' ? ctrl.getCurlModel() : null;
+            const D = bannerPeekInstance(window.DesenoActivityCtrl);
+            const deseno = D && typeof D.getCurlModel === 'function' ? D.getCurlModel() : null;
+            const cfgs = model && model.baseConfigDic;
+            if (!cfgs || !Object.keys(cfgs).length || !deseno || !deseno.activity_status_dic ||
+                typeof deseno.getActDat !== 'function' || !window.NetMgr) return null;
+
+            const now = window.NetMgr.gInst().getTime();
+            const openStatus = window.ComCt && window.ComCt.activityStatus && window.ComCt.activityStatus.open;
+            const list = [];
+            for (const key of Object.keys(cfgs)) {
+                const cfg = cfgs[key];
+                const dat = deseno.getActDat(cfg.activity);
+                if (!dat || dat.status !== openStatus || !(dat.close_time > now)) continue;
+                const match = /Chiến Lệnh\s+([^,]+)/.exec(String(cfg.tabName || ''));
+                list.push({
+                    uniqueId: cfg.activity_id,
+                    activityId: cfg.activity,
+                    series: match ? match[1].trim() : 'Hero ' + cfg.hero_id,
+                    heroId: cfg.hero_id,
+                    giftSystemId: cfg.gift_system_id,
+                    closeTime: dat.close_time,
+                    remainSec: dat.close_time - now
+                });
+            }
+            return list;
+        }
+
+        // Quyết định cho một dòng quà. Không bao giờ chọn quà có price (tiền thật).
+        function bannerGiftDecision(gift, remaining) {
+            if (Number(gift.price) > 0) return { action: 'skip', silent: true };
+            if (remaining <= 0) return { action: 'skip', silent: true };
+            const gold = Number(gift.gold) || 0;
+            if (gold === 0) return { action: 'claim', reason: 'miễn phí' };
+            // Quà Tiên Ngọc mua mặc định, nhưng chỉ đúng giá đã định (300); giá khác thì bỏ qua.
+            const allowed = Number(CONFIG.bannerGoldPrice) || 300;
+            if (gold !== allowed) return { action: 'skip', reason: `giá ${gold} Tiên Ngọc khác ${allowed}` };
+            return { action: 'buy', reason: `${gold} Tiên Ngọc` };
+        }
+
+        async function bannerClaimGifts(banner) {
+            const clicks = {};
+            const ctrl = bannerGetController();
+            const vm = window.ViewMgr && window.ViewMgr.gInst ? window.ViewMgr.gInst() : null;
+            const model = ctrl && ctrl.getCurlModel();
+            const tag = `[Banner Hero - ${banner.series}]`;
+            const uid = banner.uniqueId;
+            if (!ctrl || !vm || !model || typeof ctrl.opGoodGiftUi !== 'function' ||
+                typeof ctrl.selectActivity !== 'function' ||
+                typeof model.getGiftInfo !== 'function') {
+                sendLog(`⚠️ ${tag} Không tìm thấy bộ điều khiển quà banner.`, 'err');
+                return { ok: false };
+            }
+            if (window.CityCtrl && typeof window.CityCtrl.gInst === 'function' &&
+                banner.giftSystemId && !window.CityCtrl.gInst().isHasShow(banner.giftSystemId)) {
+                sendLog(`ℹ️ ${tag} Mục Quà chưa mở trong game; bỏ qua.`, 'info');
+                return { ok: true, locked: true };
+            }
+
+            let unconfirmed = false;
+            try {
+                ctrl.selectActivity(uid);
+                ctrl.opGoodGiftUi();
+
+                let view = null;
+                const startedAt = Date.now();
+                while (Date.now() - startedAt < BANNER_WAIT_MS) {
+                    await bannerSleep(300);
+                    const candidate = vm.getViewByName(BANNER_GIFT_VIEW);
+                    const list = candidate && candidate.giftList;
+                    if (candidate && vm.viewIsVisible(BANNER_GIFT_VIEW) && model.getGiftInfo(uid) &&
+                        list && list.numElements > 0) { view = candidate; break; }
+                }
+                if (!view) {
+                    sendLog(`⚠️ ${tag} Không mở được bảng Quà hoặc chưa nhận dữ liệu từ máy chủ.`, 'err');
+                    return { ok: false };
+                }
+
+                const list = view.giftList;
+                for (let i = 0; i < list.numElements; i++) {
+                    const item = list.getElementAt(i);
+                    const gift = item && item.data;
+                    if (!gift || typeof item.onBuy !== 'function') continue;
+                    if (!ctrl.isActivityOpen(uid)) {
+                        sendLog(`ℹ️ ${tag} Banner đã đóng; dừng.`, 'info');
+                        break;
+                    }
+
+                    const before = ctrl.getGiftBuyCount(gift.charge_id, uid);
+                    const limit = Number(gift.purchase_times) || 0;
+                    const decision = bannerGiftDecision(gift, limit - before);
+                    const name = gift.name || `#${gift.charge_id}`;
+                    if (decision.action === 'skip') {
+                        if (!decision.silent) sendLog(`ℹ️ ${tag} Bỏ qua "${name}": ${decision.reason}.`, 'info');
+                        continue;
+                    }
+
+                    // Nút của dòng quà phải đang hiển thị đúng như giao diện cung cấp.
+                    const button = decision.action === 'claim' ? item.buyBtn : item.moneyBtn;
+                    const offered = button && button.visible !== false && (!button.parent || button.parent.visible !== false);
+                    if (!offered) {
+                        sendLog(`ℹ️ ${tag} "${name}" không có nút ${decision.action === 'claim' ? 'Nhận' : 'mua Tiên Ngọc'} trên giao diện; bỏ qua.`, 'info');
+                        continue;
+                    }
+
+                    // Mỗi dòng quà chỉ bấm tối đa theo giới hạn game trong một lượt (không lặp).
+                    clicks[gift.charge_id] = (clicks[gift.charge_id] || 0) + 1;
+                    if (clicks[gift.charge_id] > Math.max(limit, 1)) continue;
+
+                    sendLog(`🎁 ${tag} ${decision.action === 'buy' ? 'Mua' : 'Nhận'} "${name}" (${decision.reason}).`, 'action');
+                    item.onBuy();
+
+                    let confirmed = false;
+                    const clickedAt = Date.now();
+                    await bannerSleep(800);
+                    try { ctrl.send19739(uid); } catch (e) { }
+                    while (Date.now() - clickedAt < BANNER_CONFIRM_MS) {
+                        if (ctrl.getGiftBuyCount(gift.charge_id, uid) > before) { confirmed = true; break; }
+                        await bannerSleep(300);
+                    }
+                    if (confirmed) {
+                        sendLog(`✅ ${tag} Đã ${decision.action === 'buy' ? 'mua' : 'nhận'} "${name}".`, 'action');
+                    } else {
+                        unconfirmed = true;
+                        sendLog(`⚠️ ${tag} Máy chủ chưa xác nhận "${name}".`, 'err');
+                    }
+                }
+            } finally {
+                try { vm.closeView(BANNER_GIFT_VIEW); } catch (e) { }
+            }
+            return { ok: !unconfirmed };
+        }
+
+        // Một lượt duy nhất khi bấm BẮT ĐẦU: nhận quà cho các banner đã tick. Đặt cờ bận ngay (đồng bộ)
+        // để vòng chạy chính nhường chỗ cho tới khi xong.
+        async function bannerRunOnce() {
+            const auto = CONFIG.bannerAuto || {};
+            const selected = Object.keys(auto).filter((k) => auto[k]);
+            if (!selected.length || bannerGiftBusy) return;
+
+            bannerGiftBusy = true;
+            try {
+                const vm = window.ViewMgr && window.ViewMgr.gInst ? window.ViewMgr.gInst() : null;
+                const banners = bannerGetOpenList();
+                if (!vm || typeof vm.viewIsVisible !== 'function' || !banners) {
+                    sendLog('⚠️ [Banner Hero] Game chưa sẵn sàng (chưa có dữ liệu banner); bấm BẮT ĐẦU lại sau.', 'err');
+                    return;
+                }
+                if (BANNER_BUSY_VIEWS.some((name) => vm.viewIsVisible(name))) {
+                    sendLog('⚠️ [Banner Hero] Đang ở màn hình trận đấu/đội hình; bấm BẮT ĐẦU lại sau.', 'err');
+                    return;
+                }
+                for (const id of selected) {
+                    if (!banners.some((b) => String(b.uniqueId) === id)) {
+                        sendLog(`ℹ️ [Banner Hero] Banner #${id} không còn mở; bỏ qua.`, 'info');
+                    }
+                }
+                for (const banner of banners) {
+                    if (auto[banner.uniqueId]) await bannerRunHero(banner);
+                }
+                sendLog('✅ [Banner Hero] Đã xong lượt Banner Hero.', 'info');
+            } catch (error) {
+                sendLog(`⚠️ [Banner Hero] Lỗi: ${error && error.message || error}`, 'err');
+            } finally {
+                bannerGiftBusy = false;
+                // Không có tính năng chính nào đang chạy: lượt này là tất cả, tự dừng.
+                if (!CONFIG.activeFeature) {
+                    CONFIG.running = false;
+                    try {
+                        window.top.postMessage({
+                            source: 'TIEN_NGHICH_AUTO_GAME',
+                            action: 'AUTO_FINISHED',
+                            message: '✅ [Banner Hero] Đã xong; Auto tự dừng.'
+                        }, '*');
+                    } catch (e) { }
+                }
+            }
+        }
+
+        window.addEventListener('message', (event) => {
+            const data = event.data;
+            if (!data || data.source !== BANNER_REQ_SOURCE) return;
+            if (event.source !== window && event.source !== window.top && event.source !== window.parent) return;
+            let banners = null;
+            let error = null;
+            try { banners = bannerGetOpenList(); } catch (e) { error = String(e && e.message || e); }
+            try {
+                window.top.postMessage({ source: BANNER_RES_SOURCE, ready: Boolean(banners), banners: banners || [], error }, '*');
+            } catch (e) { }
+        });
+
+
+        // =========================================================================
+        // BANNER HERO: QUY TRÌNH SAU KHI NHẬN QUÀ (cùng một quy trình cho mọi hero)
+        //   1. Quà (miễn phí + quà Tiên Ngọc)          -> bannerClaimGifts (banner-gifts.js)
+        //   2. Chiêu Mộ: bấm "Chiêu mộ 1 lần"           -> bannerStepRecruit
+        //   3. Thí Luyện: "Khiêu Chiến" đúng 1 lần       -> bannerStepChallenge
+        //   4. Nhận thưởng Thí Luyện (Lệnh Chiêu Mộ)    -> bannerStepFightRewards
+        //   5. Chiến Lệnh: nhận điểm từ nhiệm vụ Thí Luyện rồi "Nhận nhanh" -> bannerStepZhanling
+        // Mỗi bước đi qua giao diện (mở Sảnh banner -> tab -> nút của chính tab đó) và chỉ chạy một lần
+        // mỗi lượt BẮT ĐẦU. Không gọi gói mua tiền thật; không mở cửa sổ nạp/lấy thêm vật phẩm.
+        // =========================================================================
+        const BANNER_HALL_VIEW = 'superHeroEncoreHallUi';
+        const BANNER_TRIAL_VIEW = 'devilSeaTrialUi';
+        const BANNER_POPUP_VIEWS = ['backpackGetAwardTipsUi', 'heroPreviewUi'];
+        const BANNER_RESULT_VIEWS = [
+            'fightSuccessUi', 'fightFailUi', 'winUi', 'fightWinUi', 'fightResultUi',
+            'adventureResultUi', 'guildAskedFightResultUi'
+        ];
+        const BANNER_FIGHT_START_MS = 15000;
+        const BANNER_FIGHT_MAX_MS = 90000;
+
+        async function bannerWaitFor(check, timeoutMs, stepMs) {
+            const startedAt = Date.now();
+            while (Date.now() - startedAt < timeoutMs) {
+                let value = null;
+                try { value = check(); } catch (e) { value = null; }
+                if (value) return value;
+                await bannerSleep(stepMs || 250);
+            }
+            return null;
+        }
+
+        function bannerIsFighting() {
+            try {
+                return !!(window.EntityMgr && window.EntityMgr.gInst && window.EntityMgr.gInst().getIsFighting());
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function bannerCloseViews(ctx, names) {
+            let closed = false;
+            for (const name of names) {
+                try {
+                    if (ctx.vm.viewIsVisible(name)) { ctx.vm.closeView(name); closed = true; }
+                } catch (e) { }
+            }
+            return closed;
+        }
+
+        function bannerOffered(button) {
+            return Boolean(button) && button.visible !== false && button.enabled !== false &&
+                (!button.parent || button.parent.visible !== false);
+        }
+
+        // Mở Sảnh banner ở đúng tab (đóng Sảnh cũ trước để tab được chọn lại) và đợi tab sẵn sàng.
+        async function bannerOpenHallTab(ctx, tabType, isReady) {
+            try { ctx.vm.closeView(BANNER_HALL_VIEW); } catch (e) { }
+            await bannerSleep(300);
+            ctx.ctrl.openHall(ctx.uid, tabType);
+            const hallNow = await bannerWaitFor(() => {
+                const h = ctx.vm.getViewByName(BANNER_HALL_VIEW);
+                return h && ctx.vm.viewIsVisible(BANNER_HALL_VIEW) ? h : null;
+            }, 5000);
+            if (hallNow && typeof hallNow.getTabIsOpen === 'function' && !hallNow.getTabIsOpen(tabType)) {
+                sendLog(`ℹ️ ${ctx.tag} Tab này chưa mở trong game; bỏ qua.`, 'info');
+                return null;
+            }
+            return bannerWaitFor(() => {
+                const hall = ctx.vm.getViewByName(BANNER_HALL_VIEW);
+                if (!hall || !ctx.vm.viewIsVisible(BANNER_HALL_VIEW) || !hall.currView) return null;
+                if (typeof hall.getSelectIdx === 'function' && hall.getSelectIdx() !== tabType) return null;
+                return isReady(hall.currView) ? hall.currView : null;
+            }, 8000);
+        }
+
+        // Mở bảng nhiệm vụ Thí Luyện (DevilSea trial) và đợi dữ liệu từ máy chủ.
+        async function bannerOpenTrial(ctx, openFn) {
+            try { openFn(); } catch (e) { return null; }
+            return bannerWaitFor(() => {
+                const view = ctx.vm.getViewByName(BANNER_TRIAL_VIEW);
+                return view && ctx.vm.viewIsVisible(BANNER_TRIAL_VIEW) && view.bInitFinish && view.radioGroup && view.list
+                    ? view : null;
+            }, 8000);
+        }
+
+        async function bannerSelectTrialTab(view, tab) {
+            view.radioGroup.selectedValue = tab;
+            view.onClkTab();
+            await bannerSleep(600);
+        }
+
+        function bannerTrialItems(view) {
+            const items = [];
+            const list = view.list;
+            for (let i = 0; list && i < list.numElements; i++) {
+                const item = list.getElementAt(i);
+                if (item && item.data) items.push(item);
+            }
+            return items;
+        }
+
+        // ---- Bước 2: Chiêu Mộ 1 lần ------------------------------------------------------------------
+        async function bannerStepRecruit(ctx) {
+            const { ctrl, vm, uid, tag, cfg } = ctx;
+            const props = window.PropsCtrl && window.PropsCtrl.gInst ? window.PropsCtrl.gInst() : null;
+            const have = props ? Number(props.getGoodsNumByBaseId(cfg.recruit_item)) || 0 : 0;
+            if (have < 1) {
+                sendLog(`ℹ️ ${tag} Không đủ vật phẩm Chiêu Mộ (cần 1); bỏ qua bước Chiêu Mộ.`, 'info');
+                return;
+            }
+            const state = await bannerMissionState(ctx, ['superHeroEncore_recruit']);
+            if (state.known && !state.pending) {
+                sendLog(`ℹ️ ${tag} Nhiệm vụ Chiêu Mộ đã hoàn thành; không chiêu mộ thêm.`, 'info');
+                return;
+            }
+            const view = await bannerOpenHallTab(ctx, window.SuperHeroEncoreConst.TabType.Recruit,
+                (v) => typeof v.reqTreasure === 'function' && bannerOffered(v.treasureBtn1));
+            if (!view) {
+                sendLog(`⚠️ ${tag} Không mở được tab Chiêu Mộ.`, 'err');
+                return;
+            }
+            sendLog(`🎯 ${tag} Chiêu mộ 1 lần.`, 'action');
+            view.reqTreasure(1);
+
+            const confirmed = await bannerWaitFor(() =>
+                Number(props.getGoodsNumByBaseId(cfg.recruit_item)) < have ||
+                BANNER_POPUP_VIEWS.some((name) => vm.viewIsVisible(name)), 8000);
+            // Đóng bảng kết quả (phần thưởng / xem tướng mới) cho tới khi không còn hiện.
+            for (let quiet = 0; quiet < 3;) {
+                await bannerSleep(500);
+                quiet = bannerCloseViews(ctx, BANNER_POPUP_VIEWS) ? 0 : quiet + 1;
+            }
+            sendLog(confirmed ? `✅ ${tag} Đã chiêu mộ 1 lần.` : `⚠️ ${tag} Máy chủ chưa xác nhận lượt chiêu mộ.`,
+                confirmed ? 'action' : 'err');
+        }
+
+        // ---- Bước 3: Khiêu Chiến 1 lần ---------------------------------------------------------------
+        // Đọc trạng thái nhiệm vụ Thí Luyện trước khi làm: có nhiệm vụ thuộc loại này không (known) và còn
+        // nhiệm vụ chưa hoàn thành không (pending: status 0). Dùng để không làm lại việc đã xong.
+        async function bannerMissionState(ctx, typeKeys) {
+            const E = window.AcvConst && window.AcvConst.EType;
+            if (!E || !window.DevilSeaCtrl) return { known: false };
+            const fightTypes = typeKeys.map((k) => E[k]).filter((v) => v !== undefined);
+            if (!fightTypes.length) return { known: false };
+            const view = await bannerOpenTrial(ctx, () => window.DevilSeaCtrl.gInst().openDevilSeaTrialUi(ctx.cfg.client_task_type));
+            if (!view) return { known: false };
+            let known = false;
+            let pending = false;
+            try {
+                for (const tab of [0, 1]) {
+                    await bannerSelectTrialTab(view, tab);
+                    for (const item of bannerTrialItems(view)) {
+                        const d = item.data;
+                        if (fightTypes.includes(d.jump_id || d.type || d.task_type)) {
+                            known = true;
+                            if (d.status === 0) pending = true;
+                        }
+                    }
+                }
+            } finally {
+                try { ctx.vm.closeView(BANNER_TRIAL_VIEW); } catch (e) { }
+            }
+            return { known, pending };
+        }
+
+        async function bannerStepChallenge(ctx) {
+            const { vm, tag } = ctx;
+            const need = await bannerMissionState(ctx, ['superHeroEncore_fight_count', 'superHeroEncore_fight_harm']);
+            if (need.known && !need.pending) {
+                sendLog(`ℹ️ ${tag} Nhiệm vụ Khiêu Chiến Thí Luyện đã hoàn thành; không đánh lại.`, 'info');
+                return;
+            }
+            const view = await bannerOpenHallTab(ctx, window.SuperHeroEncoreConst.TabType.Fight,
+                (v) => typeof v.onClickFight === 'function' && bannerOffered(v.btnChalleng));
+            if (!view) {
+                sendLog(`⚠️ ${tag} Không mở được tab Thí Luyện hoặc nút Khiêu Chiến không dùng được.`, 'err');
+                return;
+            }
+            sendLog(`⚔️ ${tag} Khiêu Chiến Thí Luyện (1 lần).`, 'action');
+            view.onClickFight();
+
+            const embattle = await bannerWaitFor(() => vm.viewIsVisible('embattleUi') && vm.getViewByName('embattleUi'), 8000);
+            if (!embattle || typeof embattle.cBtnH2 !== 'function') {
+                sendLog(`⚠️ ${tag} Không mở được bảng đội hình; bỏ qua Khiêu Chiến.`, 'err');
+                return;
+            }
+            await bannerSleep(500);
+            if (typeof embattle.oneKeyEmbattleLogic === 'function') embattle.oneKeyEmbattleLogic(0);
+            if (typeof embattle.saveEmbattleLogic === 'function') embattle.saveEmbattleLogic();
+            embattle.cBtnH2();
+
+            if (!await bannerWaitFor(() => bannerIsFighting(), BANNER_FIGHT_START_MS)) {
+                bannerCloseViews(ctx, ['embattleUi']);
+                sendLog(`⚠️ ${tag} Trận đánh chưa bắt đầu; bỏ qua.`, 'err');
+                return;
+            }
+            const fightStartedAt = Date.now();
+            while (bannerIsFighting() && Date.now() - fightStartedAt < BANNER_FIGHT_MAX_MS) {
+                bannerCloseViews(ctx, BANNER_RESULT_VIEWS);
+                await bannerSleep(500);
+            }
+            if (bannerIsFighting()) {
+                sendLog(`⚠️ ${tag} Trận đánh chưa kết thúc sau ${BANNER_FIGHT_MAX_MS / 1000}s; dừng chờ.`, 'err');
+                return;
+            }
+            for (let quiet = 0; quiet < 3;) {
+                await bannerSleep(500);
+                quiet = bannerCloseViews(ctx, BANNER_RESULT_VIEWS.concat(['embattleUi'])) ? 0 : quiet + 1;
+            }
+            sendLog(`✅ ${tag} Đã Khiêu Chiến xong.`, 'action');
+        }
+
+        // ---- Bước 4: nhận thưởng Thí Luyện (Lệnh Chiêu Mộ) sau Khiêu Chiến --------------------------------
+        // Ô thưởng theo sát thương ở tab Thí Luyện: bấm một ô đã đạt (onClickItemSlot) nhận tất cả ô đã đạt.
+        async function bannerStepFightRewards(ctx) {
+            const { ctrl, uid, tag, cfg } = ctx;
+            if (typeof ctrl.checkFightRed !== 'function') return;
+            const view = await bannerOpenHallTab(ctx, window.SuperHeroEncoreConst.TabType.Fight,
+                (v) => typeof v.onClickItemSlot === 'function' && v.stateDic);
+            if (!view) {
+                sendLog(`⚠️ ${tag} Không mở được tab Thí Luyện để nhận thưởng.`, 'err');
+                return;
+            }
+            const slotOf = () => Object.keys(view.stateDic).find((k) => view.stateDic[k]);
+            // Tab Thí Luyện tự yêu cầu dữ liệu mới khi mở; chờ tới khi có ô thưởng đã đạt và chưa nhận.
+            const slot = await bannerWaitFor(() => (ctrl.checkFightRed(uid) ? slotOf() : null), 4000);
+            if (slot === null || slot === undefined) {
+                sendLog(`ℹ️ ${tag} Không có thưởng Thí Luyện nào để nhận.`, 'info');
+                return;
+            }
+            const model = ctrl.getCurlModel();
+            const info = model.getFightInfo ? model.getFightInfo(uid) : null;
+            const hurt = info && info.hurt ? Number(info.hurt.dataNum) || 0 : 0;
+            const rows = model.getChallengeCfgVo ? model.getChallengeCfgVo(uid) || [] : [];
+            const hasToken = rows.some((r) => !ctrl.isGetFightReward(r.id, uid) && hurt >= r.harm &&
+                (r.reward || []).some((x) => x.base_id === cfg.recruit_item));
+            sendLog(`🎁 ${tag} Nhận thưởng Thí Luyện${hasToken ? ' (có Lệnh Chiêu Mộ)' : ''}.`, 'action');
+            view.onClickItemSlot(Number(slot));
+
+            const done = await bannerWaitFor(() => !ctrl.checkFightRed(uid), 5000);
+            for (let quiet = 0; quiet < 3;) {
+                await bannerSleep(500);
+                quiet = bannerCloseViews(ctx, BANNER_POPUP_VIEWS) ? 0 : quiet + 1;
+            }
+            sendLog(done ? `✅ ${tag} Đã nhận thưởng Thí Luyện.` : `⚠️ ${tag} Máy chủ chưa xác nhận thưởng Thí Luyện.`,
+                done ? 'action' : 'err');
+        }
+
+        // ---- Bước 5: Chiến Lệnh: nhận điểm nhiệm vụ rồi "Nhận nhanh" -----------------------------------
+        async function bannerStepZhanling(ctx) {
+            const { tag } = ctx;
+            const zl = await bannerOpenHallTab(ctx, window.SuperHeroEncoreConst.TabType.Zhanling,
+                (v) => typeof v.onClickTrial === 'function' && typeof v.onClick === 'function' && v.onekeyBtn);
+            if (!zl) {
+                sendLog(`⚠️ ${tag} Không mở được tab Chiến Lệnh.`, 'err');
+                return;
+            }
+
+            // 1) Nhận điểm từ các nhiệm vụ Thí Luyện đã hoàn thành.
+            let claimed = 0;
+            const trial = await bannerOpenTrial(ctx, () => zl.onClickTrial());
+            if (!trial) {
+                sendLog(`⚠️ ${tag} Không mở được bảng nhiệm vụ Thí Luyện.`, 'err');
+            } else {
+                const tried = new Set();
+                try {
+                    for (const tab of [0, 1]) {
+                        await bannerSelectTrialTab(trial, tab);
+                        for (let round = 0; round < 8; round++) {
+                            const item = bannerTrialItems(trial).find((it) =>
+                                it.data.status === 1 && !tried.has(it.data.id) && bannerOffered(it.getGp));
+                            if (!item) break;
+                            tried.add(item.data.id);
+                            item.ckickGetBtn();
+                            claimed++;
+                            sendLog(`🎁 ${tag} Nhận điểm nhiệm vụ: ${item.data.word || item.data.name || '#' + item.data.id}.`, 'action');
+                            await bannerSleep(1200);
+                        }
+                    }
+                } finally {
+                    try { ctx.vm.closeView(BANNER_TRIAL_VIEW); } catch (e) { }
+                }
+                sendLog(claimed ? `✅ ${tag} Đã nhận ${claimed} nhiệm vụ Thí Luyện.` : `ℹ️ ${tag} Không có nhiệm vụ Thí Luyện nào để nhận.`, 'info');
+            }
+
+            // 2) "Nhận nhanh" ở màn hình Chiến Lệnh.
+            await bannerSleep(800);
+            const ready = await bannerWaitFor(() => bannerOffered(zl.onekeyBtn), 3500);
+            if (!ready) {
+                sendLog(`ℹ️ ${tag} Chiến Lệnh chưa có phần thưởng để Nhận nhanh.`, 'info');
+                return;
+            }
+            sendLog(`🎁 ${tag} Chiến Lệnh: Nhận nhanh.`, 'action');
+            zl.onClick({ target: zl.onekeyBtn });
+            await bannerSleep(1500);
+            bannerCloseViews(ctx, BANNER_POPUP_VIEWS);
+        }
+
+        // ---- Quy trình đầy đủ cho một banner -----------------------------------------------------------
+        async function bannerRunHero(banner) {
+            const ctrl = bannerGetController();
+            const vm = window.ViewMgr && window.ViewMgr.gInst ? window.ViewMgr.gInst() : null;
+            const uid = banner.uniqueId;
+            const tag = `[Banner Hero - ${banner.series}]`;
+            const cfg = ctrl && typeof ctrl.getCfg === 'function' ? ctrl.getCfg(uid) : null;
+            const TabType = window.SuperHeroEncoreConst && window.SuperHeroEncoreConst.TabType;
+            if (!ctrl || !vm || !cfg || !TabType || typeof ctrl.openHall !== 'function') {
+                sendLog(`⚠️ ${tag} Không tìm thấy bộ điều khiển/cấu hình banner.`, 'err');
+                return;
+            }
+            if (bannerIsFighting()) {
+                sendLog(`⚠️ ${tag} Đang trong trận đánh; bấm BẮT ĐẦU lại sau.`, 'err');
+                return;
+            }
+            const ctx = { ctrl, vm, uid, cfg, tag, banner };
+            const previousUniqueId = ctrl.currentUniqueId;
+            const steps = [
+                ['Chiêu Mộ', bannerStepRecruit],
+                ['Thí Luyện', bannerStepChallenge],
+                ['Thưởng Thí Luyện', bannerStepFightRewards],
+                ['Chiến Lệnh', bannerStepZhanling]
+            ];
+            try {
+                const gifts = await bannerClaimGifts(banner);
+                if (!gifts.ok || gifts.locked) {
+                    sendLog(`⚠️ ${tag} Bước Quà chưa hoàn tất; không chạy các bước tiếp theo.`, 'err');
+                    return;
+                }
+                for (const [label, step] of steps) {
+                    if (!ctrl.isActivityOpen(uid)) {
+                        sendLog(`ℹ️ ${tag} Banner đã đóng; dừng.`, 'info');
+                        return;
+                    }
+                    try {
+                        await step(ctx);
+                    } catch (error) {
+                        sendLog(`⚠️ ${tag} Lỗi ở bước ${label}: ${error && error.message || error}`, 'err');
+                    }
+                }
+            } finally {
+                bannerCloseViews(ctx, [BANNER_TRIAL_VIEW, BANNER_HALL_VIEW, 'embattleUi'].concat(BANNER_POPUP_VIEWS, BANNER_RESULT_VIEWS));
+                try {
+                    if (previousUniqueId !== undefined && previousUniqueId !== uid) ctrl.selectActivity(previousUniqueId);
+                } catch (e) { }
+            }
+        }
+
 
         let wasAutoRunning = false;
         const CUOI_NGAY_ACTION_INTERVAL_MS = 800;
@@ -5428,7 +6434,7 @@
                 wasAutoRunning = false;
                 return;
             }
-            if (isExecuting) return;
+            if (isExecuting || bannerGiftBusy) return;
 
             if (CONFIG.running && !wasAutoRunning) {
                 wasAutoRunning = true;

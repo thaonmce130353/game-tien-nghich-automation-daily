@@ -195,13 +195,12 @@
                 return;
             } else if (data.action === 'UPDATE_CONFIG') {
                 Object.assign(CONFIG, data.config);
-                saveConfig();
             } else if (data.action === 'TOGGLE_AUTO') {
                 const wasRunning = CONFIG.running;
                 CONFIG.running = data.running;
                 if (data.config) Object.assign(CONFIG, data.config);
-                saveConfig();
                 if (CONFIG.running) {
+                    if (!wasRunning) bannerRunOnce();
                     if (!wasRunning && typeof resetArenaRun === 'function') resetArenaRun();
                     isTowerChallenging = false;
                     waitingForFloorUpdate = false;

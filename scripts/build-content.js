@@ -6,12 +6,14 @@ const root = path.resolve(__dirname, '..');
 const extensionRoot = path.join(root, 'extension');
 const sourceRoot = path.join(extensionRoot, 'src', 'content');
 const outputPath = path.join(extensionRoot, 'content.js');
-const sourceFiles = [
+const allSourceFiles = [
     'bootstrap.js',
     'ui-init.js',
     'ui-styles.js',
     'ui-markup.js',
     'ui-events.js',
+    'features/exposure-probe-ui.js',
+    'features/banner-gifts-ui.js',
     'features/auto-reconnect.js',
     'game-bridge.js',
     'game-hooks.js',
@@ -34,8 +36,19 @@ const sourceFiles = [
     'features/memory-minigame.js',
     'features/dragon-minigame.js',
     'features/daily-routines.js',
+    'features/exposure-probe.js',
+    'features/banner-gifts.js',
+    'features/banner-workflow.js',
     'features/scheduler.js'
 ];
+
+// Local-only files (git-ignored, see .gitignore): built in when they exist on this machine, skipped when
+// they are missing (fresh clone) or when building with --no-local (use this before committing content.js
+// so the generated file never carries local-only code).
+const localOnlyFiles = new Set(['features/exposure-probe-ui.js', 'features/exposure-probe.js']);
+const includeLocal = !process.argv.includes('--no-local');
+const sourceFiles = allSourceFiles.filter((fileName) =>
+    !localOnlyFiles.has(fileName) || (includeLocal && fs.existsSync(path.join(sourceRoot, fileName))));
 
 function createContentBundle() {
     const fragments = sourceFiles.map((fileName) => {
