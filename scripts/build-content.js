@@ -12,6 +12,7 @@ const sourceFiles = [
     'ui-styles.js',
     'ui-markup.js',
     'ui-events.js',
+    'features/auto-reconnect.js',
     'game-bridge.js',
     'game-hooks.js',
     'features/tong-tian-tower.js',

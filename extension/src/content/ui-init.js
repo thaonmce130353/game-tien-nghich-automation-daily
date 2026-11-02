@@ -106,6 +106,24 @@
                 updateRoleDisplay(data.role);
             } else if (data.action === 'LOG') {
                 addLogToUI(data.message, data.logType);
+            } else if (data.action === 'AUTO_RECONNECT_RELOAD') {
+                if (!reconnectTopPrepare(data.reason, data.resume)) return;
+                addLogToUI('🔄 [Vào lại game] Đang làm mới trang game để vào lại...', 'action');
+                setTimeout(() => location.reload(), 800);
+            } else if (data.action === 'AUTO_RECONNECT_GAME_READY') {
+                reconnectTopDone();
+                // Làm mới trang đặt lại running=false; chỉ chạy lại Auto nếu trước đó đang chạy.
+                if (data.resume && !CONFIG.running) {
+                    CONFIG.running = true;
+                    saveConfig();
+                    updateBadge(true);
+                    sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
+                    sendCommandToGame('TOGGLE_AUTO', { running: true, config: CONFIG });
+                    addLogToUI('▶️ [Vào lại game] Auto đã được khởi động lại sau khi vào lại game.', 'action');
+                } else {
+                    sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
+                    addLogToUI('ℹ️ [Vào lại game] Đã vào lại game; Auto vẫn đang tạm dừng như trước khi ngắt kết nối.', 'info');
+                }
             }
         });
 

@@ -187,6 +187,22 @@
                 });
             }
 
+            const reconnectEl = document.getElementById('tn-opt-reconnect');
+            if (reconnectEl) {
+                reconnectEl.checked = Boolean(CONFIG.autoReconnect);
+                reconnectEl.addEventListener('change', (e) => {
+                    CONFIG.autoReconnect = e.target.checked;
+                    saveConfig();
+                    sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
+                    addLogToUI(
+                        CONFIG.autoReconnect
+                            ? "🟢 Đã bật tự vào lại game khi bị ngắt kết nối."
+                            : "⏸️ Đã tắt tự vào lại game khi bị ngắt kết nối.",
+                        "info"
+                    );
+                });
+            }
+
             const buyTamTienGiftsEl = document.getElementById('tn-opt-buy-tam-tien-gifts');
             if (buyTamTienGiftsEl) {
                 buyTamTienGiftsEl.checked = Boolean(CONFIG.buyTamTienGifts);

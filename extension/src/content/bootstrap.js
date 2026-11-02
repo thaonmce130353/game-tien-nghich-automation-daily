@@ -25,6 +25,7 @@
     const CONFIG = {
         autoSkipFight: true,            // Bỏ qua trận đấu thần tốc (chạy kèm mọi tính năng)
         maxSpeed: true,                 // Tối đa tốc độ x3 (chạy kèm mọi tính năng)
+        autoReconnect: true,            // Tự làm mới & bấm "Vào Game" khi game bị ngắt kết nối (chạy nền)
         activeFeature: 'autoTongTian',   // Duy nhất 1 tính năng chính hoạt động khi Auto (Chống xung đột)
         
         // --- 8 MODULE ƯU TIÊN HOÀN CHỈNH ---

@@ -83,6 +83,7 @@ Each feature module contains its handler and feature-specific state in one file.
 | `extension/src/content/features/memory-minigame.js` | Ảo Cảnh Pháp Trận |
 | `extension/src/content/features/dragon-minigame.js` | Điêu Long Khắc Tinh |
 | `extension/src/content/features/daily-routines.js` | Mail quick claims, leaderboard worship, daily task/chest claims, Tiên Hữu quick gifting, and guild routines |
+| `extension/src/content/features/auto-reconnect.js` | Background reconnect: detects a lost game connection from game state, refreshes the page, clicks “Vào Game”, and resumes Auto |
 | `extension/src/content/features/scheduler.js` | Existing feature dispatch and automation cycle |
 
 Some existing handlers intentionally cover multiple related options, such as hangup rewards/quick hang and the shared daily routines. They remain together to avoid changing behavior.

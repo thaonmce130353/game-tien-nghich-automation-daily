@@ -26,9 +26,13 @@
                                 <span style="font-weight:bold; color:#cdd6f4;">⏩ Bỏ qua trận đánh thần tốc (Skip)</span>
                                 <input type="checkbox" id="tn-opt-skip" ${CONFIG.autoSkipFight ? 'checked' : ''}>
                             </label>
-                            <label class="tn-opt-item" style="padding:4px 8px;">
+                            <label class="tn-opt-item" style="padding:4px 8px; margin-bottom:3px;">
                                 <span style="font-weight:bold; color:#cdd6f4;">⚡ Tối đa tốc độ x3</span>
                                 <input type="checkbox" id="tn-opt-speed" ${CONFIG.maxSpeed ? 'checked' : ''}>
+                            </label>
+                            <label class="tn-opt-item" style="padding:4px 8px;">
+                                <span style="font-weight:bold; color:#cdd6f4;">🔌 Tự vào lại game khi bị ngắt kết nối</span>
+                                <input type="checkbox" id="tn-opt-reconnect" ${CONFIG.autoReconnect ? 'checked' : ''}>
                             </label>
                         </div>
 
