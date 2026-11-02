@@ -19,6 +19,8 @@
                             return true;
                         }
                     }
+                } else {
+                    logUnsupportedOnce('m5', "⚠️ [M5 - Di Tích] Bản game hiện tại không có bộ điều khiển RelicCtrl; tính năng chưa hỗ trợ, không gửi thao tác nào.");
                 }
                 return false;
             } catch(e) { return false; }

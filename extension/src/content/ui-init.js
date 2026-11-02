@@ -128,7 +128,7 @@
                     CONFIG.running = true;
                     updateBadge(true);
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
-                    sendCommandToGame('TOGGLE_AUTO', { running: true, config: CONFIG });
+                    sendCommandToGame('TOGGLE_AUTO', { running: true, resumed: true, config: CONFIG });
                     addLogToUI('▶️ [Vào lại game] Auto đã được khởi động lại sau khi vào lại game.', 'action');
                 } else {
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });

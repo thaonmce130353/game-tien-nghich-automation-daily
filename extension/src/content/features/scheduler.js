@@ -2,6 +2,10 @@
         let wasAutoRunning = false;
         const CUOI_NGAY_ACTION_INTERVAL_MS = 800;
 
+        function markActed(baseMs) {
+            nextActionAt = Date.now() + humanDelay(baseMs);
+        }
+
         function executeCycle(isManualOnce = false) {
             if (!CONFIG.running && !isManualOnce) {
                 wasAutoRunning = false;
@@ -72,7 +76,7 @@
             const actionInterval = active === 'autoCuoiNgay'
                 ? CUOI_NGAY_ACTION_INTERVAL_MS
                 : (CONFIG.intervalMs || 1200);
-            if (now - lastActionTime < actionInterval) return;
+            if (now < nextActionAt) return;
 
             isExecuting = true;
             try {
@@ -83,18 +87,18 @@
                     !ctx.GuildCtrl && !ctx.GldWrCtrl && !ctx.SpiritAnimalCtrl &&
                     CONFIG.activeFeature !== 'autoTienMinh') return;
 
-                sendRoleInfo();
+                sendRoleInfo(false);
                 hookGameEvents(ctx);
 
                 if ((CONFIG.autoArena || CONFIG.autoSkipFight) && handleArenaFightResult(ctx)) {
-                    lastActionTime = now;
+                    markActed(actionInterval);
                     return;
                 }
 
                 // ⚡ BỎ QUA TRẬN ĐẤU THẦN TỐC: LUÔN CHẠY KÈM TẤT CẢ TÍNH NĂNG KHÁC!
                 if (CONFIG.autoSkipFight) {
                     if (handleBattle(ctx)) {
-                        lastActionTime = now;
+                        markActed(actionInterval);
                         return;
                     }
                 }
@@ -107,80 +111,84 @@
                 // 🎯 ĐỘC QUYỀN 1 CHỨC NĂNG CHÍNH (MUTEX): CHỐNG XUNG ĐỘT
                 // 1. ĐẠO THÀNH: Đấu Tiên Đài
                 if (active === 'autoArena' || (CONFIG.autoArena && !active)) {
-                    if (handleArena(ctx)) { lastActionTime = now; return; }
+                    if (handleArena(ctx)) { markActed(actionInterval); return; }
                 }
                 // --- ĐIỀU PHỐI 8 MODULE ƯU TIÊN VÀ CÁC HOẠT ĐỘNG ---
                 // [Module 1] Thông Thiên Tháp & Tứ Linh Tháp
                 else if (active === 'autoTongTian' || (CONFIG.autoTongTian && !active)) {
-                    if (handleTowerAndTuLinh(ctx)) { lastActionTime = now; return; }
+                    if (handleTowerAndTuLinh(ctx)) { markActed(actionInterval); return; }
                 }
                 // [Module 2] Phụ Bản Ngày & Bí Cảnh Tứ Quốc
                 else if (active === 'autoDailyDungeon' || (CONFIG.autoDailyDungeon && !active)) {
-                    if (handleDailyAndBiCanh(ctx)) { lastActionTime = now; return; }
+                    if (handleDailyAndBiCanh(ctx)) { markActed(actionInterval); return; }
                 }
                 // [Module 3] Thủ Vệ Tứ Phái
                 else if (active === 'autoSectDefense' || (CONFIG.autoSectDefense && !active)) {
-                    if (handleSectDefense(ctx)) { lastActionTime = now; return; }
+                    if (handleSectDefense(ctx)) { markActed(actionInterval); return; }
                 }
                 // [Module 4] Cửu Uyển Nhi, Cổ Thần Địa, Cực Âm Địa
                 else if (active === 'autoOtherTrials' || (CONFIG.autoOtherTrials && !active)) {
-                    if (handleOtherTrials(ctx)) { lastActionTime = now; return; }
+                    if (handleOtherTrials(ctx)) { markActed(actionInterval); return; }
                 }
                 // [Module 5] Di Tích Tiên Giới
                 else if (active === 'autoImmortalRelic' || (CONFIG.autoImmortalRelic && !active)) {
-                    if (handleImmortalRelic(ctx)) { lastActionTime = now; return; }
+                    if (handleImmortalRelic(ctx)) { markActed(actionInterval); return; }
                 }
                 // [Module 6] Minigame Ảo Cảnh Pháp Trận
                 else if (active === 'autoMinigameMemory' || (CONFIG.autoMinigameMemory && !active)) {
-                    if (handleMinigameMemory(ctx)) { lastActionTime = now; return; }
+                    if (handleMinigameMemory(ctx)) { markActed(actionInterval); return; }
                 }
                 // [Module 7] Kiếm Hành & Điêu Long Khắc Tinh QTE
                 else if (active === 'autoMinigameDragon' || (CONFIG.autoMinigameDragon && !active)) {
-                    if (handleMinigameDragon(ctx)) { lastActionTime = now; return; }
+                    if (handleMinigameDragon(ctx)) { markActed(actionInterval); return; }
                 }
                 // [Module 8] Hoạt Động Ngày, Tiên Minh & Nhận Cuối Ngày
                 else if (['autoTroChien', 'autoTamTienDai', 'autoTienHuu', 'autoTienMinh', 'autoCuoiNgay'].includes(active)) {
-                    if (handleDailyRoutine(ctx)) { lastActionTime = now; return; }
+                    if (handleDailyRoutine(ctx)) { markActed(actionInterval); return; }
+                }
+                // Ủy Phái Ma Đạo & Quà Tiên: chưa có phần xử lý trong bản này -> báo rõ thay vì im lặng.
+                else if (active === 'autoMaDaoUyPhai') {
+                    logUnsupportedOnce('autoMaDaoUyPhai', "⚠️ [Ủy Phái Ma Đạo] Tính năng chưa được triển khai trong bản Auto này; không có thao tác nào được gửi. Hãy chọn tính năng khác.");
                 }
                 // 4. LỊCH LUYỆN: Leo Phụ Bản Ngày
                 else if (active === 'autoClimbDailyDungeons' || (CONFIG.autoClimbDailyDungeons && !active)) {
-                    if (handleClimbDailyDungeons(ctx)) { lastActionTime = now; return; }
+                    if (handleClimbDailyDungeons(ctx)) { markActed(actionInterval); return; }
                 }
                 // 5. LỊCH LUYỆN: Leo Vực U Minh
                 else if (active === 'autoClimbYMAbyss' || (CONFIG.autoClimbYMAbyss && !active)) {
-                    if (handleClimbYMAbyss(ctx)) { lastActionTime = now; return; }
+                    if (handleClimbYMAbyss(ctx)) { markActed(actionInterval); return; }
                 }
                 // 6. LỊCH LUYỆN: Đánh Cực Âm Địa
                 else if (active === 'autoExtremeYin' || (CONFIG.autoExtremeYin && !active)) {
-                    if (handleExtremeYin(ctx)) { lastActionTime = now; return; }
+                    if (handleExtremeYin(ctx)) { markActed(actionInterval); return; }
                 }
                 // 7. LỊCH LUYỆN: Leo Tứ Linh Trận
                 else if (active === 'autoClimbCamp' || (CONFIG.autoClimbCamp && !active)) {
-                    if (handleClimbCamp(ctx)) { lastActionTime = now; return; }
+                    if (handleClimbCamp(ctx)) { markActed(actionInterval); return; }
                 }
                 // 8. LỊCH LUYỆN: Quét Sạch Phụ Bản Đã Vượt
                 else if (active === 'autoSweepDungeons' || (CONFIG.autoSweepDungeons && !active)) {
-                    if (handleSweepDungeons(ctx)) { lastActionTime = now; return; }
+                    if (handleSweepDungeons(ctx)) { markActed(actionInterval); return; }
                 }
                 // 9. MA ĐẠO: Đi Ải Chính Tuyến
                 else if (active === 'autoMainStage' || (CONFIG.autoMainStage && !active)) {
-                    if (handleMainStage(ctx)) { lastActionTime = now; return; }
+                    if (handleMainStage(ctx)) { markActed(actionInterval); return; }
                 }
                 // 10. MA ĐẠO: Nhận Thưởng Treo Máy (AFK)
                 else if (active === 'autoHangupReward' || (CONFIG.autoHangupReward && !active)) {
-                    if (handleHangup(ctx)) { lastActionTime = now; return; }
+                    if (handleHangup(ctx)) { markActed(actionInterval); return; }
                 }
                 // 11. MA ĐẠO: Mua Treo Máy Nhanh
                 else if (active === 'autoQuickHang' || (CONFIG.autoQuickHang && !active)) {
-                    if (handleHangup(ctx)) { lastActionTime = now; return; }
+                    if (handleHangup(ctx)) { markActed(actionInterval); return; }
                 }
                 // 12. MA ĐẠO: Quà Tiên Duyên (SK Rút x1000)
                 else if (active === 'autoXianYuan' || (CONFIG.autoXianYuan && !active)) {
-                    if (handleXianYuan(ctx)) { lastActionTime = now; return; }
+                    if (handleXianYuan(ctx)) { markActed(actionInterval); return; }
                 }
                 // 13. MA ĐẠO: Nhiệm Vụ Ngày
                 else if (active === 'autoDailyTask' || (CONFIG.autoDailyTask && !active)) {
-                    if (handleDailyTasks(ctx)) { lastActionTime = now; return; }
+                    if (handleDailyTasks(ctx)) { markActed(actionInterval); return; }
                 }
 
                 if (isManualOnce) {
@@ -191,8 +199,12 @@
             }
         }
 
-        setInterval(() => {
-            executeCycle(false);
-        }, 800);
+        // Nhịp kiểm tra lệch ngẫu nhiên 650-1050ms thay vì đúng 800ms.
+        (function scheduleTick() {
+            setTimeout(() => {
+                try { executeCycle(false); } catch (e) { }
+                scheduleTick();
+            }, 650 + Math.floor(Math.random() * 400));
+        })();
     }
 })();

@@ -9,16 +9,41 @@
             noAttemptsLogged: false
         };
 
-        function resetArenaRun() {
-            arenaRunState.battlesCompleted = 0;
+        // Số trận của lượt chạy được lưu trong sessionStorage của tab để tự vào lại game (làm mới trang)
+        // không đặt lại bộ đếm và vượt giới hạn trận.
+        const ARENA_RUN_STORAGE_KEY = 'TN_AUTO_ARENA_RUN_V1';
+
+        function saveArenaRunCount() {
+            try {
+                sessionStorage.setItem(ARENA_RUN_STORAGE_KEY, JSON.stringify({
+                    dayKey: new Date().toDateString(),
+                    battlesCompleted: arenaRunState.battlesCompleted
+                }));
+            } catch (e) { }
+        }
+
+        function resetArenaRun(resumed = false) {
+            let restored = 0;
+            if (resumed) {
+                try {
+                    const saved = JSON.parse(sessionStorage.getItem(ARENA_RUN_STORAGE_KEY) || 'null');
+                    if (saved && saved.dayKey === new Date().toDateString()) restored = Number(saved.battlesCompleted) || 0;
+                } catch (e) { }
+            }
+            arenaRunState.battlesCompleted = restored;
             arenaRunState.limitReachedLogged = false;
             arenaRunState.noAttemptsLogged = false;
+            saveArenaRunCount();
+            if (resumed && CONFIG.activeFeature === 'autoArena') {
+                sendLog(`ℹ️ [Đấu Tiên Đài] Chạy tiếp sau khi vào lại game: giữ bộ đếm ${restored} trận đã đánh của lượt này.`, "info");
+            }
         }
 
         function recordArenaBattleResult(succeeded) {
             if (!arenaRunState.pendingBattle || arenaRunState.resultRecorded) return;
             arenaRunState.resultRecorded = true;
             arenaRunState.battlesCompleted++;
+            saveArenaRunCount();
             const result = succeeded ? "thắng" : "thua";
             sendLog(`✅ [Đấu Tiên Đài] Máy chủ xác nhận trận ${arenaRunState.battlesCompleted} đã kết thúc (${result}).`, "action");
         }

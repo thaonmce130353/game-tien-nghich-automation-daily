@@ -14,7 +14,8 @@
                 const cType = CAMP_TYPES[idx];
                 const nextId = getNextDungeonId(ctx, cType);
 
-                if (nextId > 0 && (!failCounts[nextId] || failCounts[nextId] < 2)) {
+                if (nextId > 0 && (!failCounts[nextId] || failCounts[nextId] < 2) &&
+                    tryAttemptTarget(`camp-${nextId}`, `[Leo Tứ Linh Trận] Ải #${nextId}`)) {
                     lastCampClimbIndex = (idx + 1) % CAMP_TYPES.length;
                     lastCampClimbTime = now;
 

@@ -3,6 +3,9 @@
         // 3. TỰ ĐỘNG ĐI ẢI CHÍNH TUYẾN (MA ĐẠO)
         // ============================================================================
         let lastMainStageAction = 0;
+        let mainStageFailStreak = 0;
+        let mainStageStopped = false;
+        runResetHooks.push(() => { mainStageFailStreak = 0; mainStageStopped = false; });
 
         function handleMainStage(ctx) {
             if (!ctx.HangupCtrl || !ctx.HangupCtrl.gInst) return false;
@@ -42,6 +45,7 @@
 
                 // 3. Đóng bảng thắng / thua để qua ải kế tiếp
                 if (vm.viewIsVisible && vm.viewIsVisible(ctx.ViewConst.fightSuccessUi)) {
+                    mainStageFailStreak = 0;
                     sendLog('🎉 Vượt ải THÀNH CÔNG! Chuyển ải tiếp theo...', 'success');
                     const v = vm.getViewByName(ctx.ViewConst.fightSuccessUi);
                     if (v && v.onHide) v.onHide();
@@ -50,7 +54,13 @@
                     return true;
                 }
                 if (vm.viewIsVisible && vm.viewIsVisible(ctx.ViewConst.fightFailUi)) {
-                    sendLog('⚠️ Khiêu chiến ải thất bại. Tạm dừng để củng cố lực chiến.', 'warning');
+                    mainStageFailStreak++;
+                    if (mainStageFailStreak >= 2) {
+                        mainStageStopped = true;
+                        sendLog(`⏸️ Thua Ải Chính Tuyến ${mainStageFailStreak} lần liên tiếp; dừng đi ải trong lượt Auto này để củng cố lực chiến.`, 'warn');
+                    } else {
+                        sendLog('⚠️ Khiêu chiến ải thất bại. Tạm dừng để củng cố lực chiến.', 'warn');
+                    }
                     const v = vm.getViewByName(ctx.ViewConst.fightFailUi);
                     if (v && v.onHide) v.onHide();
                     else vm.closeView(ctx.ViewConst.fightFailUi);
@@ -68,8 +78,10 @@
                 return true;
             }
 
-            // 5. Bắt đầu Khiêu Chiến ải chính tuyến
+            // 5. Bắt đầu Khiêu Chiến ải chính tuyến (dừng khi thua liên tiếp hoặc cùng ải đã thử 3 lần)
+            if (mainStageStopped) return false;
             const curStage = hg.m_curStageId || 1;
+            if (!tryAttemptTarget(`main-stage-${curStage}`, `[Ải Chính Tuyến] Ải ${curStage}`)) return false;
             sendLog(`🚀 Khiêu chiến Ải Chính Tuyến ${curStage}...`, 'info');
             if (typeof hg.reqChanllgeStage === 'function') {
                 hg.reqChanllgeStage();

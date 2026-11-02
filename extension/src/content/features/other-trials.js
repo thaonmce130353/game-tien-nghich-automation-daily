@@ -16,6 +16,10 @@
                         sendLog("⚔️ [M4 - Cổ Thần Địa] Đã tự lên trận nhanh và khiêu chiến ải!", "action");
                     }
                 }
+                const missing = ['UyenNhiCtrl', 'CoThanCtrl'].filter((name) => !ctx[name]);
+                if (missing.length) {
+                    logUnsupportedOnce('m4-missing', `ℹ️ [M4] Bản game không có ${missing.join(', ')}; bỏ qua phần Uyển Nhi/Cổ Thần, chỉ chạy Cực Âm Địa.`);
+                }
                 // 3. Cực Âm Địa
                 return handleExtremeYin(ctx);
             } catch(e) { return false; }

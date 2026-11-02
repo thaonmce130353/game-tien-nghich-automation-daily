@@ -3,6 +3,7 @@
         // 2. TỰ ĐỘNG ĐÁNH CỰC ÂM ĐỊA (LỊCH LUYỆN)
         // ============================================================================
         let lastExtremeYinCheck = 0;
+        let extremeYinWaitLoggedFor = null;
 
         function handleExtremeYin(ctx) {
             if (!ctx.ExtremeYinCtrl || !ctx.ExtremeYinCtrl.gInst) return false;
@@ -12,6 +13,7 @@
 
             // Nếu đang tu luyện: Kiểm tra đã xong giờ để nhận thưởng chưa
             if (eyCtrl.bHaveSeat && eyCtrl.bHaveSeat()) {
+                clearTargetAttempts('extreme-yin-seat');
                 const curLandId = eyCtrl.getLandId ? eyCtrl.getLandId() : 0;
                 const pData = eyCtrl.getPlayerData ? eyCtrl.getPlayerData() : null;
                 const model = eyCtrl.getCurlModel ? eyCtrl.getCurlModel() : null;
@@ -25,17 +27,22 @@
                         return true;
                     } else {
                         const remainSec = buildCfg.time - timePassed;
-                        const m = Math.floor(remainSec / 60);
-                        const s = remainSec % 60;
-                        sendLog(`🧘 Đang tu luyện Cực Âm Địa (Còn ${m}p${s}s)...`, 'info');
-                        lastExtremeYinCheck = now + 10000;
+                        // Log 1 lần mỗi lượt tu luyện; kiểm tra lại khi gần hết giờ (tối đa mỗi 60s).
+                        if (extremeYinWaitLoggedFor !== pData.start_time) {
+                            extremeYinWaitLoggedFor = pData.start_time;
+                            const m = Math.floor(remainSec / 60);
+                            const s = remainSec % 60;
+                            sendLog(`🧘 Đang tu luyện Cực Âm Địa (Còn ${m}p${s}s)...`, 'info');
+                        }
+                        lastExtremeYinCheck = now + Math.min(Math.max(remainSec * 1000, 0), 60000);
                         return true;
                     }
                 }
                 return false;
             }
 
-            // Nếu chưa có chỗ: Tìm tầng cao nhất còn chỗ trống để đánh chiếm
+            // Nếu chưa có chỗ: Tìm tầng cao nhất còn chỗ trống để đánh chiếm (tối đa 3 lần mỗi lượt Auto).
+            if (!tryAttemptTarget('extreme-yin-seat', '[Cực Âm Địa] Chiếm chỗ tu luyện')) return false;
             sendLog('🔍 Đang kiểm tra các tầng Cực Âm Địa còn chỗ trống...', 'info');
             eyCtrl.toRefreshMainInfo();
 

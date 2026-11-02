@@ -13,6 +13,7 @@
                     if (typeof mg.likeRankings === 'function') mg.likeRankings(); // Like 2 tab BXH
                     return true;
                 }
+                logUnsupportedOnce('m6', "⚠️ [M6 - Ảo Cảnh] Bản game hiện tại không có bộ điều khiển MemoryGameCtrl; tính năng chưa hỗ trợ, không gửi thao tác nào.");
                 return false;
             } catch(e) { return false; }
         }

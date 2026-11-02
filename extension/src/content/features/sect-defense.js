@@ -14,6 +14,7 @@
                     sendLog("🛡️ [M3 - Thủ Vệ Tứ Phái] Tự động chọn trợ trận, chọn Buff cột giữa & nhận Chiến Lệnh!", "action");
                     return true;
                 }
+                logUnsupportedOnce('m3', "⚠️ [M3 - Thủ Vệ Tứ Phái] Bản game hiện tại không có bộ điều khiển SectDefenseCtrl; tính năng chưa hỗ trợ, không gửi thao tác nào.");
                 return false;
             } catch(e) { return false; }
         }

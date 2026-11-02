@@ -1,3 +1,5 @@
+        let taskQueryIntervalMs = 0;
+
         function handleDailyTasks(ctx) {
             if (!CONFIG.autoDailyTask) return false;
             const now = Date.now();
@@ -5,7 +7,9 @@
             const acvCtrl = ctx.AcvCtrl && ctx.AcvCtrl.gInst ? ctx.AcvCtrl.gInst() : null;
             if (!acvCtrl) return false;
 
-            if (now - lastTaskQueryTime > 20000 || !acvCtrl.taskDt) {
+            // Làm mới dữ liệu nhiệm vụ 45-75s một lần (trước đây 20s, gửi 8 giao thức mỗi lần).
+            if (now - lastTaskQueryTime > taskQueryIntervalMs || !acvCtrl.taskDt) {
+                taskQueryIntervalMs = 45000 + Math.floor(Math.random() * 30000);
                 lastTaskQueryTime = now;
                 if (acvCtrl.send30501) acvCtrl.send30501();
                 if (acvCtrl.send12501) acvCtrl.send12501();
@@ -47,6 +51,9 @@
                         const task = taskList[i];
                         if (task.status === 0) {
                             const tid = task.task_id;
+                            // Mỗi nhiệm vụ chỉ làm tối đa 3 lần mỗi lượt Auto; nếu game chưa ghi nhận thì bỏ qua.
+                            const taskKey = `daily-task-${tid}`;
+                            if ((targetAttempts[taskKey] || 0) >= MAX_TARGET_ATTEMPTS) continue;
                             let didTask = false;
 
                             switch (tid) {
@@ -78,7 +85,10 @@
                                         const ac = ctx.ArenaCtrl.gInst();
                                         if (ac.opAnUi) ac.opAnUi();
                                         if (ac.send14201) ac.send14201();
-                                        if (ac.chnlgeEmy) {
+                                        // Chỉ dùng lượt miễn phí, không tiêu Đấu Tiên Lệnh cho nhiệm vụ ngày.
+                                        if (!(ac.m_freeCount > 0)) {
+                                            logUnsupportedOnce('daily-task-4-free', "ℹ️ [Nhiệm Vụ Ngày - Case 4] Hết lượt Đấu Tiên Đài miễn phí; bỏ qua để không tiêu Đấu Tiên Lệnh.");
+                                        } else if (ac.chnlgeEmy) {
                                             ac.skipArenaFight = true;
                                             ac.chnlgeEmy(0);
                                             sendLog(`⚔️ [Nhiệm Vụ Ngày - Case 4] Khiêu chiến Đấu Trường`, "action");
@@ -135,6 +145,10 @@
                             }
 
                             if (didTask) {
+                                targetAttempts[taskKey] = (targetAttempts[taskKey] || 0) + 1;
+                                if (targetAttempts[taskKey] >= MAX_TARGET_ATTEMPTS) {
+                                    logUnsupportedOnce(taskKey, `⏸️ [Nhiệm Vụ Ngày] Đã làm nhiệm vụ #${tid} ${MAX_TARGET_ATTEMPTS} lần; nếu game chưa ghi nhận hoàn thành sẽ bỏ qua trong lượt Auto này.`);
+                                }
                                 lastTaskActionTime = now;
                                 acted = true;
                                 break;

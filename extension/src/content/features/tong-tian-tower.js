@@ -40,7 +40,12 @@
 
                 const towerType = (ctx.DailyDungeonConst && ctx.DailyDungeonConst.dailyDungeonType && ctx.DailyDungeonConst.dailyDungeonType.runningMan) || 1;
                 const curDgnId = getNextDungeonId(ctx, towerType);
-                if (curDgnId <= 0 || (failCounts[curDgnId] && failCounts[curDgnId] >= 2)) return false;
+                if (curDgnId <= 0) return false;
+                if (failCounts[curDgnId] >= 2) {
+                    logUnsupportedOnce(`tower-rejected-${curDgnId}`, `⏸️ [Thông Thiên Tháp] Máy chủ từ chối tầng #${curDgnId} nhiều lần; dừng khiêu chiến trong lượt Auto này.`);
+                    return false;
+                }
+                if (!tryAttemptTarget(`tower-${curDgnId}`, `[Thông Thiên Tháp] Tầng #${curDgnId}`)) return false;
 
                 isTowerChallenging = true;
                 waitingForFloorUpdate = true;

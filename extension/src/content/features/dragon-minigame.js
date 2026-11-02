@@ -21,6 +21,9 @@
                     if (typeof dc.claimBattlePass === 'function') dc.claimBattlePass();
                     return true;
                 }
+                if (!ctx.KiemHanhCtrl) {
+                    logUnsupportedOnce('m7', "⚠️ [M7 - Kiếm Hành/Điêu Long] Bản game hiện tại không có KiemHanhCtrl/DragonCarveCtrl; tính năng chưa hỗ trợ, không gửi thao tác nào.");
+                }
                 return false;
             } catch(e) { return false; }
         }

@@ -35,7 +35,8 @@
             }
 
             // 3. Định kỳ refresh dữ liệu nhiệm vụ Tiên Duyên
+            // Định kỳ ~30-45s (trước đây ~6s).
             xy.send32120();
-            lastXianYuanAction = now + 4000;
+            lastXianYuanAction = now + 28000 + Math.floor(Math.random() * 15000);
             return true;
         }

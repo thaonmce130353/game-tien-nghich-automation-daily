@@ -2,11 +2,57 @@
     if (isGameContext) {
         const failCounts = {};
         let isExecuting = false;
-        let lastActionTime = 0;
+        let nextActionAt = 0;
         let isTowerChallenging = false;
         let waitingForFloorUpdate = false;
         let lastPassedFloor = 0;
-        let hasSweptToday = false;
+        let sweptDayKey = '';
+
+        // Nhịp thao tác giống người chơi: nghỉ ngẫu nhiên quanh nhịp gốc, thỉnh thoảng dừng lâu hơn
+        // (thay cho nhịp cố định đều đặn dễ bị nhận ra).
+        function humanDelay(baseMs) {
+            const base = baseMs > 0 ? baseMs : 1200;
+            let delay = base * (0.85 + Math.random() * 0.75);
+            if (Math.random() < 0.08) delay += 2500 + Math.random() * 5500;
+            return Math.round(delay);
+        }
+
+        // Giới hạn số lần thử cùng một mục tiêu trong một lượt chạy Auto (tránh gửi lặp vô hạn khi thua/lỗi).
+        const MAX_TARGET_ATTEMPTS = 3;
+        const targetAttempts = {};
+        const unsupportedLogged = {};
+        const runResetHooks = [];         // các module đăng ký đặt lại trạng thái khi bắt đầu lượt Auto mới
+
+        function tryAttemptTarget(key, label) {
+            const count = targetAttempts[key] || 0;
+            if (count >= MAX_TARGET_ATTEMPTS) {
+                if (count === MAX_TARGET_ATTEMPTS) {
+                    targetAttempts[key] = count + 1;
+                    sendLog(`⏸️ ${label}: đã thử ${MAX_TARGET_ATTEMPTS} lần chưa qua; dừng thử mục tiêu này trong lượt Auto này.`, "warn");
+                }
+                return false;
+            }
+            targetAttempts[key] = count + 1;
+            return true;
+        }
+
+        function clearTargetAttempts(key) {
+            delete targetAttempts[key];
+        }
+
+        // Ghi log một lần mỗi lượt Auto cho phần chưa hỗ trợ trên bản game hiện tại.
+        function logUnsupportedOnce(key, message) {
+            if (unsupportedLogged[key]) return;
+            unsupportedLogged[key] = true;
+            sendLog(message, "warn");
+        }
+
+        function resetRunGuards() {
+            for (const k of Object.keys(targetAttempts)) delete targetAttempts[k];
+            for (const k of Object.keys(unsupportedLogged)) delete unsupportedLogged[k];
+            for (const k of Object.keys(failCounts)) delete failCounts[k];
+            runResetHooks.forEach((reset) => { try { reset(); } catch (e) { } });
+        }
 
         let lastHangupCheck = 0;
         let lastQuickHangCheck = 0;
@@ -78,7 +124,10 @@
         }
 
 
-        function sendRoleInfo() {
+        let lastRoleSignature = '';
+        let lastRoleSentAt = 0;
+
+        function sendRoleInfo(force = false) {
             try {
                 let role = null;
                 let curlModel = null;
@@ -153,18 +202,25 @@
 
                 if (!roleName && !roleUid) return;
 
-                try {
-                    if (typeof updateRoleDisplay === 'function') { try { updateRoleDisplay(rolePayload); } catch(e){} }
-                    if (roleName) localStorage.setItem('TN_LAST_ROLE_NAME', roleName);
-                } catch(e) {}
-
-                // Gửi message lên Top Window
                 const rolePayload = {
                     uid: roleUid,
                     name: roleName,
                     level: lvl,
                     power: power
                 };
+
+                // Chỉ gửi khi thông tin đổi hoặc định kỳ 15s (giảm tải postMessage/DOM/localStorage).
+                const signature = JSON.stringify(rolePayload);
+                const sentAt = Date.now();
+                if (!force && signature === lastRoleSignature && sentAt - lastRoleSentAt < 15000) return;
+                const nameChanged = !lastRoleSignature || JSON.parse(lastRoleSignature).name !== roleName;
+                lastRoleSignature = signature;
+                lastRoleSentAt = sentAt;
+
+                try {
+                    if (typeof updateRoleDisplay === 'function') { try { updateRoleDisplay(rolePayload); } catch(e){} }
+                    if (roleName && nameChanged) localStorage.setItem('TN_LAST_ROLE_NAME', roleName);
+                } catch(e) {}
 
                 try {
                     window.top.postMessage({
@@ -184,14 +240,14 @@
             } catch (e) { }
         }
 
-        setInterval(sendRoleInfo, 1500);
+        setInterval(() => sendRoleInfo(false), 3000);
 
         window.addEventListener('message', (event) => {
             const data = event.data;
             if (!data || data.source !== 'TIEN_NGHICH_AUTO_HUD') return;
 
             if (data.action === 'REQUEST_ROLE_INFO') {
-                sendRoleInfo();
+                sendRoleInfo(true);
                 return;
             } else if (data.action === 'UPDATE_CONFIG') {
                 Object.assign(CONFIG, data.config);
@@ -200,8 +256,29 @@
                 CONFIG.running = data.running;
                 if (data.config) Object.assign(CONFIG, data.config);
                 if (CONFIG.running) {
-                    if (!wasRunning) bannerRunOnce();
-                    if (!wasRunning && typeof resetArenaRun === 'function') resetArenaRun();
+                    // resumed: Auto được bật lại sau khi tự vào lại game (không phải người dùng bấm BẮT ĐẦU).
+                    const resumed = !!data.resumed;
+                    if (!wasRunning) {
+                        resetRunGuards();
+                        nextActionAt = 0;
+                        if (typeof resetArenaRun === 'function') resetArenaRun(resumed);
+                        if (!resumed) {
+                            bannerRunOnce();
+                        } else if (Object.keys(CONFIG.bannerAuto || {}).some((k) => CONFIG.bannerAuto[k])) {
+                            sendLog("ℹ️ [Vào lại game] Không chạy lại lượt Banner Hero sau khi vào lại game (chỉ chạy 1 lượt mỗi lần bấm BẮT ĐẦU).", "info");
+                        }
+                        if (resumed && !CONFIG.activeFeature) {
+                            CONFIG.running = false;
+                            try {
+                                window.top.postMessage({
+                                    source: 'TIEN_NGHICH_AUTO_GAME',
+                                    action: 'AUTO_FINISHED',
+                                    message: 'ℹ️ [Vào lại game] Không có tính năng chính để chạy tiếp; Auto tự dừng. Bấm BẮT ĐẦU nếu cần chạy lại Banner Hero.'
+                                }, '*');
+                            } catch (e) { }
+                            return;
+                        }
+                    }
                     isTowerChallenging = false;
                     waitingForFloorUpdate = false;
                     executeCycle(false);

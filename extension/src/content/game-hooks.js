@@ -108,6 +108,12 @@
                     if (netData && netData.res !== undefined && netData.res !== 1) {
                         isTowerChallenging = false;
                         waitingForFloorUpdate = false;
+                        // Máy chủ từ chối khiêu chiến (res 0): đếm lỗi theo ải để các tính năng leo ải ngừng gửi lại.
+                        const rejectedId = this.fightId;
+                        if (CONFIG.running && rejectedId > 0) {
+                            failCounts[rejectedId] = (failCounts[rejectedId] || 0) + 1;
+                            sendLog(`⚠️ Máy chủ từ chối khiêu chiến ải #${rejectedId}${netData.msg ? ` (${netData.msg})` : ''}.`, "warn");
+                        }
                     }
                 } catch (e) { }
 

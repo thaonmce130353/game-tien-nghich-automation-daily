@@ -22,6 +22,7 @@
 
                 const curAbyssId = curCfg.id;
                 lastAbyssClimbTime = now;
+                if (!tryAttemptTarget(`abyss-${curAbyssId}`, `[Vực U Minh] Tầng #${curAbyssId}`)) return false;
 
                 if (ctx.ViewMgr && ctx.ViewMgr.gInst) {
                     const vm = ctx.ViewMgr.gInst();

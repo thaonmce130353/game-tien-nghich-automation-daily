@@ -16,7 +16,8 @@
                 const dgn = DAILY_DGN_TYPES[idx];
                 const nextId = getNextDungeonId(ctx, dgn.type);
 
-                if (nextId > 0 && (!failCounts[nextId] || failCounts[nextId] < 2)) {
+                if (nextId > 0 && (!failCounts[nextId] || failCounts[nextId] < 2) &&
+                    tryAttemptTarget(`daily-${nextId}`, `[Leo Phụ Bản - ${dgn.name}] Ải #${nextId}`)) {
                     lastDailyClimbIndex = (idx + 1) % DAILY_DGN_TYPES.length;
                     lastDailyClimbTime = now;
 

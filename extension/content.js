@@ -239,7 +239,7 @@
                     CONFIG.running = true;
                     updateBadge(true);
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
-                    sendCommandToGame('TOGGLE_AUTO', { running: true, config: CONFIG });
+                    sendCommandToGame('TOGGLE_AUTO', { running: true, resumed: true, config: CONFIG });
                     addLogToUI('▶️ [Vào lại game] Auto đã được khởi động lại sau khi vào lại game.', 'action');
                 } else {
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
@@ -1824,11 +1824,57 @@
     if (isGameContext) {
         const failCounts = {};
         let isExecuting = false;
-        let lastActionTime = 0;
+        let nextActionAt = 0;
         let isTowerChallenging = false;
         let waitingForFloorUpdate = false;
         let lastPassedFloor = 0;
-        let hasSweptToday = false;
+        let sweptDayKey = '';
+
+        // Nhịp thao tác giống người chơi: nghỉ ngẫu nhiên quanh nhịp gốc, thỉnh thoảng dừng lâu hơn
+        // (thay cho nhịp cố định đều đặn dễ bị nhận ra).
+        function humanDelay(baseMs) {
+            const base = baseMs > 0 ? baseMs : 1200;
+            let delay = base * (0.85 + Math.random() * 0.75);
+            if (Math.random() < 0.08) delay += 2500 + Math.random() * 5500;
+            return Math.round(delay);
+        }
+
+        // Giới hạn số lần thử cùng một mục tiêu trong một lượt chạy Auto (tránh gửi lặp vô hạn khi thua/lỗi).
+        const MAX_TARGET_ATTEMPTS = 3;
+        const targetAttempts = {};
+        const unsupportedLogged = {};
+        const runResetHooks = [];         // các module đăng ký đặt lại trạng thái khi bắt đầu lượt Auto mới
+
+        function tryAttemptTarget(key, label) {
+            const count = targetAttempts[key] || 0;
+            if (count >= MAX_TARGET_ATTEMPTS) {
+                if (count === MAX_TARGET_ATTEMPTS) {
+                    targetAttempts[key] = count + 1;
+                    sendLog(`⏸️ ${label}: đã thử ${MAX_TARGET_ATTEMPTS} lần chưa qua; dừng thử mục tiêu này trong lượt Auto này.`, "warn");
+                }
+                return false;
+            }
+            targetAttempts[key] = count + 1;
+            return true;
+        }
+
+        function clearTargetAttempts(key) {
+            delete targetAttempts[key];
+        }
+
+        // Ghi log một lần mỗi lượt Auto cho phần chưa hỗ trợ trên bản game hiện tại.
+        function logUnsupportedOnce(key, message) {
+            if (unsupportedLogged[key]) return;
+            unsupportedLogged[key] = true;
+            sendLog(message, "warn");
+        }
+
+        function resetRunGuards() {
+            for (const k of Object.keys(targetAttempts)) delete targetAttempts[k];
+            for (const k of Object.keys(unsupportedLogged)) delete unsupportedLogged[k];
+            for (const k of Object.keys(failCounts)) delete failCounts[k];
+            runResetHooks.forEach((reset) => { try { reset(); } catch (e) { } });
+        }
 
         let lastHangupCheck = 0;
         let lastQuickHangCheck = 0;
@@ -1900,7 +1946,10 @@
         }
 
 
-        function sendRoleInfo() {
+        let lastRoleSignature = '';
+        let lastRoleSentAt = 0;
+
+        function sendRoleInfo(force = false) {
             try {
                 let role = null;
                 let curlModel = null;
@@ -1975,18 +2024,25 @@
 
                 if (!roleName && !roleUid) return;
 
-                try {
-                    if (typeof updateRoleDisplay === 'function') { try { updateRoleDisplay(rolePayload); } catch(e){} }
-                    if (roleName) localStorage.setItem('TN_LAST_ROLE_NAME', roleName);
-                } catch(e) {}
-
-                // Gửi message lên Top Window
                 const rolePayload = {
                     uid: roleUid,
                     name: roleName,
                     level: lvl,
                     power: power
                 };
+
+                // Chỉ gửi khi thông tin đổi hoặc định kỳ 15s (giảm tải postMessage/DOM/localStorage).
+                const signature = JSON.stringify(rolePayload);
+                const sentAt = Date.now();
+                if (!force && signature === lastRoleSignature && sentAt - lastRoleSentAt < 15000) return;
+                const nameChanged = !lastRoleSignature || JSON.parse(lastRoleSignature).name !== roleName;
+                lastRoleSignature = signature;
+                lastRoleSentAt = sentAt;
+
+                try {
+                    if (typeof updateRoleDisplay === 'function') { try { updateRoleDisplay(rolePayload); } catch(e){} }
+                    if (roleName && nameChanged) localStorage.setItem('TN_LAST_ROLE_NAME', roleName);
+                } catch(e) {}
 
                 try {
                     window.top.postMessage({
@@ -2006,14 +2062,14 @@
             } catch (e) { }
         }
 
-        setInterval(sendRoleInfo, 1500);
+        setInterval(() => sendRoleInfo(false), 3000);
 
         window.addEventListener('message', (event) => {
             const data = event.data;
             if (!data || data.source !== 'TIEN_NGHICH_AUTO_HUD') return;
 
             if (data.action === 'REQUEST_ROLE_INFO') {
-                sendRoleInfo();
+                sendRoleInfo(true);
                 return;
             } else if (data.action === 'UPDATE_CONFIG') {
                 Object.assign(CONFIG, data.config);
@@ -2022,8 +2078,29 @@
                 CONFIG.running = data.running;
                 if (data.config) Object.assign(CONFIG, data.config);
                 if (CONFIG.running) {
-                    if (!wasRunning) bannerRunOnce();
-                    if (!wasRunning && typeof resetArenaRun === 'function') resetArenaRun();
+                    // resumed: Auto được bật lại sau khi tự vào lại game (không phải người dùng bấm BẮT ĐẦU).
+                    const resumed = !!data.resumed;
+                    if (!wasRunning) {
+                        resetRunGuards();
+                        nextActionAt = 0;
+                        if (typeof resetArenaRun === 'function') resetArenaRun(resumed);
+                        if (!resumed) {
+                            bannerRunOnce();
+                        } else if (Object.keys(CONFIG.bannerAuto || {}).some((k) => CONFIG.bannerAuto[k])) {
+                            sendLog("ℹ️ [Vào lại game] Không chạy lại lượt Banner Hero sau khi vào lại game (chỉ chạy 1 lượt mỗi lần bấm BẮT ĐẦU).", "info");
+                        }
+                        if (resumed && !CONFIG.activeFeature) {
+                            CONFIG.running = false;
+                            try {
+                                window.top.postMessage({
+                                    source: 'TIEN_NGHICH_AUTO_GAME',
+                                    action: 'AUTO_FINISHED',
+                                    message: 'ℹ️ [Vào lại game] Không có tính năng chính để chạy tiếp; Auto tự dừng. Bấm BẮT ĐẦU nếu cần chạy lại Banner Hero.'
+                                }, '*');
+                            } catch (e) { }
+                            return;
+                        }
+                    }
                     isTowerChallenging = false;
                     waitingForFloorUpdate = false;
                     executeCycle(false);
@@ -2146,6 +2223,12 @@
                     if (netData && netData.res !== undefined && netData.res !== 1) {
                         isTowerChallenging = false;
                         waitingForFloorUpdate = false;
+                        // Máy chủ từ chối khiêu chiến (res 0): đếm lỗi theo ải để các tính năng leo ải ngừng gửi lại.
+                        const rejectedId = this.fightId;
+                        if (CONFIG.running && rejectedId > 0) {
+                            failCounts[rejectedId] = (failCounts[rejectedId] || 0) + 1;
+                            sendLog(`⚠️ Máy chủ từ chối khiêu chiến ải #${rejectedId}${netData.msg ? ` (${netData.msg})` : ''}.`, "warn");
+                        }
                     }
                 } catch (e) { }
 
@@ -2256,7 +2339,12 @@
 
                 const towerType = (ctx.DailyDungeonConst && ctx.DailyDungeonConst.dailyDungeonType && ctx.DailyDungeonConst.dailyDungeonType.runningMan) || 1;
                 const curDgnId = getNextDungeonId(ctx, towerType);
-                if (curDgnId <= 0 || (failCounts[curDgnId] && failCounts[curDgnId] >= 2)) return false;
+                if (curDgnId <= 0) return false;
+                if (failCounts[curDgnId] >= 2) {
+                    logUnsupportedOnce(`tower-rejected-${curDgnId}`, `⏸️ [Thông Thiên Tháp] Máy chủ từ chối tầng #${curDgnId} nhiều lần; dừng khiêu chiến trong lượt Auto này.`);
+                    return false;
+                }
+                if (!tryAttemptTarget(`tower-${curDgnId}`, `[Thông Thiên Tháp] Tầng #${curDgnId}`)) return false;
 
                 isTowerChallenging = true;
                 waitingForFloorUpdate = true;
@@ -2295,7 +2383,8 @@
                 const dgn = DAILY_DGN_TYPES[idx];
                 const nextId = getNextDungeonId(ctx, dgn.type);
 
-                if (nextId > 0 && (!failCounts[nextId] || failCounts[nextId] < 2)) {
+                if (nextId > 0 && (!failCounts[nextId] || failCounts[nextId] < 2) &&
+                    tryAttemptTarget(`daily-${nextId}`, `[Leo Phụ Bản - ${dgn.name}] Ải #${nextId}`)) {
                     lastDailyClimbIndex = (idx + 1) % DAILY_DGN_TYPES.length;
                     lastDailyClimbTime = now;
 
@@ -2331,6 +2420,7 @@
 
                 const curAbyssId = curCfg.id;
                 lastAbyssClimbTime = now;
+                if (!tryAttemptTarget(`abyss-${curAbyssId}`, `[Vực U Minh] Tầng #${curAbyssId}`)) return false;
 
                 if (ctx.ViewMgr && ctx.ViewMgr.gInst) {
                     const vm = ctx.ViewMgr.gInst();
@@ -2367,16 +2457,41 @@
             noAttemptsLogged: false
         };
 
-        function resetArenaRun() {
-            arenaRunState.battlesCompleted = 0;
+        // Số trận của lượt chạy được lưu trong sessionStorage của tab để tự vào lại game (làm mới trang)
+        // không đặt lại bộ đếm và vượt giới hạn trận.
+        const ARENA_RUN_STORAGE_KEY = 'TN_AUTO_ARENA_RUN_V1';
+
+        function saveArenaRunCount() {
+            try {
+                sessionStorage.setItem(ARENA_RUN_STORAGE_KEY, JSON.stringify({
+                    dayKey: new Date().toDateString(),
+                    battlesCompleted: arenaRunState.battlesCompleted
+                }));
+            } catch (e) { }
+        }
+
+        function resetArenaRun(resumed = false) {
+            let restored = 0;
+            if (resumed) {
+                try {
+                    const saved = JSON.parse(sessionStorage.getItem(ARENA_RUN_STORAGE_KEY) || 'null');
+                    if (saved && saved.dayKey === new Date().toDateString()) restored = Number(saved.battlesCompleted) || 0;
+                } catch (e) { }
+            }
+            arenaRunState.battlesCompleted = restored;
             arenaRunState.limitReachedLogged = false;
             arenaRunState.noAttemptsLogged = false;
+            saveArenaRunCount();
+            if (resumed && CONFIG.activeFeature === 'autoArena') {
+                sendLog(`ℹ️ [Đấu Tiên Đài] Chạy tiếp sau khi vào lại game: giữ bộ đếm ${restored} trận đã đánh của lượt này.`, "info");
+            }
         }
 
         function recordArenaBattleResult(succeeded) {
             if (!arenaRunState.pendingBattle || arenaRunState.resultRecorded) return;
             arenaRunState.resultRecorded = true;
             arenaRunState.battlesCompleted++;
+            saveArenaRunCount();
             const result = succeeded ? "thắng" : "thua";
             sendLog(`✅ [Đấu Tiên Đài] Máy chủ xác nhận trận ${arenaRunState.battlesCompleted} đã kết thúc (${result}).`, "action");
         }
@@ -2579,7 +2694,8 @@
                 const cType = CAMP_TYPES[idx];
                 const nextId = getNextDungeonId(ctx, cType);
 
-                if (nextId > 0 && (!failCounts[nextId] || failCounts[nextId] < 2)) {
+                if (nextId > 0 && (!failCounts[nextId] || failCounts[nextId] < 2) &&
+                    tryAttemptTarget(`camp-${nextId}`, `[Leo Tứ Linh Trận] Ải #${nextId}`)) {
                     lastCampClimbIndex = (idx + 1) % CAMP_TYPES.length;
                     lastCampClimbTime = now;
 
@@ -2594,8 +2710,11 @@
         }
 
         // 6. QUÉT PHỤ BẢN ĐÃ VƯỢT
+        // Tự động: chỉ gửi 1 lần mỗi ngày (trước đây gửi lại mỗi nhịp). Bấm tay (isManual) luôn gửi.
         function handleSweepDungeons(ctx, isManual = false) {
             try {
+                const dayKey = new Date().toDateString();
+                if (!isManual && sweptDayKey === dayKey) return false;
                 const ddCtrl = ctx.DailyDungeonCtrl.gInst();
                 if (!ddCtrl) return false;
                 if (ctx.FightCtrl && ctx.FightCtrl.gInst && !ctx.FightCtrl.gInst().gCanFight()) return false;
@@ -2603,8 +2722,9 @@
                 if (typeof ddCtrl.send11002 === 'function') {
                     ddCtrl.send11002(0);
                     ddCtrl.send11002(1);
-                    hasSweptToday = true;
-                    sendLog("⚡ [Quét Phụ Bản] Đã quét sạch các phụ bản đã vượt hôm nay!", "action");
+                    sweptDayKey = dayKey;
+                    // on11002 chỉ báo lỗi (không có xác nhận thành công riêng) nên chỉ ghi là đã gửi yêu cầu.
+                    sendLog("⚡ [Quét Phụ Bản] Đã gửi yêu cầu quét các phụ bản đã vượt hôm nay (lỗi, nếu có, sẽ hiện trong game).", "action");
                     return true;
                 }
             } catch (e) { }
@@ -2660,6 +2780,8 @@
         }
 
         // 8. Soi từng case Nhiệm Vụ Ngày, Tự Làm & Nhận Rương Năng Động
+        let taskQueryIntervalMs = 0;
+
         function handleDailyTasks(ctx) {
             if (!CONFIG.autoDailyTask) return false;
             const now = Date.now();
@@ -2667,7 +2789,9 @@
             const acvCtrl = ctx.AcvCtrl && ctx.AcvCtrl.gInst ? ctx.AcvCtrl.gInst() : null;
             if (!acvCtrl) return false;
 
-            if (now - lastTaskQueryTime > 20000 || !acvCtrl.taskDt) {
+            // Làm mới dữ liệu nhiệm vụ 45-75s một lần (trước đây 20s, gửi 8 giao thức mỗi lần).
+            if (now - lastTaskQueryTime > taskQueryIntervalMs || !acvCtrl.taskDt) {
+                taskQueryIntervalMs = 45000 + Math.floor(Math.random() * 30000);
                 lastTaskQueryTime = now;
                 if (acvCtrl.send30501) acvCtrl.send30501();
                 if (acvCtrl.send12501) acvCtrl.send12501();
@@ -2709,6 +2833,9 @@
                         const task = taskList[i];
                         if (task.status === 0) {
                             const tid = task.task_id;
+                            // Mỗi nhiệm vụ chỉ làm tối đa 3 lần mỗi lượt Auto; nếu game chưa ghi nhận thì bỏ qua.
+                            const taskKey = `daily-task-${tid}`;
+                            if ((targetAttempts[taskKey] || 0) >= MAX_TARGET_ATTEMPTS) continue;
                             let didTask = false;
 
                             switch (tid) {
@@ -2740,7 +2867,10 @@
                                         const ac = ctx.ArenaCtrl.gInst();
                                         if (ac.opAnUi) ac.opAnUi();
                                         if (ac.send14201) ac.send14201();
-                                        if (ac.chnlgeEmy) {
+                                        // Chỉ dùng lượt miễn phí, không tiêu Đấu Tiên Lệnh cho nhiệm vụ ngày.
+                                        if (!(ac.m_freeCount > 0)) {
+                                            logUnsupportedOnce('daily-task-4-free', "ℹ️ [Nhiệm Vụ Ngày - Case 4] Hết lượt Đấu Tiên Đài miễn phí; bỏ qua để không tiêu Đấu Tiên Lệnh.");
+                                        } else if (ac.chnlgeEmy) {
                                             ac.skipArenaFight = true;
                                             ac.chnlgeEmy(0);
                                             sendLog(`⚔️ [Nhiệm Vụ Ngày - Case 4] Khiêu chiến Đấu Trường`, "action");
@@ -2797,6 +2927,10 @@
                             }
 
                             if (didTask) {
+                                targetAttempts[taskKey] = (targetAttempts[taskKey] || 0) + 1;
+                                if (targetAttempts[taskKey] >= MAX_TARGET_ATTEMPTS) {
+                                    logUnsupportedOnce(taskKey, `⏸️ [Nhiệm Vụ Ngày] Đã làm nhiệm vụ #${tid} ${MAX_TARGET_ATTEMPTS} lần; nếu game chưa ghi nhận hoàn thành sẽ bỏ qua trong lượt Auto này.`);
+                                }
                                 lastTaskActionTime = now;
                                 acted = true;
                                 break;
@@ -2850,6 +2984,7 @@
         // 2. TỰ ĐỘNG ĐÁNH CỰC ÂM ĐỊA (LỊCH LUYỆN)
         // ============================================================================
         let lastExtremeYinCheck = 0;
+        let extremeYinWaitLoggedFor = null;
 
         function handleExtremeYin(ctx) {
             if (!ctx.ExtremeYinCtrl || !ctx.ExtremeYinCtrl.gInst) return false;
@@ -2859,6 +2994,7 @@
 
             // Nếu đang tu luyện: Kiểm tra đã xong giờ để nhận thưởng chưa
             if (eyCtrl.bHaveSeat && eyCtrl.bHaveSeat()) {
+                clearTargetAttempts('extreme-yin-seat');
                 const curLandId = eyCtrl.getLandId ? eyCtrl.getLandId() : 0;
                 const pData = eyCtrl.getPlayerData ? eyCtrl.getPlayerData() : null;
                 const model = eyCtrl.getCurlModel ? eyCtrl.getCurlModel() : null;
@@ -2872,17 +3008,22 @@
                         return true;
                     } else {
                         const remainSec = buildCfg.time - timePassed;
-                        const m = Math.floor(remainSec / 60);
-                        const s = remainSec % 60;
-                        sendLog(`🧘 Đang tu luyện Cực Âm Địa (Còn ${m}p${s}s)...`, 'info');
-                        lastExtremeYinCheck = now + 10000;
+                        // Log 1 lần mỗi lượt tu luyện; kiểm tra lại khi gần hết giờ (tối đa mỗi 60s).
+                        if (extremeYinWaitLoggedFor !== pData.start_time) {
+                            extremeYinWaitLoggedFor = pData.start_time;
+                            const m = Math.floor(remainSec / 60);
+                            const s = remainSec % 60;
+                            sendLog(`🧘 Đang tu luyện Cực Âm Địa (Còn ${m}p${s}s)...`, 'info');
+                        }
+                        lastExtremeYinCheck = now + Math.min(Math.max(remainSec * 1000, 0), 60000);
                         return true;
                     }
                 }
                 return false;
             }
 
-            // Nếu chưa có chỗ: Tìm tầng cao nhất còn chỗ trống để đánh chiếm
+            // Nếu chưa có chỗ: Tìm tầng cao nhất còn chỗ trống để đánh chiếm (tối đa 3 lần mỗi lượt Auto).
+            if (!tryAttemptTarget('extreme-yin-seat', '[Cực Âm Địa] Chiếm chỗ tu luyện')) return false;
             sendLog('🔍 Đang kiểm tra các tầng Cực Âm Địa còn chỗ trống...', 'info');
             eyCtrl.toRefreshMainInfo();
 
@@ -2915,6 +3056,9 @@
         // 3. TỰ ĐỘNG ĐI ẢI CHÍNH TUYẾN (MA ĐẠO)
         // ============================================================================
         let lastMainStageAction = 0;
+        let mainStageFailStreak = 0;
+        let mainStageStopped = false;
+        runResetHooks.push(() => { mainStageFailStreak = 0; mainStageStopped = false; });
 
         function handleMainStage(ctx) {
             if (!ctx.HangupCtrl || !ctx.HangupCtrl.gInst) return false;
@@ -2954,6 +3098,7 @@
 
                 // 3. Đóng bảng thắng / thua để qua ải kế tiếp
                 if (vm.viewIsVisible && vm.viewIsVisible(ctx.ViewConst.fightSuccessUi)) {
+                    mainStageFailStreak = 0;
                     sendLog('🎉 Vượt ải THÀNH CÔNG! Chuyển ải tiếp theo...', 'success');
                     const v = vm.getViewByName(ctx.ViewConst.fightSuccessUi);
                     if (v && v.onHide) v.onHide();
@@ -2962,7 +3107,13 @@
                     return true;
                 }
                 if (vm.viewIsVisible && vm.viewIsVisible(ctx.ViewConst.fightFailUi)) {
-                    sendLog('⚠️ Khiêu chiến ải thất bại. Tạm dừng để củng cố lực chiến.', 'warning');
+                    mainStageFailStreak++;
+                    if (mainStageFailStreak >= 2) {
+                        mainStageStopped = true;
+                        sendLog(`⏸️ Thua Ải Chính Tuyến ${mainStageFailStreak} lần liên tiếp; dừng đi ải trong lượt Auto này để củng cố lực chiến.`, 'warn');
+                    } else {
+                        sendLog('⚠️ Khiêu chiến ải thất bại. Tạm dừng để củng cố lực chiến.', 'warn');
+                    }
                     const v = vm.getViewByName(ctx.ViewConst.fightFailUi);
                     if (v && v.onHide) v.onHide();
                     else vm.closeView(ctx.ViewConst.fightFailUi);
@@ -2980,8 +3131,10 @@
                 return true;
             }
 
-            // 5. Bắt đầu Khiêu Chiến ải chính tuyến
+            // 5. Bắt đầu Khiêu Chiến ải chính tuyến (dừng khi thua liên tiếp hoặc cùng ải đã thử 3 lần)
+            if (mainStageStopped) return false;
             const curStage = hg.m_curStageId || 1;
+            if (!tryAttemptTarget(`main-stage-${curStage}`, `[Ải Chính Tuyến] Ải ${curStage}`)) return false;
             sendLog(`🚀 Khiêu chiến Ải Chính Tuyến ${curStage}...`, 'info');
             if (typeof hg.reqChanllgeStage === 'function') {
                 hg.reqChanllgeStage();
@@ -3028,8 +3181,9 @@
             }
 
             // 3. Định kỳ refresh dữ liệu nhiệm vụ Tiên Duyên
+            // Định kỳ ~30-45s (trước đây ~6s).
             xy.send32120();
-            lastXianYuanAction = now + 4000;
+            lastXianYuanAction = now + 28000 + Math.floor(Math.random() * 15000);
             return true;
         }
 
@@ -3421,26 +3575,23 @@
         }
 
         // [Module 2] Phụ Bản Ngày & Bí Cảnh Tứ Quốc
+        // Bản game hiện tại không có hàm quét nhanh / mua lượt / quét Bí Cảnh riêng trong DailyDungeonCtrl,
+        // nên M2 chỉ gửi quét phụ bản đã vượt (1 lần mỗi ngày) và không mua gì.
         function handleDailyAndBiCanh(ctx) {
             try {
-                if (ctx.DailyDungeonCtrl && ctx.DailyDungeonCtrl.gInst) {
-                    const dd = ctx.DailyDungeonCtrl.gInst();
-                    // Quét nhanh phụ bản ngày
-                    if (typeof dd.oneKeySweepDaily === 'function') {
-                        dd.oneKeySweepDaily();
-                        sendLog("⚔️ [M2 - PB Ngày] Quét nhanh toàn bộ phụ bản ngày thành công!", "action");
-                    }
-                    // Mua thêm 250 Tiên Ngọc nếu bật
-                    if (CONFIG.buyDailyDungeon && typeof dd.buyDailyCount === 'function') {
-                        dd.buyDailyCount(250);
-                    }
-                    // Quét Bí Cảnh Tứ Quốc tầng Đủ Vượt 10 lần
-                    if (typeof dd.sweepBiCanhMaxPass === 'function') {
-                        dd.sweepBiCanhMaxPass(10);
-                        sendLog("🗺️ [M2 - Bí Cảnh Tứ Quốc] Đã quét 10 lần tầng Đủ Vượt!", "action");
-                    }
+                if (!ctx.DailyDungeonCtrl || !ctx.DailyDungeonCtrl.gInst) return false;
+                const dd = ctx.DailyDungeonCtrl.gInst();
+                if (!dd) return false;
+                const missing = ['oneKeySweepDaily', 'buyDailyCount', 'sweepBiCanhMaxPass']
+                    .filter((name) => typeof dd[name] !== 'function');
+                if (missing.length) {
+                    logUnsupportedOnce('m2-missing', "ℹ️ [M2] Bản game không có hàm mua lượt PB Ngày / quét Bí Cảnh Tứ Quốc; chỉ quét phụ bản đã vượt 1 lần mỗi ngày, không mua thêm.");
                 }
-                return handleClimbDailyDungeons(ctx) || handleSweepDungeons(ctx);
+                if (handleClimbDailyDungeons(ctx) || handleSweepDungeons(ctx)) return true;
+                if (sweptDayKey === new Date().toDateString()) {
+                    logUnsupportedOnce('m2-done', "✅ [M2] Hôm nay đã gửi quét phụ bản; không gửi lại.");
+                }
+                return false;
             } catch(e) { return false; }
         }
 
@@ -3459,6 +3610,7 @@
                     sendLog("🛡️ [M3 - Thủ Vệ Tứ Phái] Tự động chọn trợ trận, chọn Buff cột giữa & nhận Chiến Lệnh!", "action");
                     return true;
                 }
+                logUnsupportedOnce('m3', "⚠️ [M3 - Thủ Vệ Tứ Phái] Bản game hiện tại không có bộ điều khiển SectDefenseCtrl; tính năng chưa hỗ trợ, không gửi thao tác nào.");
                 return false;
             } catch(e) { return false; }
         }
@@ -3479,6 +3631,10 @@
                         ct.challengeMap();
                         sendLog("⚔️ [M4 - Cổ Thần Địa] Đã tự lên trận nhanh và khiêu chiến ải!", "action");
                     }
+                }
+                const missing = ['UyenNhiCtrl', 'CoThanCtrl'].filter((name) => !ctx[name]);
+                if (missing.length) {
+                    logUnsupportedOnce('m4-missing', `ℹ️ [M4] Bản game không có ${missing.join(', ')}; bỏ qua phần Uyển Nhi/Cổ Thần, chỉ chạy Cực Âm Địa.`);
                 }
                 // 3. Cực Âm Địa
                 return handleExtremeYin(ctx);
@@ -3505,6 +3661,8 @@
                             return true;
                         }
                     }
+                } else {
+                    logUnsupportedOnce('m5', "⚠️ [M5 - Di Tích] Bản game hiện tại không có bộ điều khiển RelicCtrl; tính năng chưa hỗ trợ, không gửi thao tác nào.");
                 }
                 return false;
             } catch(e) { return false; }
@@ -3524,6 +3682,7 @@
                     if (typeof mg.likeRankings === 'function') mg.likeRankings(); // Like 2 tab BXH
                     return true;
                 }
+                logUnsupportedOnce('m6', "⚠️ [M6 - Ảo Cảnh] Bản game hiện tại không có bộ điều khiển MemoryGameCtrl; tính năng chưa hỗ trợ, không gửi thao tác nào.");
                 return false;
             } catch(e) { return false; }
         }
@@ -3549,6 +3708,9 @@
                     if (typeof dc.claimChests === 'function') dc.claimChests();
                     if (typeof dc.claimBattlePass === 'function') dc.claimBattlePass();
                     return true;
+                }
+                if (!ctx.KiemHanhCtrl) {
+                    logUnsupportedOnce('m7', "⚠️ [M7 - Kiếm Hành/Điêu Long] Bản game hiện tại không có KiemHanhCtrl/DragonCarveCtrl; tính năng chưa hỗ trợ, không gửi thao tác nào.");
                 }
                 return false;
             } catch(e) { return false; }
@@ -6433,6 +6595,10 @@
         let wasAutoRunning = false;
         const CUOI_NGAY_ACTION_INTERVAL_MS = 800;
 
+        function markActed(baseMs) {
+            nextActionAt = Date.now() + humanDelay(baseMs);
+        }
+
         function executeCycle(isManualOnce = false) {
             if (!CONFIG.running && !isManualOnce) {
                 wasAutoRunning = false;
@@ -6503,7 +6669,7 @@
             const actionInterval = active === 'autoCuoiNgay'
                 ? CUOI_NGAY_ACTION_INTERVAL_MS
                 : (CONFIG.intervalMs || 1200);
-            if (now - lastActionTime < actionInterval) return;
+            if (now < nextActionAt) return;
 
             isExecuting = true;
             try {
@@ -6514,18 +6680,18 @@
                     !ctx.GuildCtrl && !ctx.GldWrCtrl && !ctx.SpiritAnimalCtrl &&
                     CONFIG.activeFeature !== 'autoTienMinh') return;
 
-                sendRoleInfo();
+                sendRoleInfo(false);
                 hookGameEvents(ctx);
 
                 if ((CONFIG.autoArena || CONFIG.autoSkipFight) && handleArenaFightResult(ctx)) {
-                    lastActionTime = now;
+                    markActed(actionInterval);
                     return;
                 }
 
                 // ⚡ BỎ QUA TRẬN ĐẤU THẦN TỐC: LUÔN CHẠY KÈM TẤT CẢ TÍNH NĂNG KHÁC!
                 if (CONFIG.autoSkipFight) {
                     if (handleBattle(ctx)) {
-                        lastActionTime = now;
+                        markActed(actionInterval);
                         return;
                     }
                 }
@@ -6538,80 +6704,84 @@
                 // 🎯 ĐỘC QUYỀN 1 CHỨC NĂNG CHÍNH (MUTEX): CHỐNG XUNG ĐỘT
                 // 1. ĐẠO THÀNH: Đấu Tiên Đài
                 if (active === 'autoArena' || (CONFIG.autoArena && !active)) {
-                    if (handleArena(ctx)) { lastActionTime = now; return; }
+                    if (handleArena(ctx)) { markActed(actionInterval); return; }
                 }
                 // --- ĐIỀU PHỐI 8 MODULE ƯU TIÊN VÀ CÁC HOẠT ĐỘNG ---
                 // [Module 1] Thông Thiên Tháp & Tứ Linh Tháp
                 else if (active === 'autoTongTian' || (CONFIG.autoTongTian && !active)) {
-                    if (handleTowerAndTuLinh(ctx)) { lastActionTime = now; return; }
+                    if (handleTowerAndTuLinh(ctx)) { markActed(actionInterval); return; }
                 }
                 // [Module 2] Phụ Bản Ngày & Bí Cảnh Tứ Quốc
                 else if (active === 'autoDailyDungeon' || (CONFIG.autoDailyDungeon && !active)) {
-                    if (handleDailyAndBiCanh(ctx)) { lastActionTime = now; return; }
+                    if (handleDailyAndBiCanh(ctx)) { markActed(actionInterval); return; }
                 }
                 // [Module 3] Thủ Vệ Tứ Phái
                 else if (active === 'autoSectDefense' || (CONFIG.autoSectDefense && !active)) {
-                    if (handleSectDefense(ctx)) { lastActionTime = now; return; }
+                    if (handleSectDefense(ctx)) { markActed(actionInterval); return; }
                 }
                 // [Module 4] Cửu Uyển Nhi, Cổ Thần Địa, Cực Âm Địa
                 else if (active === 'autoOtherTrials' || (CONFIG.autoOtherTrials && !active)) {
-                    if (handleOtherTrials(ctx)) { lastActionTime = now; return; }
+                    if (handleOtherTrials(ctx)) { markActed(actionInterval); return; }
                 }
                 // [Module 5] Di Tích Tiên Giới
                 else if (active === 'autoImmortalRelic' || (CONFIG.autoImmortalRelic && !active)) {
-                    if (handleImmortalRelic(ctx)) { lastActionTime = now; return; }
+                    if (handleImmortalRelic(ctx)) { markActed(actionInterval); return; }
                 }
                 // [Module 6] Minigame Ảo Cảnh Pháp Trận
                 else if (active === 'autoMinigameMemory' || (CONFIG.autoMinigameMemory && !active)) {
-                    if (handleMinigameMemory(ctx)) { lastActionTime = now; return; }
+                    if (handleMinigameMemory(ctx)) { markActed(actionInterval); return; }
                 }
                 // [Module 7] Kiếm Hành & Điêu Long Khắc Tinh QTE
                 else if (active === 'autoMinigameDragon' || (CONFIG.autoMinigameDragon && !active)) {
-                    if (handleMinigameDragon(ctx)) { lastActionTime = now; return; }
+                    if (handleMinigameDragon(ctx)) { markActed(actionInterval); return; }
                 }
                 // [Module 8] Hoạt Động Ngày, Tiên Minh & Nhận Cuối Ngày
                 else if (['autoTroChien', 'autoTamTienDai', 'autoTienHuu', 'autoTienMinh', 'autoCuoiNgay'].includes(active)) {
-                    if (handleDailyRoutine(ctx)) { lastActionTime = now; return; }
+                    if (handleDailyRoutine(ctx)) { markActed(actionInterval); return; }
+                }
+                // Ủy Phái Ma Đạo & Quà Tiên: chưa có phần xử lý trong bản này -> báo rõ thay vì im lặng.
+                else if (active === 'autoMaDaoUyPhai') {
+                    logUnsupportedOnce('autoMaDaoUyPhai', "⚠️ [Ủy Phái Ma Đạo] Tính năng chưa được triển khai trong bản Auto này; không có thao tác nào được gửi. Hãy chọn tính năng khác.");
                 }
                 // 4. LỊCH LUYỆN: Leo Phụ Bản Ngày
                 else if (active === 'autoClimbDailyDungeons' || (CONFIG.autoClimbDailyDungeons && !active)) {
-                    if (handleClimbDailyDungeons(ctx)) { lastActionTime = now; return; }
+                    if (handleClimbDailyDungeons(ctx)) { markActed(actionInterval); return; }
                 }
                 // 5. LỊCH LUYỆN: Leo Vực U Minh
                 else if (active === 'autoClimbYMAbyss' || (CONFIG.autoClimbYMAbyss && !active)) {
-                    if (handleClimbYMAbyss(ctx)) { lastActionTime = now; return; }
+                    if (handleClimbYMAbyss(ctx)) { markActed(actionInterval); return; }
                 }
                 // 6. LỊCH LUYỆN: Đánh Cực Âm Địa
                 else if (active === 'autoExtremeYin' || (CONFIG.autoExtremeYin && !active)) {
-                    if (handleExtremeYin(ctx)) { lastActionTime = now; return; }
+                    if (handleExtremeYin(ctx)) { markActed(actionInterval); return; }
                 }
                 // 7. LỊCH LUYỆN: Leo Tứ Linh Trận
                 else if (active === 'autoClimbCamp' || (CONFIG.autoClimbCamp && !active)) {
-                    if (handleClimbCamp(ctx)) { lastActionTime = now; return; }
+                    if (handleClimbCamp(ctx)) { markActed(actionInterval); return; }
                 }
                 // 8. LỊCH LUYỆN: Quét Sạch Phụ Bản Đã Vượt
                 else if (active === 'autoSweepDungeons' || (CONFIG.autoSweepDungeons && !active)) {
-                    if (handleSweepDungeons(ctx)) { lastActionTime = now; return; }
+                    if (handleSweepDungeons(ctx)) { markActed(actionInterval); return; }
                 }
                 // 9. MA ĐẠO: Đi Ải Chính Tuyến
                 else if (active === 'autoMainStage' || (CONFIG.autoMainStage && !active)) {
-                    if (handleMainStage(ctx)) { lastActionTime = now; return; }
+                    if (handleMainStage(ctx)) { markActed(actionInterval); return; }
                 }
                 // 10. MA ĐẠO: Nhận Thưởng Treo Máy (AFK)
                 else if (active === 'autoHangupReward' || (CONFIG.autoHangupReward && !active)) {
-                    if (handleHangup(ctx)) { lastActionTime = now; return; }
+                    if (handleHangup(ctx)) { markActed(actionInterval); return; }
                 }
                 // 11. MA ĐẠO: Mua Treo Máy Nhanh
                 else if (active === 'autoQuickHang' || (CONFIG.autoQuickHang && !active)) {
-                    if (handleHangup(ctx)) { lastActionTime = now; return; }
+                    if (handleHangup(ctx)) { markActed(actionInterval); return; }
                 }
                 // 12. MA ĐẠO: Quà Tiên Duyên (SK Rút x1000)
                 else if (active === 'autoXianYuan' || (CONFIG.autoXianYuan && !active)) {
-                    if (handleXianYuan(ctx)) { lastActionTime = now; return; }
+                    if (handleXianYuan(ctx)) { markActed(actionInterval); return; }
                 }
                 // 13. MA ĐẠO: Nhiệm Vụ Ngày
                 else if (active === 'autoDailyTask' || (CONFIG.autoDailyTask && !active)) {
-                    if (handleDailyTasks(ctx)) { lastActionTime = now; return; }
+                    if (handleDailyTasks(ctx)) { markActed(actionInterval); return; }
                 }
 
                 if (isManualOnce) {
@@ -6622,8 +6792,12 @@
             }
         }
 
-        setInterval(() => {
-            executeCycle(false);
-        }, 800);
+        // Nhịp kiểm tra lệch ngẫu nhiên 650-1050ms thay vì đúng 800ms.
+        (function scheduleTick() {
+            setTimeout(() => {
+                try { executeCycle(false); } catch (e) { }
+                scheduleTick();
+            }, 650 + Math.floor(Math.random() * 400));
+        })();
     }
 })();
