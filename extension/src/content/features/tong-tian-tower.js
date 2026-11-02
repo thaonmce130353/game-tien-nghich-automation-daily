@@ -20,6 +20,8 @@
             return curId || 0;
         }
 
+        const TOWER_MAX_ATTEMPTS = 10;
+
         // 1. TỰ ĐỘNG LEO THÔNG THIÊN THÁP
         function handleTongTianTower(ctx) {
             if (!CONFIG.autoTongTian) return false;
@@ -41,11 +43,11 @@
                 const towerType = (ctx.DailyDungeonConst && ctx.DailyDungeonConst.dailyDungeonType && ctx.DailyDungeonConst.dailyDungeonType.runningMan) || 1;
                 const curDgnId = getNextDungeonId(ctx, towerType);
                 if (curDgnId <= 0) return false;
-                if (failCounts[curDgnId] >= 2) {
-                    logUnsupportedOnce(`tower-rejected-${curDgnId}`, `⏸️ [Thông Thiên Tháp] Máy chủ từ chối tầng #${curDgnId} nhiều lần; dừng khiêu chiến trong lượt Auto này.`);
+                if (failCounts[curDgnId] >= TOWER_MAX_ATTEMPTS) {
+                    logUnsupportedOnce(`tower-rejected-${curDgnId}`, `⏸️ [Thông Thiên Tháp] Máy chủ từ chối tầng #${curDgnId} ${TOWER_MAX_ATTEMPTS} lần; dừng khiêu chiến trong lượt Auto này.`);
                     return false;
                 }
-                if (!tryAttemptTarget(`tower-${curDgnId}`, `[Thông Thiên Tháp] Tầng #${curDgnId}`)) return false;
+                if (!tryAttemptTarget(`tower-${curDgnId}`, `[Thông Thiên Tháp] Tầng #${curDgnId}`, TOWER_MAX_ATTEMPTS)) return false;
 
                 isTowerChallenging = true;
                 waitingForFloorUpdate = true;

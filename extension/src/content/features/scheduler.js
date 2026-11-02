@@ -3,6 +3,16 @@
         const CUOI_NGAY_ACTION_INTERVAL_MS = 800;
         const OTHER_TRIALS_ACTION_INTERVAL_MS = 600;
 
+        let disconnectPauseLogged = false;
+
+        function isGameDisconnected(ctx) {
+            try {
+                const vm = ctx.ViewMgr && ctx.ViewMgr.gInst && ctx.ViewMgr.gInst();
+                const name = (ctx.ViewConst && ctx.ViewConst.disconnectUi) || 'disconnectUi';
+                return !!(vm && typeof vm.isUpViewVisible === 'function' && vm.isUpViewVisible(name));
+            } catch (e) { return false; }
+        }
+
         function markActed(baseMs) {
             nextActionAt = Date.now() + humanDelay(baseMs);
         }
@@ -92,6 +102,16 @@
                 sendRoleInfo(false);
                 hookGameEvents(ctx);
 
+                // Mất kết nối (hộp thoại "Đăng nhập lại"): không gửi thao tác nào, chờ tự vào lại game.
+                if (isGameDisconnected(ctx)) {
+                    if (!disconnectPauseLogged) {
+                        disconnectPauseLogged = true;
+                        sendLog("⚠️ [Kết nối] Game đang báo mất kết nối; tạm dừng mọi thao tác, chờ tự vào lại game (nếu bật).", "warn");
+                    }
+                    return;
+                }
+                disconnectPauseLogged = false;
+
                 if ((CONFIG.autoArena || CONFIG.autoSkipFight) && handleArenaFightResult(ctx)) {
                     markActed(actionInterval);
                     return;
@@ -138,7 +158,10 @@
                 }
                 // [Module 6] Minigame Ảo Cảnh Pháp Trận
                 else if (active === 'autoMinigameMemory' || (CONFIG.autoMinigameMemory && !active)) {
-                    if (handleMinigameMemory(ctx)) { markActed(actionInterval); return; }
+                    // Ván ghép thẻ tính giờ: nhịp ngắn cố định; máy trạng thái trong memory-minigame.js tự điều tốc từng cặp.
+                    handleMinigameMemory(ctx);
+                    nextActionAt = Date.now() + 150;
+                    return;
                 }
                 // [Module 7] Kiếm Hành & Điêu Long Khắc Tinh QTE
                 else if (active === 'autoMinigameDragon' || (CONFIG.autoMinigameDragon && !active)) {

@@ -16,6 +16,24 @@
         const CO_THAN_MAX_FIGHTS = 1000;
         const CO_THAN_MAX_FLOORS = 200;
         const CO_THAN_NEXT_FLOOR_ETYPE = 99999;
+        // Số lần đã gửi dùng vật phẩm đặc biệt được giữ trong sessionStorage của tab: tự vào lại game (làm mới trang)
+        // không được đặt lại bộ đếm và vượt giới hạn.
+        const CO_THAN_SPECIAL_STORAGE_KEY = 'TN_AUTO_COTHAN_SPECIAL_V1';
+
+        function loadCoThanSpecialSent() {
+            try {
+                const saved = JSON.parse(sessionStorage.getItem(CO_THAN_SPECIAL_STORAGE_KEY) || 'null');
+                if (saved && saved.dayKey === new Date().toDateString()) return Number(saved.sent) || 0;
+            } catch (e) { }
+            return 0;
+        }
+
+        function saveCoThanSpecialSent(sent) {
+            try {
+                sessionStorage.setItem(CO_THAN_SPECIAL_STORAGE_KEY, JSON.stringify({ dayKey: new Date().toDateString(), sent }));
+            } catch (e) { }
+        }
+
         let coThanState = null;
         runResetHooks.push(() => {
             if (coThanState && coThanState.failed && coThanState.phase === 'done') coThanState = null;
@@ -37,7 +55,7 @@
                 floors: 0,
                 door: null,               // { gridId, at, layer } đã gửi đi qua cửa, chờ máy chủ xác nhận
                 pending: null,            // { gridId, at, killBefore, hpBefore }
-                special: { uses: 0, pending: null },
+                special: { uses: loadCoThanSpecialSent(), pending: null },
                 claim: { done: 0, pending: null },
                 idleAt: Date.now()
             };
@@ -81,6 +99,21 @@
         function coThanRemainingBosses(dt) {
             return (dt.gridLs || []).filter((g) => g.isOpen === 1 && g.isFsh !== 1 && g.bossBsId && (g.bossLv || g.isBsGrid))
                 .sort((a, b) => (a.bossLv || 99) - (b.bossLv || 99));
+        }
+
+        // Mất dữ liệu giữa chừng (thường do rớt mạng): không dùng vật phẩm/nhận thưởng trên dữ liệu cũ mà
+        // quay lại bước mở để lấy lại trạng thái từ máy chủ (tối đa 3 lần mỗi lượt Auto).
+        function coThanResync(state, key, message) {
+            state.pending = null;
+            state.door = null;
+            state.refreshing = null;
+            if (!tryAttemptTarget('co-than-resync', "[M4 - Cổ Thần Địa] Tải lại trạng thái")) {
+                failCoThan(state, key, `${message} Đã thử tải lại nhiều lần mà không được; dừng để an toàn.`, 'done');
+                return;
+            }
+            sendLog(`⚠️ [M4 - Cổ Thần Địa] ${message}`, "warn");
+            state.phase = 'open';
+            state.sent = false;
         }
 
         function coThanRefresh(ctrl, state, now) {
@@ -196,7 +229,7 @@
                 const busy = vm.viewIsVisible('adventureFightUi') || (fc && typeof fc.gCanFight === 'function' && !fc.gCanFight(0));
                 if (now - p.at > CO_THAN_FIGHT_TIMEOUT_MS) {
                     state.pending = null;
-                    failCoThan(state, 'fight-timeout', `Máy chủ chưa xác nhận trận ở ô #${p.gridId}; kiểm tra lại, không gửi lại.`, 'special');
+                    coThanResync(state, 'fight-timeout', `Máy chủ chưa xác nhận trận ở ô #${p.gridId}; tải lại trạng thái từ game, không gửi lại.`);
                     return true;
                 }
                 if (busy || now - p.at < 2000) return false;
@@ -204,7 +237,7 @@
                 if (r === 'wait') return false;
                 state.pending = null;
                 if (r !== 'ready') {
-                    failCoThan(state, 'fight-refresh', "Máy chủ chưa trả dữ liệu sau trận; dừng để an toàn.", 'special');
+                    coThanResync(state, 'fight-refresh', "Máy chủ chưa trả dữ liệu sau trận; tải lại trạng thái từ game trước khi làm tiếp.");
                     return true;
                 }
                 const after = ctrl.mainUiDt;
@@ -296,7 +329,6 @@
                 const grid = (after.gridLs || []).find((x) => x.id === pending.gridId);
                 const spent = after.lsPotion < pending.left || after.slPotion < pending.owned;
                 if (spent || (grid && grid.isFsh === 1)) {
-                    sp.uses++;
                     sendLog(`✅ [M4 - Cổ Thần Địa] Máy chủ xác nhận đã dùng vật phẩm đặc biệt lên ô #${pending.gridId} (lần ${sp.uses}/${CO_THAN_MAX_SPECIAL_USES}).`, "action");
                 } else {
                     failCoThan(state, 'sp-unconfirmed', `Đã dùng vật phẩm lên ô #${pending.gridId} nhưng game chưa ghi nhận; dừng bước này.`, 'reward');
@@ -320,6 +352,9 @@
             const target = targets[0];
             sp.pending = { gridId: target.id, at: now, owned, left };
             state.refreshing = null;
+            // Tính ngay lúc gửi (kể cả khi mạng rớt chưa kịp xác nhận) để không bao giờ vượt giới hạn.
+            sp.uses++;
+            saveCoThanSpecialSent(sp.uses);
             ctrl.send11079(target.id);
             sendLog(`🛡️ [M4 - Cổ Thần Địa] Dùng vật phẩm đặc biệt (Cấm Tuyệt Mệnh) lên ô #${target.id}.`, "action");
             return true;

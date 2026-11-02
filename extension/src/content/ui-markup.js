@@ -182,6 +182,14 @@
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoOtherTrials" ${CONFIG.activeFeature === 'autoOtherTrials' ? 'checked' : ''}>
                                     </label>
+                                    <!-- CỰC ÂM ĐỊA (riêng) -->
+                                    <label class="tn-opt-item" style="border-left: 3px solid #94e2d5;">
+                                        <div>
+                                            <div style="font-weight:bold; color:#94e2d5;">🧘 Cực Âm Địa (chiếm chỗ & Đoạt)</div>
+                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Chọn địa từ Huyền Âm trở lên hợp sức, giành vị trí nếu đầy, Đoạt bằng lượt miễn phí rồi nhận Chiến Lệnh Cực Âm; hết giờ thì nhận thưởng.</div>
+                                        </div>
+                                        <input type="checkbox" class="tn-mutex-feature" data-key="autoExtremeYin" ${CONFIG.activeFeature === 'autoExtremeYin' ? 'checked' : ''}>
+                                    </label>
                                     <!-- MODULE 5 -->
                                     <label class="tn-opt-item" style="border-left: 3px solid #f9e2af;">
                                         <div>
@@ -194,7 +202,7 @@
                                     <label class="tn-opt-item" style="border-left: 3px solid #cba6f7;">
                                         <div>
                                             <div style="font-weight:bold; color:#cba6f7;">🧩 [M6] Giải Minigame Ảo Cảnh (Lưới 4x4)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Chờ lật 1.2s, giải ma trận 16 ô lật 8 cặp chuẩn xác, nhận 3 rương, NV & Like BXH.</div>
+                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Bắt đầu, chờ xem thẻ, ghép 8 cặp trong ~8-10s, chơi lại khi còn lượt thưởng, nhận thưởng mốc điểm.</div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoMinigameMemory" ${CONFIG.activeFeature === 'autoMinigameMemory' ? 'checked' : ''}>
                                     </label>

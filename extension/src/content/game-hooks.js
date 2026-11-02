@@ -42,6 +42,7 @@
                             t.type === n.runningMan ||
                             t.type === n.ymAbyss ||
                             t.type === n.adventure ||
+                            t.type === n.jyzd ||
                             (t.type >= n.singCamp_wei && t.type <= n.singCamp_qun)
                         )) || (tienMinhActive && (
                             t.type === n.guild ||
@@ -156,8 +157,8 @@
                     }
 
                     // Tiên Minh tự xử lý bảng đội hình trong daily-routines.js (có giới hạn và log riêng).
-                    // Thủ Vệ Tứ Phái cũng tự xử lý bảng đội hình của nó (sect-defense.js).
-                    if (CONFIG.activeFeature !== 'autoTienMinh' && CONFIG.activeFeature !== 'autoSectDefense' &&
+                    // Thủ Vệ Tứ Phái, Cực Âm Địa (M4) tự xử lý bảng đội hình của chúng (sect-defense.js, extreme-yin.js).
+                    if (!['autoTienMinh', 'autoSectDefense', 'autoOtherTrials', 'autoExtremeYin'].includes(CONFIG.activeFeature) &&
                         vm.viewIsVisible && vm.viewIsVisible('embattleUi')) {
                         const embUi = vm.getViewByName('embattleUi');
                         if (embUi) {

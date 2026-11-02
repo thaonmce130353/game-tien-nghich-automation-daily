@@ -23,12 +23,13 @@
         const unsupportedLogged = {};
         const runResetHooks = [];         // các module đăng ký đặt lại trạng thái khi bắt đầu lượt Auto mới
 
-        function tryAttemptTarget(key, label) {
+        function tryAttemptTarget(key, label, maxAttempts) {
+            const max = maxAttempts || MAX_TARGET_ATTEMPTS;
             const count = targetAttempts[key] || 0;
-            if (count >= MAX_TARGET_ATTEMPTS) {
-                if (count === MAX_TARGET_ATTEMPTS) {
+            if (count >= max) {
+                if (count === max) {
                     targetAttempts[key] = count + 1;
-                    sendLog(`⏸️ ${label}: đã thử ${MAX_TARGET_ATTEMPTS} lần chưa qua; dừng thử mục tiêu này trong lượt Auto này.`, "warn");
+                    sendLog(`⏸️ ${label}: đã thử ${max} lần chưa qua; dừng thử mục tiêu này trong lượt Auto này.`, "warn");
                 }
                 return false;
             }

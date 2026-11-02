@@ -884,6 +884,14 @@
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoOtherTrials" ${CONFIG.activeFeature === 'autoOtherTrials' ? 'checked' : ''}>
                                     </label>
+                                    <!-- CỰC ÂM ĐỊA (riêng) -->
+                                    <label class="tn-opt-item" style="border-left: 3px solid #94e2d5;">
+                                        <div>
+                                            <div style="font-weight:bold; color:#94e2d5;">🧘 Cực Âm Địa (chiếm chỗ & Đoạt)</div>
+                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Chọn địa từ Huyền Âm trở lên hợp sức, giành vị trí nếu đầy, Đoạt bằng lượt miễn phí rồi nhận Chiến Lệnh Cực Âm; hết giờ thì nhận thưởng.</div>
+                                        </div>
+                                        <input type="checkbox" class="tn-mutex-feature" data-key="autoExtremeYin" ${CONFIG.activeFeature === 'autoExtremeYin' ? 'checked' : ''}>
+                                    </label>
                                     <!-- MODULE 5 -->
                                     <label class="tn-opt-item" style="border-left: 3px solid #f9e2af;">
                                         <div>
@@ -896,7 +904,7 @@
                                     <label class="tn-opt-item" style="border-left: 3px solid #cba6f7;">
                                         <div>
                                             <div style="font-weight:bold; color:#cba6f7;">🧩 [M6] Giải Minigame Ảo Cảnh (Lưới 4x4)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Chờ lật 1.2s, giải ma trận 16 ô lật 8 cặp chuẩn xác, nhận 3 rương, NV & Like BXH.</div>
+                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Bắt đầu, chờ xem thẻ, ghép 8 cặp trong ~8-10s, chơi lại khi còn lượt thưởng, nhận thưởng mốc điểm.</div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoMinigameMemory" ${CONFIG.activeFeature === 'autoMinigameMemory' ? 'checked' : ''}>
                                     </label>
@@ -1870,12 +1878,13 @@
         const unsupportedLogged = {};
         const runResetHooks = [];         // các module đăng ký đặt lại trạng thái khi bắt đầu lượt Auto mới
 
-        function tryAttemptTarget(key, label) {
+        function tryAttemptTarget(key, label, maxAttempts) {
+            const max = maxAttempts || MAX_TARGET_ATTEMPTS;
             const count = targetAttempts[key] || 0;
-            if (count >= MAX_TARGET_ATTEMPTS) {
-                if (count === MAX_TARGET_ATTEMPTS) {
+            if (count >= max) {
+                if (count === max) {
                     targetAttempts[key] = count + 1;
-                    sendLog(`⏸️ ${label}: đã thử ${MAX_TARGET_ATTEMPTS} lần chưa qua; dừng thử mục tiêu này trong lượt Auto này.`, "warn");
+                    sendLog(`⏸️ ${label}: đã thử ${max} lần chưa qua; dừng thử mục tiêu này trong lượt Auto này.`, "warn");
                 }
                 return false;
             }
@@ -2182,6 +2191,7 @@
                             t.type === n.runningMan ||
                             t.type === n.ymAbyss ||
                             t.type === n.adventure ||
+                            t.type === n.jyzd ||
                             (t.type >= n.singCamp_wei && t.type <= n.singCamp_qun)
                         )) || (tienMinhActive && (
                             t.type === n.guild ||
@@ -2296,8 +2306,8 @@
                     }
 
                     // Tiên Minh tự xử lý bảng đội hình trong daily-routines.js (có giới hạn và log riêng).
-                    // Thủ Vệ Tứ Phái cũng tự xử lý bảng đội hình của nó (sect-defense.js).
-                    if (CONFIG.activeFeature !== 'autoTienMinh' && CONFIG.activeFeature !== 'autoSectDefense' &&
+                    // Thủ Vệ Tứ Phái, Cực Âm Địa (M4) tự xử lý bảng đội hình của chúng (sect-defense.js, extreme-yin.js).
+                    if (!['autoTienMinh', 'autoSectDefense', 'autoOtherTrials', 'autoExtremeYin'].includes(CONFIG.activeFeature) &&
                         vm.viewIsVisible && vm.viewIsVisible('embattleUi')) {
                         const embUi = vm.getViewByName('embattleUi');
                         if (embUi) {
@@ -2347,6 +2357,8 @@
             return curId || 0;
         }
 
+        const TOWER_MAX_ATTEMPTS = 10;
+
         // 1. TỰ ĐỘNG LEO THÔNG THIÊN THÁP
         function handleTongTianTower(ctx) {
             if (!CONFIG.autoTongTian) return false;
@@ -2368,11 +2380,11 @@
                 const towerType = (ctx.DailyDungeonConst && ctx.DailyDungeonConst.dailyDungeonType && ctx.DailyDungeonConst.dailyDungeonType.runningMan) || 1;
                 const curDgnId = getNextDungeonId(ctx, towerType);
                 if (curDgnId <= 0) return false;
-                if (failCounts[curDgnId] >= 2) {
-                    logUnsupportedOnce(`tower-rejected-${curDgnId}`, `⏸️ [Thông Thiên Tháp] Máy chủ từ chối tầng #${curDgnId} nhiều lần; dừng khiêu chiến trong lượt Auto này.`);
+                if (failCounts[curDgnId] >= TOWER_MAX_ATTEMPTS) {
+                    logUnsupportedOnce(`tower-rejected-${curDgnId}`, `⏸️ [Thông Thiên Tháp] Máy chủ từ chối tầng #${curDgnId} ${TOWER_MAX_ATTEMPTS} lần; dừng khiêu chiến trong lượt Auto này.`);
                     return false;
                 }
-                if (!tryAttemptTarget(`tower-${curDgnId}`, `[Thông Thiên Tháp] Tầng #${curDgnId}`)) return false;
+                if (!tryAttemptTarget(`tower-${curDgnId}`, `[Thông Thiên Tháp] Tầng #${curDgnId}`, TOWER_MAX_ATTEMPTS)) return false;
 
                 isTowerChallenging = true;
                 waitingForFloorUpdate = true;
@@ -3008,77 +3020,523 @@
             return acted;
         }
 
-        // ============================================================================
-        // 2. TỰ ĐỘNG ĐÁNH CỰC ÂM ĐỊA (LỊCH LUYỆN)
-        // ============================================================================
-        let lastExtremeYinCheck = 0;
-        let extremeYinWaitLoggedFor = null;
+        // Chiến Lệnh (RechargeCtrl, giao diện zhanLingUi) dùng chung: mở màn, đếm phần thưởng MIỄN PHÍ đã đủ điều kiện
+        // nhưng chưa nhận, gửi nhận nhanh (send12322, đúng nút nhận của game) rồi kiểm tra lại bằng dữ liệu máy chủ.
+        // Không mua gói, không nhận bậc trả phí. holder: { stage, refreshing, before }.
+        // Trả về { status: 'wait' | 'acted' | 'done', failed?: boolean }.
+        function warOrderCountFree(rc, type, termId) {
+            const model = rc.getCurlModel && rc.getCurlModel();
+            const list = model && typeof model.getZlRewardTermList === 'function'
+                ? model.getZlRewardTermList(type, termId) : null;
+            if (!list || typeof rc.isCanNormalIdRewardByTermId !== 'function') return null;
+            let count = 0;
+            for (const reward of list) {
+                if (rc.isCanNormalIdRewardByTermId(type, termId, reward.id)) count++;
+            }
+            return count;
+        }
 
-        function handleExtremeYin(ctx) {
-            if (!ctx.ExtremeYinCtrl || !ctx.ExtremeYinCtrl.gInst) return false;
-            const eyCtrl = ctx.ExtremeYinCtrl.gInst();
-            const now = Date.now();
-            if (now - lastExtremeYinCheck < 3000) return true;
+        function warOrderClaimStep(ctx, vm, holder, opts, now) {
+            const rc = ctx.RechargeCtrl && ctx.RechargeCtrl.gInst && ctx.RechargeCtrl.gInst();
+            const type = ctx.RechargeConst && ctx.RechargeConst.ZhanLingType && ctx.RechargeConst.ZhanLingType[opts.typeKey] || opts.fallbackType;
+            const termId = opts.termId || 1;
+            const close = () => { try { if (vm.viewIsVisible('zhanLingUi')) vm.closeView('zhanLingUi'); } catch (e) { } };
+            if (!rc || typeof rc.send12322 !== 'function' || typeof rc.openZhanLingUi !== 'function') {
+                sendLog(`⚠️ [${opts.label}] Game chưa sẵn sàng cho Chiến Lệnh (RechargeCtrl); bỏ qua bước nhận.`, "warn");
+                return { status: 'done', failed: true };
+            }
+            if (!holder.stage) holder.stage = 'open';
+            const tokenOf = () => rc.getZlNetVoByType(type);
+            if (holder.stage === 'open') {
+                const r = pollTowerDailyRefresh(holder, 'refreshing', now, () => rc.openZhanLingUi(type, termId), tokenOf);
+                if (r === 'wait') return { status: 'wait' };
+                if (r !== 'ready') {
+                    sendLog(`❌ [${opts.label}] Máy chủ chưa trả dữ liệu Chiến Lệnh; bỏ qua bước nhận.`, "error");
+                    close();
+                    return { status: 'done', failed: true };
+                }
+                const available = warOrderCountFree(rc, type, termId);
+                if (available === null) {
+                    sendLog(`❌ [${opts.label}] Không đọc được danh sách thưởng Chiến Lệnh (bản game đổi); không nhận.`, "error");
+                    close();
+                    return { status: 'done', failed: true };
+                }
+                if (available === 0) {
+                    sendLog(`ℹ️ [${opts.label}] Chiến Lệnh: không có phần thưởng miễn phí nào để nhận lúc này.`, "info");
+                    close();
+                    return { status: 'done' };
+                }
+                holder.before = available;
+                holder.stage = 'claim';
+                holder.refreshing = null;
+                sendLog(`🎁 [${opts.label}] Chiến Lệnh: có ${available} phần thưởng miễn phí có thể nhận; đang nhận.`, "action");
+                return { status: 'acted' };
+            }
+            if (holder.stage === 'claim') {
+                const r = pollTowerDailyRefresh(holder, 'refreshing', now, () => rc.send12322(type, termId), tokenOf);
+                if (r === 'wait') return { status: 'wait' };
+                close();
+                if (r !== 'ready') {
+                    sendLog(`❌ [${opts.label}] Máy chủ chưa xác nhận việc nhận Chiến Lệnh; không gửi lại để tránh trùng.`, "error");
+                    return { status: 'done', failed: true };
+                }
+                const left = warOrderCountFree(rc, type, termId);
+                if (left === 0) {
+                    sendLog(`✅ [${opts.label}] Chiến Lệnh: máy chủ xác nhận đã nhận ${holder.before} phần thưởng.`, "action");
+                    return { status: 'done' };
+                }
+                sendLog(`⚠️ [${opts.label}] Chiến Lệnh: đã gửi nhận nhưng còn ${left} phần thưởng chưa nhận được (có thể cần điều kiện khác).`, "warn");
+                return { status: 'done', failed: true };
+            }
+            return { status: 'done' };
+        }
 
-            // Nếu đang tu luyện: Kiểm tra đã xong giờ để nhận thưởng chưa
-            if (eyCtrl.bHaveSeat && eyCtrl.bHaveSeat()) {
-                clearTargetAttempts('extreme-yin-seat');
-                const curLandId = eyCtrl.getLandId ? eyCtrl.getLandId() : 0;
-                const pData = eyCtrl.getPlayerData ? eyCtrl.getPlayerData() : null;
-                const model = eyCtrl.getCurlModel ? eyCtrl.getCurlModel() : null;
-                const buildCfg = (model && model.getBuildCfgVo) ? model.getBuildCfgVo(curLandId) : null;
-                if (pData && buildCfg && curLandId > 0) {
-                    const timePassed = (ctx.NetMgr && ctx.NetMgr.gInst ? ctx.NetMgr.gInst().getTime() : Math.floor(now/1000)) - pData.start_time;
-                    if (timePassed >= buildCfg.time) {
-                        sendLog('🏆 Đã tu luyện xong Cực Âm Địa! Nhận thưởng...', 'success');
-                        eyCtrl.send32204(curLandId);
-                        lastExtremeYinCheck = now;
-                        return true;
+        // ============================================================================
+        // TỰ ĐỘNG CỰC ÂM ĐỊA (LỊCH LUYỆN) - ExtremeYinCtrl
+        // Danh sách Cực Âm Địa, sức chứa (seat), phẩm (quality), thưởng/phút (reward) và thời gian tu luyện (time)
+        // lấy từ cấu hình của game (model.getBuildConfig), không đoán cứng.
+        //   1. Có chỗ và đã đủ giờ  -> nhận thưởng (send32204).
+        //   2. Có chỗ, còn lượt Đoạt miễn phí -> Đoạt tài nguyên người chơi yếu hơn trong cùng địa (send32206).
+        //   3. Chưa có chỗ -> chọn địa: từ Huyền Âm Địa trở lên, phẩm cao nhất mà sức mình trên 1/3 yếu nhất của
+        //      người đang tu luyện ở đó (tránh bị đánh bật). Còn chỗ thì đánh Thủ Vệ vào (send32202); đầy chỗ thì đánh
+        //      Thủ Vệ vào rồi đánh người yếu nhất yếu hơn mình để giành vị trí (send32205). Không địa nào được thì
+        //      dùng địa thấp hơn tốt nhất còn chỗ.
+        //   4. Hết lượt Đoạt miễn phí (hoặc không còn mục tiêu): vào Chiến Lệnh Cực Âm, nhận phần thưởng miễn phí nếu đủ điều kiện.
+        //   Không mua lượt Đoạt bằng Tiên Ngọc. Mỗi bước chỉ tính xong khi dữ liệu máy chủ (32201) xác nhận.
+        // ============================================================================
+        const EY_REQUEST_TIMEOUT_MS = 20000;
+        const EY_FIGHT_TIMEOUT_MS = 90000;
+        const EY_SYNC_MIN_MS = 30000;
+        const EY_SYNC_MAX_MS = 60000;
+        const EY_MAX_PLUNDERS_PER_RUN = 30;
+        let extremeYinState = null;
+        runResetHooks.push(() => { extremeYinState = null; });
+
+        function createExtremeYinState() {
+            return {
+                phase: 'sync',            // sync -> (claim | plunder | rob | pick -> enter) -> sync ...
+                logged: {},
+                refreshing: null,
+                nextSyncAt: 0,
+                plan: null,               // { landId, name, mode: 'occupy' | 'rob' }
+                pick: null,               // { cands, idx, results }
+                read: null,               // { landId, mode, at }
+                emb: { stage: 'arrange', at: 0 },
+                fight: null,              // { kind, at, target, robBefore }
+                claim: null,
+                warOrder: { stage: '', refreshing: null, before: 0 },
+                warOrderFor: -1,          // số lần Đoạt tại lần kiểm tra Chiến Lệnh gần nhất (-1: chưa kiểm tra)
+                plunders: 0,
+                plunderBlocked: false,
+                idleAt: Date.now()
+            };
+        }
+
+        function logEy(state, key, message, type) {
+            if (state.logged[key]) return;
+            state.logged[key] = true;
+            sendLog(message, type || "info");
+        }
+
+        function eyServerNow(ctx) {
+            try { return ctx.NetMgr.gInst().getTime(); } catch (e) { return Math.floor(Date.now() / 1000); }
+        }
+
+        // Các địa theo phẩm giảm dần, kèm số người đang tu luyện.
+        function eyLands(ctrl) {
+            const cfgs = ctrl.getCurlModel().getBuildConfig() || {};
+            return Object.keys(cfgs).map((key) => {
+                const cfg = cfgs[key];
+                const id = Number(cfg && cfg.id !== undefined ? cfg.id : key);
+                return {
+                    id, cfg, name: cfg.name || `#${id}`, quality: Number(cfg.quality) || 0,
+                    seat: Number(cfg.seat) || 0, openLv: Number(cfg.open_lv) || 0,
+                    count: ctrl.getLandInfo(id) || 0
+                };
+            }).filter((l) => l.id > 0).sort((a, b) => b.quality - a.quality);
+        }
+
+        function eyIsFull(land) {
+            return land.seat > 0 && land.count >= land.seat;
+        }
+
+        function eyMyRole() {
+            const role = window.RoleCtrl && RoleCtrl.gInst && RoleCtrl.gInst().getRoleInfo();
+            return { fc: role ? parseLongVal(role.fc) : 0, level: role ? Number(role.lev) || 0 : 0 };
+        }
+
+        // Phẩm tối thiểu: Huyền Âm Địa (tìm theo tên; không thấy thì lấy địa cao thứ 3).
+        function eyFloorQuality(lands) {
+            const huyen = lands.find((l) => /huyền/i.test(l.name));
+            if (huyen) return huyen.quality;
+            return lands[Math.min(2, lands.length - 1)].quality;
+        }
+
+        // Đọc danh sách người tu luyện qua giao diện của game (mở xem, không gửi hành động tốn lượt).
+        // Trả về mảng, null khi chưa xong / hết giờ (state.read giữ trạng thái chờ).
+        function eyReadPlayers(ctrl, vm, state, landId, mode, now) {
+            if (!state.read || state.read.landId !== landId || state.read.mode !== mode) {
+                state.read = { landId, mode, at: now, opened: false };
+            }
+            const r = state.read;
+            const ui = vm.viewIsVisible('extremeYinExerciseUi') ? vm.getViewByName('extremeYinExerciseUi') : null;
+            if (!ui || !ui.exData || ui.exData.id !== landId || ui.exData.playerState !== mode) {
+                if (!r.opened) {
+                    r.opened = true;
+                    r.at = now;
+                    ctrl.lookExercise(landId, mode);
+                    return null;
+                }
+                if (now - r.at > EY_REQUEST_TIMEOUT_MS) { state.read = null; return 'timeout'; }
+                return null;
+            }
+            if (!ui.bInitFinish || !ui.playerListCol) {
+                if (now - r.at > EY_REQUEST_TIMEOUT_MS) { state.read = null; try { vm.closeView('extremeYinExerciseUi'); } catch (e) { } return 'timeout'; }
+                return null;
+            }
+            const src = ui.playerListCol.source || [];
+            const players = src.map((it) => ({
+                id: it.vo && it.vo.id, idStr: parseUidVal(it.vo && it.vo.id), name: it.vo && it.vo.name, fc: Number(it.fc) || 0,
+                robLoss: Number(it.vo && it.vo.rob_loss) || 0, startTime: Number(it.start_time) || 0,
+                quantity: Number(it.quantity) || 0, limitTime: Number(it.limitTime) || 0
+            }));
+            state.read = null;
+            try { vm.closeView('extremeYinExerciseUi'); } catch (e) { }
+            return players;
+        }
+
+        // Bảng đội hình jyzd: xếp tự động rồi bấm xác nhận (giống người chơi). 'acted' | 'wait' | 'none'.
+        function eyEmbattleStep(ctx, vm, state, now) {
+            if (!vm.viewIsVisible('embattleUi')) { state.emb = { stage: 'arrange', at: 0 }; return 'none'; }
+            const ui = vm.getViewByName('embattleUi');
+            const type = ctx.EmbattleConst && ctx.EmbattleConst.embattleType && ctx.EmbattleConst.embattleType.jyzd;
+            if (!ui || type === undefined || ui.embattleType !== type) return 'none';
+            if (!state.emb.at) state.emb.at = now;
+            if (now - state.emb.at < humanDelay(900)) return 'wait';
+            state.emb.at = now;
+            if (state.emb.stage === 'arrange') {
+                if (typeof ui.oneKeyEmbattleLogic === 'function') ui.oneKeyEmbattleLogic(0);
+                if (typeof ui.saveEmbattleLogic === 'function') ui.saveEmbattleLogic();
+                state.emb.stage = 'confirm';
+                return 'acted';
+            }
+            if (typeof ui.cBtnH2 !== 'function') return 'none';
+            ui.cBtnH2();
+            state.emb = { stage: 'arrange', at: 0 };
+            return 'acted';
+        }
+
+        function eySync(ctrl, state, now) {
+            return pollTowerDailyRefresh(state, 'refreshing', now, () => { ctrl.send32201(); ctrl.send32200(); }, () => ctrl.playerData);
+        }
+
+        function eyAfterSync(ctx, ctrl, state, now) {
+            const pd = ctrl.getPlayerData();
+            const model = ctrl.getCurlModel();
+            if (ctrl.bHaveSeat()) {
+                const cfg = model.getBuildCfgVo(pd.id);
+                const elapsed = eyServerNow(ctx) - pd.start_time;
+                if (cfg && elapsed >= cfg.time) { state.phase = 'claim'; return; }
+                const left = ctrl.getFreeCount() + (Number(pd.buy_times) || 0) - (Number(pd.rob_times) || 0);
+                if (left > 0 && !state.plunderBlocked && state.plunders < EY_MAX_PLUNDERS_PER_RUN) {
+                    state.phase = 'plunder';
+                    state.idleAt = now;
+                    return;
+                }
+                // Hết lượt Đoạt: kiểm tra Chiến Lệnh Cực Âm (lại sau mỗi đợt Đoạt mới).
+                if (state.warOrderFor !== state.plunders) {
+                    state.phase = 'warorder';
+                    state.warOrder = { stage: '', refreshing: null, before: 0 };
+                    state.idleAt = now;
+                    return;
+                }
+                const remain = cfg ? Math.max(0, cfg.time - elapsed) : 60;
+                logEy(state, `train-${pd.start_time}`, `🧘 [Cực Âm Địa] Đang tu luyện ${cfg ? cfg.name : '#' + pd.id} (còn ${Math.floor(remain / 60)}p${remain % 60}s, lượt Đoạt còn ${Math.max(0, left)}).`, "info");
+                state.nextSyncAt = now + Math.min(Math.max(remain * 1000 + 2000, EY_SYNC_MIN_MS), EY_SYNC_MAX_MS * 3);
+                state.phase = 'wait';
+                return;
+            }
+            state.plunders = 0;
+            state.plunderBlocked = false;
+            state.warOrderFor = -1;
+            if (ctrl.bEnterLand()) {
+                state.plan = { landId: pd.id, name: model.getBuildName(pd.id), mode: 'rob' };
+                state.phase = 'rob';
+                state.idleAt = now;
+                sendLog(`🛡️ [Cực Âm Địa] Đã vào ${state.plan.name} nhưng chưa có chỗ; đánh người yếu hơn để giành vị trí.`, "action");
+                return;
+            }
+            state.pick = null;
+            state.phase = 'pick';
+        }
+
+        // Chọn địa: phẩm cao nhất (>= Huyền Âm) mà sức mình trên 1/3 yếu nhất; hết cách thì địa thấp hơn còn chỗ.
+        function eyPick(ctx, ctrl, vm, state, now) {
+            const lands = eyLands(ctrl);
+            if (!lands.length) { logEy(state, 'no-cfg', "⚠️ [Cực Âm Địa] Không đọc được cấu hình các địa; bỏ qua.", "warn"); state.nextSyncAt = now + 120000; state.phase = 'wait'; return false; }
+            const me = eyMyRole();
+            const floor = eyFloorQuality(lands);
+            if (!state.pick) {
+                const cands = lands.filter((l) => l.quality >= floor && (!l.openLv || me.level >= l.openLv));
+                state.pick = { cands, idx: 0, chosen: null };
+            }
+            const p = state.pick;
+            if (p.idx < p.cands.length) {
+                const land = p.cands[p.idx];
+                const players = eyReadPlayers(ctrl, vm, state, land.id, 'lookState', now);
+                if (players === null) return false;
+                if (players === 'timeout') { p.idx++; return true; }
+                const fcs = players.map((x) => x.fc).sort((a, b) => a - b);
+                const threshold = fcs.length ? fcs[Math.floor(fcs.length / 3)] : 0;
+                const safe = me.fc >= threshold;
+                const full = eyIsFull(land);
+                const weaker = players.filter((x) => x.fc < me.fc).sort((a, b) => a.fc - b.fc);
+                if (safe && (!full || weaker.length)) {
+                    p.chosen = { land, mode: full ? 'rob' : 'occupy' };
+                    sendLog(`🎯 [Cực Âm Địa] Chọn ${land.name} (${land.count}/${land.seat || '∞'}; sức tôi ${me.fc.toLocaleString('vi-VN')}, ngưỡng an toàn ${threshold.toLocaleString('vi-VN')}${full ? ', đầy chỗ → sẽ giành vị trí' : ''}).`, "action");
+                } else {
+                    sendLog(`ℹ️ [Cực Âm Địa] Bỏ qua ${land.name}: ${!safe ? `sức tôi thấp hơn ngưỡng an toàn (${me.fc.toLocaleString('vi-VN')} < ${threshold.toLocaleString('vi-VN')})` : 'đầy chỗ và không có người yếu hơn để giành vị trí'}.`, "info");
+                    p.idx++;
+                    return true;
+                }
+            }
+            if (!p.chosen) {
+                // Địa thấp hơn tốt nhất còn chỗ (người dùng cho phép khi không địa nào từ Huyền Âm trở lên dùng được).
+                const lower = lands.filter((l) => l.quality < floor && !eyIsFull(l) && (!l.openLv || me.level >= l.openLv))[0];
+                if (!lower) {
+                    logEy(state, 'nothing', "⏸️ [Cực Âm Địa] Không địa nào còn chỗ hoặc phù hợp sức hiện tại; sẽ kiểm tra lại sau.", "warn");
+                    state.nextSyncAt = now + 180000;
+                    state.phase = 'wait';
+                    state.pick = null;
+                    return false;
+                }
+                p.chosen = { land: lower, mode: 'occupy' };
+                sendLog(`ℹ️ [Cực Âm Địa] Không địa nào từ Huyền Âm trở lên dùng được; chọn ${lower.name} (${lower.count}/${lower.seat || '∞'}).`, "info");
+            }
+            state.plan = { landId: p.chosen.land.id, name: p.chosen.land.name, mode: p.chosen.mode };
+            state.pick = null;
+            state.logged = {};
+            state.phase = 'enter';
+            state.fight = null;
+            state.idleAt = now;
+            return true;
+        }
+
+        // Đánh Thủ Vệ để vào địa đã chọn; xác nhận khi dữ liệu người chơi báo đã vào địa.
+        function eyEnter(ctx, ctrl, vm, state, now) {
+            const plan = state.plan;
+            const emb = eyEmbattleStep(ctx, vm, state, now);
+            if (emb !== 'none') return emb === 'acted';
+            if (state.fight) {
+                if (now - state.fight.at < 4000) return false;
+                const r = eySync(ctrl, state, now);
+                if (r === 'wait') return false;
+                const pd = ctrl.getPlayerData();
+                if (r === 'ready' && pd && pd.id === plan.landId) {
+                    state.fight = null;
+                    clearTargetAttempts('ey-enter-' + plan.landId);
+                    if (ctrl.bHaveSeat()) {
+                        sendLog(`✅ [Cực Âm Địa] Máy chủ xác nhận đã có chỗ tu luyện ở ${plan.name}.`, "action");
+                        state.phase = 'sync'; state.refreshing = null; state.nextSyncAt = 0;
                     } else {
-                        const remainSec = buildCfg.time - timePassed;
-                        // Log 1 lần mỗi lượt tu luyện; kiểm tra lại khi gần hết giờ (tối đa mỗi 60s).
-                        if (extremeYinWaitLoggedFor !== pData.start_time) {
-                            extremeYinWaitLoggedFor = pData.start_time;
-                            const m = Math.floor(remainSec / 60);
-                            const s = remainSec % 60;
-                            sendLog(`🧘 Đang tu luyện Cực Âm Địa (Còn ${m}p${s}s)...`, 'info');
-                        }
-                        lastExtremeYinCheck = now + Math.min(Math.max(remainSec * 1000, 0), 60000);
-                        return true;
+                        sendLog(`✅ [Cực Âm Địa] Đã vào ${plan.name} nhưng đầy chỗ; chuyển sang giành vị trí.`, "action");
+                        state.plan = { landId: plan.landId, name: plan.name, mode: 'rob' };
+                        state.phase = 'rob'; state.refreshing = null;
                     }
+                    return true;
+                }
+                if (now - state.fight.at > EY_FIGHT_TIMEOUT_MS) {
+                    state.fight = null;
+                    sendLog(`❌ [Cực Âm Địa] Máy chủ chưa xác nhận đã vào ${plan.name}; không gửi lại, sẽ kiểm tra lại sau.`, "error");
+                    state.nextSyncAt = now + 60000; state.phase = 'wait'; state.refreshing = null;
                 }
                 return false;
             }
-
-            // Nếu chưa có chỗ: Tìm tầng cao nhất còn chỗ trống để đánh chiếm (tối đa 3 lần mỗi lượt Auto).
-            if (!tryAttemptTarget('extreme-yin-seat', '[Cực Âm Địa] Chiếm chỗ tu luyện')) return false;
-            sendLog('🔍 Đang kiểm tra các tầng Cực Âm Địa còn chỗ trống...', 'info');
-            eyCtrl.toRefreshMainInfo();
-
-            const landCaps = [
-                { id: 5, name: 'Thiên Âm Chi Địa', cap: 10 },
-                { id: 4, name: 'Địa Âm Địa', cap: 25 },
-                { id: 3, name: 'Huyền Âm Địa', cap: 50 },
-                { id: 2, name: 'Thượng Giai - Hoàng Âm Địa', cap: 200 },
-                { id: 1, name: 'Hoàng Âm Địa', cap: 999999 }
-            ];
-
-            let targetLandId = 0;
-            for (let i = 0; i < landCaps.length; i++) {
-                const land = landCaps[i];
-                const curCount = eyCtrl.getLandInfo ? (eyCtrl.getLandInfo(land.id) || 0) : 0;
-                if (curCount < land.cap) {
-                    targetLandId = land.id;
-                    sendLog(`🎯 Tìm thấy ${land.name} còn chỗ (${curCount}/${land.cap}). Tiến hành chiếm địa...`, 'success');
-                    break;
-                }
+            if (now - state.idleAt < humanDelay(1200)) return false;
+            if (!tryAttemptTarget('ey-enter-' + plan.landId, `[Cực Âm Địa] Vào ${plan.name}`)) {
+                sendLog(`❌ [Cực Âm Địa] Vào ${plan.name} nhiều lần vẫn chưa được; dừng, sẽ thử lại khi Auto khởi động lại.`, "error");
+                state.nextSyncAt = now + 600000; state.phase = 'wait';
+                return false;
             }
-
-            if (!targetLandId) targetLandId = 1; // Fallback Hoàng Âm Địa không giới hạn
-            eyCtrl.chanllenge(targetLandId);
-            lastExtremeYinCheck = now;
+            const fc = ctx.FightCtrl && ctx.FightCtrl.gInst && ctx.FightCtrl.gInst();
+            if (fc && typeof fc.gCanFight === 'function' && !fc.gCanFight(0)) { clearTargetAttempts('ey-enter-' + plan.landId); return false; }
+            state.idleAt = now;
+            state.fight = { kind: 'enter', at: now };
+            state.refreshing = null;
+            ctrl.chanllenge(plan.landId);
+            sendLog(`⚔️ [Cực Âm Địa] Khiêu chiến Thủ Vệ ${plan.name}; chờ bảng đội hình.`, "action");
             return true;
         }
+
+        // Chọn mục tiêu từ danh sách (mode: challengeState | plunderState) và đánh qua bảng đội hình.
+        function eyFightPlayer(ctx, ctrl, vm, state, now, mode, label) {
+            const emb = eyEmbattleStep(ctx, vm, state, now);
+            if (emb !== 'none') return { acted: emb === 'acted' };
+            const me = eyMyRole();
+            const landId = state.plan.landId;
+            if (state.fight) {
+                const f = state.fight;
+                if (now - f.at < 4000) return { acted: false };
+                const r = eySync(ctrl, state, now);
+                if (r === 'wait') return { acted: false };
+                state.fight = null;
+                return { done: true, ready: r === 'ready', fight: f };
+            }
+            if (now - state.idleAt < humanDelay(1200)) return { acted: false };
+            const players = eyReadPlayers(ctrl, vm, state, landId, mode, now);
+            if (players === null) return { acted: false };
+            if (players === 'timeout') return { failed: 'timeout' };
+            const nowSec = eyServerNow(ctx);
+            let pool = players.filter((x) => x.id && x.fc < me.fc);
+            if (mode === 'plunderState') {
+                pool.forEach((x) => {
+                    const mins = Math.max(0, Math.floor(Math.min(nowSec - x.startTime, x.limitTime) / 60));
+                    x.steal = Math.max(0, mins * x.quantity - x.robLoss);
+                });
+                pool = pool.filter((x) => x.steal > 0).sort((a, b) => b.steal - a.steal);
+            } else {
+                pool.sort((a, b) => a.fc - b.fc);
+            }
+            if (!pool.length) return { failed: 'no-target' };
+            const target = pool[0];
+            if (!tryAttemptTarget(`ey-${mode}-${landId}-${state.plunders}-${target.idStr}`, `[Cực Âm Địa] ${label} ${target.name}`)) return { failed: 'attempts' };
+            const fc = ctx.FightCtrl && ctx.FightCtrl.gInst && ctx.FightCtrl.gInst();
+            if (fc && typeof fc.gCanFight === 'function' && !fc.gCanFight(0)) return { acted: false };
+            state.idleAt = now;
+            const pd = ctrl.getPlayerData();
+            state.fight = { kind: mode, at: now, target, robBefore: pd ? Number(pd.rob_times) || 0 : 0 };
+            state.refreshing = null;
+            ctrl.openEmBattle({ id: landId, role_id: target.id, bAutoOpenRecord: false, playerState: mode });
+            sendLog(`⚔️ [Cực Âm Địa] ${label} ${target.name} (sức ${target.fc.toLocaleString('vi-VN')}${target.steal !== undefined ? `, có thể đoạt ~${target.steal}` : ''}); chờ bảng đội hình.`, "action");
+            return { acted: true };
+        }
+
+        function eyRob(ctx, ctrl, vm, state, now) {
+            const r = eyFightPlayer(ctx, ctrl, vm, state, now, 'challengeState', 'Giành vị trí từ');
+            if (r.failed) {
+                sendLog(`⏸️ [Cực Âm Địa] Chưa giành được vị trí (${r.failed}); sẽ kiểm tra lại sau.`, "warn");
+                state.nextSyncAt = now + 90000; state.phase = 'wait';
+                return false;
+            }
+            if (r.done) {
+                if (r.ready && ctrl.bHaveSeat()) {
+                    sendLog(`✅ [Cực Âm Địa] Máy chủ xác nhận đã giành được vị trí ở ${state.plan.name}.`, "action");
+                    state.phase = 'sync'; state.refreshing = null; state.nextSyncAt = 0;
+                } else {
+                    sendLog("ℹ️ [Cực Âm Địa] Trận giành vị trí kết thúc nhưng chưa có chỗ; thử người khác.", "info");
+                    state.phase = 'rob';
+                }
+                return true;
+            }
+            return !!r.acted;
+        }
+
+        function eyPlunder(ctx, ctrl, vm, state, now) {
+            state.plan = { landId: ctrl.getLandId(), name: ctrl.getCurlModel().getBuildName(ctrl.getLandId()), mode: 'seated' };
+            const r = eyFightPlayer(ctx, ctrl, vm, state, now, 'plunderState', 'Đoạt tài nguyên của');
+            if (r.failed) {
+                logEy(state, 'plunder-' + r.failed, r.failed === 'no-target'
+                    ? "ℹ️ [Cực Âm Địa] Không có người nào yếu hơn mà còn tài nguyên để Đoạt; bỏ qua lượt Đoạt lần này."
+                    : `⏸️ [Cực Âm Địa] Dừng Đoạt (${r.failed}).`, "info");
+                state.plunderBlocked = true; state.phase = 'sync'; state.refreshing = null; state.nextSyncAt = 0;
+                return false;
+            }
+            if (r.done) {
+                const pd = ctrl.getPlayerData();
+                const used = pd ? Number(pd.rob_times) || 0 : 0;
+                if (r.ready && used > r.fight.robBefore) {
+                    state.plunders++;
+                    sendLog(`✅ [Cực Âm Địa] Máy chủ xác nhận đã Đoạt ${r.fight.target.name} (lượt Đoạt đã dùng ${used}).`, "action");
+                } else {
+                    state.plunderBlocked = true;
+                    sendLog("⚠️ [Cực Âm Địa] Đã đánh nhưng máy chủ chưa ghi nhận lượt Đoạt; dừng Đoạt lần này.", "warn");
+                }
+                state.phase = 'sync'; state.refreshing = null; state.nextSyncAt = 0;
+                return true;
+            }
+            return !!r.acted;
+        }
+
+        function eyWarOrder(ctx, vm, state, now) {
+            if (now - state.idleAt < humanDelay(1200)) return false;
+            const r = warOrderClaimStep(ctx, vm, state.warOrder, { label: 'Cực Âm Địa', typeKey: 'zhanLingType_6', fallbackType: 6, termId: 1 }, now);
+            if (r.status === 'done') {
+                state.warOrderFor = state.plunders;
+                state.phase = 'sync'; state.refreshing = null; state.nextSyncAt = 0;
+                return true;
+            }
+            return r.status === 'acted';
+        }
+
+        function eyClaim(ctx, ctrl, state, now) {
+            const pd = ctrl.getPlayerData();
+            if (!state.claim) {
+                state.claim = { id: pd.id, at: now };
+                state.refreshing = null;
+                sendLog(`🏆 [Cực Âm Địa] Đã tu luyện xong ${ctrl.getCurlModel().getBuildName(pd.id)}; nhận thưởng.`, "success");
+                ctrl.send32204(pd.id);
+                return true;
+            }
+            if (now - state.claim.at < 2500) return false;
+            const r = eySync(ctrl, state, now);
+            if (r === 'wait') return false;
+            const c = state.claim;
+            state.claim = null;
+            if (r === 'ready' && !ctrl.bHaveSeat()) {
+                sendLog("✅ [Cực Âm Địa] Máy chủ xác nhận đã nhận thưởng; sẽ chọn địa mới.", "action");
+            } else {
+                sendLog("⚠️ [Cực Âm Địa] Đã gửi nhận thưởng nhưng dữ liệu chưa đổi; kiểm tra lại sau, không gửi lại ngay.", "warn");
+                state.nextSyncAt = now + 60000; state.phase = 'wait'; return true;
+            }
+            state.phase = 'sync'; state.refreshing = null; state.nextSyncAt = 0;
+            return true;
+        }
+
+        function handleExtremeYin(ctx) {
+            try {
+                if (!ctx.ExtremeYinCtrl || !ctx.ExtremeYinCtrl.gInst || !ctx.ViewMgr || !ctx.ViewMgr.gInst) return false;
+                const ctrl = ctx.ExtremeYinCtrl.gInst();
+                const vm = ctx.ViewMgr.gInst();
+                if (!extremeYinState) {
+                    extremeYinState = createExtremeYinState();
+                    sendLog("🧘 [Cực Âm Địa] Bắt đầu/khởi động lại: kiểm tra trạng thái từ game rồi tu luyện/Đoạt.", "action");
+                }
+                const state = extremeYinState;
+                const now = Date.now();
+                switch (state.phase) {
+                    case 'wait':
+                        if (now >= state.nextSyncAt) { state.phase = 'sync'; state.refreshing = null; }
+                        return true;
+                    case 'sync': {
+                        if (now < state.nextSyncAt) return true;
+                        const r = eySync(ctrl, state, now);
+                        if (r === 'wait') return true;
+                        if (r !== 'ready') {
+                            sendLog("❌ [Cực Âm Địa] Máy chủ chưa trả dữ liệu Cực Âm Địa; thử lại sau.", "error");
+                            state.nextSyncAt = now + 60000;
+                            return true;
+                        }
+                        eyAfterSync(ctx, ctrl, state, now);
+                        return true;
+                    }
+                    case 'claim': return eyClaim(ctx, ctrl, state, now) || true;
+                    case 'pick': return eyPick(ctx, ctrl, vm, state, now) || true;
+                    case 'enter': return eyEnter(ctx, ctrl, vm, state, now) || true;
+                    case 'rob': return eyRob(ctx, ctrl, vm, state, now) || true;
+                    case 'plunder': return eyPlunder(ctx, ctrl, vm, state, now) || true;
+                    case 'warorder': return eyWarOrder(ctx, vm, state, now) || true;
+                    default: state.phase = 'sync'; return true;
+                }
+            } catch (e) {
+                const message = `❌ [Cực Âm Địa] Lỗi: ${e && e.message ? e.message : e}`;
+                if (message !== lastExtremeYinError) {
+                    lastExtremeYinError = message;
+                    sendLog(message, "error");
+                }
+                return true;
+            }
+        }
+        let lastExtremeYinError = '';
 
         // ============================================================================
         // 3. TỰ ĐỘNG ĐI ẢI CHÍNH TUYẾN (MA ĐẠO)
@@ -4088,6 +4546,24 @@
         const CO_THAN_MAX_FIGHTS = 1000;
         const CO_THAN_MAX_FLOORS = 200;
         const CO_THAN_NEXT_FLOOR_ETYPE = 99999;
+        // Số lần đã gửi dùng vật phẩm đặc biệt được giữ trong sessionStorage của tab: tự vào lại game (làm mới trang)
+        // không được đặt lại bộ đếm và vượt giới hạn.
+        const CO_THAN_SPECIAL_STORAGE_KEY = 'TN_AUTO_COTHAN_SPECIAL_V1';
+
+        function loadCoThanSpecialSent() {
+            try {
+                const saved = JSON.parse(sessionStorage.getItem(CO_THAN_SPECIAL_STORAGE_KEY) || 'null');
+                if (saved && saved.dayKey === new Date().toDateString()) return Number(saved.sent) || 0;
+            } catch (e) { }
+            return 0;
+        }
+
+        function saveCoThanSpecialSent(sent) {
+            try {
+                sessionStorage.setItem(CO_THAN_SPECIAL_STORAGE_KEY, JSON.stringify({ dayKey: new Date().toDateString(), sent }));
+            } catch (e) { }
+        }
+
         let coThanState = null;
         runResetHooks.push(() => {
             if (coThanState && coThanState.failed && coThanState.phase === 'done') coThanState = null;
@@ -4109,7 +4585,7 @@
                 floors: 0,
                 door: null,               // { gridId, at, layer } đã gửi đi qua cửa, chờ máy chủ xác nhận
                 pending: null,            // { gridId, at, killBefore, hpBefore }
-                special: { uses: 0, pending: null },
+                special: { uses: loadCoThanSpecialSent(), pending: null },
                 claim: { done: 0, pending: null },
                 idleAt: Date.now()
             };
@@ -4153,6 +4629,21 @@
         function coThanRemainingBosses(dt) {
             return (dt.gridLs || []).filter((g) => g.isOpen === 1 && g.isFsh !== 1 && g.bossBsId && (g.bossLv || g.isBsGrid))
                 .sort((a, b) => (a.bossLv || 99) - (b.bossLv || 99));
+        }
+
+        // Mất dữ liệu giữa chừng (thường do rớt mạng): không dùng vật phẩm/nhận thưởng trên dữ liệu cũ mà
+        // quay lại bước mở để lấy lại trạng thái từ máy chủ (tối đa 3 lần mỗi lượt Auto).
+        function coThanResync(state, key, message) {
+            state.pending = null;
+            state.door = null;
+            state.refreshing = null;
+            if (!tryAttemptTarget('co-than-resync', "[M4 - Cổ Thần Địa] Tải lại trạng thái")) {
+                failCoThan(state, key, `${message} Đã thử tải lại nhiều lần mà không được; dừng để an toàn.`, 'done');
+                return;
+            }
+            sendLog(`⚠️ [M4 - Cổ Thần Địa] ${message}`, "warn");
+            state.phase = 'open';
+            state.sent = false;
         }
 
         function coThanRefresh(ctrl, state, now) {
@@ -4268,7 +4759,7 @@
                 const busy = vm.viewIsVisible('adventureFightUi') || (fc && typeof fc.gCanFight === 'function' && !fc.gCanFight(0));
                 if (now - p.at > CO_THAN_FIGHT_TIMEOUT_MS) {
                     state.pending = null;
-                    failCoThan(state, 'fight-timeout', `Máy chủ chưa xác nhận trận ở ô #${p.gridId}; kiểm tra lại, không gửi lại.`, 'special');
+                    coThanResync(state, 'fight-timeout', `Máy chủ chưa xác nhận trận ở ô #${p.gridId}; tải lại trạng thái từ game, không gửi lại.`);
                     return true;
                 }
                 if (busy || now - p.at < 2000) return false;
@@ -4276,7 +4767,7 @@
                 if (r === 'wait') return false;
                 state.pending = null;
                 if (r !== 'ready') {
-                    failCoThan(state, 'fight-refresh', "Máy chủ chưa trả dữ liệu sau trận; dừng để an toàn.", 'special');
+                    coThanResync(state, 'fight-refresh', "Máy chủ chưa trả dữ liệu sau trận; tải lại trạng thái từ game trước khi làm tiếp.");
                     return true;
                 }
                 const after = ctrl.mainUiDt;
@@ -4368,7 +4859,6 @@
                 const grid = (after.gridLs || []).find((x) => x.id === pending.gridId);
                 const spent = after.lsPotion < pending.left || after.slPotion < pending.owned;
                 if (spent || (grid && grid.isFsh === 1)) {
-                    sp.uses++;
                     sendLog(`✅ [M4 - Cổ Thần Địa] Máy chủ xác nhận đã dùng vật phẩm đặc biệt lên ô #${pending.gridId} (lần ${sp.uses}/${CO_THAN_MAX_SPECIAL_USES}).`, "action");
                 } else {
                     failCoThan(state, 'sp-unconfirmed', `Đã dùng vật phẩm lên ô #${pending.gridId} nhưng game chưa ghi nhận; dừng bước này.`, 'reward');
@@ -4392,6 +4882,9 @@
             const target = targets[0];
             sp.pending = { gridId: target.id, at: now, owned, left };
             state.refreshing = null;
+            // Tính ngay lúc gửi (kể cả khi mạng rớt chưa kịp xác nhận) để không bao giờ vượt giới hạn.
+            sp.uses++;
+            saveCoThanSpecialSent(sp.uses);
             ctrl.send11079(target.id);
             sendLog(`🛡️ [M4 - Cổ Thần Địa] Dùng vật phẩm đặc biệt (Cấm Tuyệt Mệnh) lên ô #${target.id}.`, "action");
             return true;
@@ -4519,24 +5012,245 @@
                 return false;
             } catch(e) { return false; }
         }
+        // [Module 6] Ảo Cảnh Pháp Trận (FaZhenMirageCtrl, giao diện faZhenMirageMainUi / FZMirageFlipUi, kết quả fmDazzlingResultUi)
+        // Quy trình giống người chơi, mỗi nhịp một việc:
+        //   1. Mở Ảo Cảnh Pháp Trận, tải dữ liệu (send32060), đọc số lượt nhận thưởng còn lại.
+        //   2. Bấm "Bắt đầu" (send32061(0)); máy chủ lật hết 16 thẻ cho xem trong card_item_time giây rồi úp lại.
+        //   3. Chờ hết thời gian xem, rồi ghép lần lượt 8 cặp cùng base_id (send32062 với 2 uid), mỗi cặp cách nhau
+        //      khoảng 0,9s để cả ván xong trong ~8-10s; mỗi cặp phải được máy chủ xác nhận (status = 1).
+        //   4. Xong ván máy chủ gửi bảng kết quả: đóng lại, chơi tiếp nếu còn lượt thưởng.
+        //   5. Nhận thưởng mốc điểm (send32064) khi đủ điểm, xác nhận bằng dữ liệu máy chủ.
+        // Chỉ ghi "đã" khi dữ liệu máy chủ xác nhận; thiếu phản hồi thì báo lỗi và không gửi lại.
+        const MEMORY_REQUEST_TIMEOUT_MS = 15000;
+        const MEMORY_MAX_ROUNDS = 12;
+        const MEMORY_ROUND_TARGET_MS = 9000;   // cả ván (tính từ lúc bấm Bắt đầu) khoảng 8-10s
 
-        // [Module 6] Minigame Ảo Cảnh Pháp Trận (Lưới 4x4)
+        let memoryState = null;
+        runResetHooks.push(() => { memoryState = null; });
+
+        function createMemoryState() {
+            return {
+                dayKey: new Date().toDateString(),
+                phase: 'open',            // open -> start -> preview -> solve -> finish -> claim -> done
+                failed: false,
+                refreshing: null,
+                rounds: 0,
+                nextAt: 0,
+                pairs: null,              // [[uid, uid], ...] chưa ghép
+                pairsTotal: 0,
+                sentPairs: 0,
+                startSentAt: 0,
+                roundStartedAt: 0,
+                passBefore: 0,
+                scoreBefore: 0,
+                claimBefore: 0
+            };
+        }
+
+        function memoryRead(ctrl) {
+            const d = ctrl.sc32060;
+            if (!d) return null;
+            const model = ctrl.getCurlModel && ctrl.getCurlModel();
+            const total = model && model.getcfg1 ? Number(model.getcfg1('challenge_reward_num')) : NaN;
+            return {
+                token: d,
+                beginMs: parseLongVal(d.begin_ms),
+                scores: Number(d.scores) || 0,
+                passTaken: Number(d.pass_award_take) || 0,
+                rewardRuns: total,
+                previewSec: model && model.getcfg1 ? Number(model.getcfg1('card_item_time')) || 3 : 3
+            };
+        }
+
+        function memoryClaimable(ctrl) {
+            return typeof ctrl.checkRewardRed === 'function' && ctrl.checkRewardRed();
+        }
+
+        function memoryFail(state, message) {
+            sendLog(`❌ [M6 - Ảo Cảnh] ${message}`, "error");
+            state.failed = true;
+            state.phase = 'done';
+        }
+
+        // Hẹn giờ gửi lần lượt 8 cặp, cặp cuối vào khoảng MEMORY_ROUND_TARGET_MS sau lúc bấm Bắt đầu. Gửi nối tiếp,
+        // không chờ từng cặp (mỗi lần chờ phản hồi + nhịp 0,5s làm ván kéo dài gấp đôi); kết quả kiểm tra ở bước finish.
+        function memoryScheduleSolve(ctrl, s) {
+            const first = Math.max(Date.now() + 100, s.firstPairAt);
+            const last = Math.max(first + 7 * 350, s.startSentAt + MEMORY_ROUND_TARGET_MS);
+            const step = (last - first) / Math.max(1, s.pairsTotal - 1);
+            s.sentPairs = 0;
+            const pairs = s.pairs.slice();
+            s.pairs = [];
+            pairs.forEach((uids, i) => {
+                const at = first + i * step + (i === 0 ? 0 : (Math.random() - 0.5) * step * 0.3);
+                setTimeout(() => {
+                    if (memoryState !== s || s.phase !== 'solve' || !CONFIG.running) { s.sentPairs = s.pairsTotal; return; }
+                    try { ctrl.send32062(uids.map((uid) => ({ uid }))); } catch (e) { }
+                    s.sentPairs++;
+                }, Math.max(0, at - Date.now()));
+            });
+        }
+
+        function memoryBuildPairs(ctrl) {
+            const byBase = {};
+            const dic = ctrl.cardDic || {};
+            for (const uid of Object.keys(dic)) {
+                const c = dic[uid];
+                if (!c || c.status === 1) continue;
+                (byBase[c.base_id] = byBase[c.base_id] || []).push(Number(uid));
+            }
+            const pairs = [];
+            for (const base of Object.keys(byBase)) {
+                const list = byBase[base];
+                for (let i = 0; i + 1 < list.length; i += 2) pairs.push([list[i], list[i + 1]]);
+            }
+            return pairs;
+        }
+
         function handleMinigameMemory(ctx) {
             try {
-                if (ctx.MemoryGameCtrl && ctx.MemoryGameCtrl.gInst) {
-                    const mg = ctx.MemoryGameCtrl.gInst();
-                    if (typeof mg.solveMemoryBoard === 'function') {
-                        mg.solveMemoryBoard();
-                        sendLog("🧩 [M6 - Ảo Cảnh] Đã tự động giải hoàn hảo 8 cặp thẻ bài 4x4!", "action");
+                if (!ctx.FaZhenMirageCtrl || !ctx.FaZhenMirageCtrl.gInst || !ctx.ViewMgr || !ctx.ViewMgr.gInst) {
+                    logUnsupportedOnce('m6', "⚠️ [M6 - Ảo Cảnh] Bản game hiện tại không có FaZhenMirageCtrl; tính năng chưa hỗ trợ, không gửi thao tác nào.");
+                    return false;
+                }
+                const ctrl = ctx.FaZhenMirageCtrl.gInst();
+                const vm = ctx.ViewMgr.gInst();
+                if (!ctrl || typeof ctrl.send32060 !== 'function' || typeof ctrl.send32061 !== 'function' ||
+                    typeof ctrl.send32062 !== 'function' || typeof ctrl.send32064 !== 'function') {
+                    logUnsupportedOnce('m6', "⚠️ [M6 - Ảo Cảnh] FaZhenMirageCtrl thiếu lệnh gửi cần thiết (bản game đổi); không gửi thao tác nào.");
+                    return false;
+                }
+                if (!memoryState) memoryState = createMemoryState();
+                const s = memoryState;
+                if (s.phase === 'done') return false;
+                const now = Date.now();
+                const tokenOf = () => ctrl.sc32060;
+                const closeResult = () => { try { if (vm.viewIsVisible('fmDazzlingResultUi')) vm.closeView('fmDazzlingResultUi'); } catch (e) { } };
+                const openMain = () => { try { if (!vm.viewIsVisible('faZhenMirageMainUi') && typeof ctrl.opFaZhenMirageUi === 'function') ctrl.opFaZhenMirageUi(); } catch (e) { } };
+
+                // Bảng kết quả có thể che màn hình: đóng ngay khi hiện.
+                if (s.phase !== 'solve' && vm.viewIsVisible && vm.viewIsVisible('fmDazzlingResultUi')) { closeResult(); return true; }
+
+                if (s.phase === 'open') {
+                    openMain();
+                    const r = pollTowerDailyRefresh(s, 'refreshing', now, () => ctrl.send32060(), tokenOf);
+                    if (r === 'wait') return false;
+                    if (r !== 'ready') { memoryFail(s, "Máy chủ chưa trả dữ liệu Ảo Cảnh Pháp Trận; dừng, không gửi lại."); return false; }
+                    const d = memoryRead(ctrl);
+                    if (!d || !(d.rewardRuns > 0)) { memoryFail(s, "Không đọc được số lượt thưởng Ảo Cảnh (bản game đổi); dừng."); return false; }
+                    const left = d.rewardRuns - d.passTaken;
+                    if (d.beginMs > 0) {
+                        sendLog("ℹ️ [M6 - Ảo Cảnh] Đang có ván dở; tiếp tục ghép thẻ.", "info");
+                        s.pairs = memoryBuildPairs(ctrl);
+                        s.pairsTotal = s.pairs.length;
+                        s.roundStartedAt = now;
+                        s.startSentAt = now - 3000;
+                        s.firstPairAt = now + 300;
+                        memoryScheduleSolve(ctrl, s);
+                        s.phase = 'solve';
+                        return true;
                     }
-                    if (typeof mg.claimChests === 'function') mg.claimChests(); // 100, 200, 300
-                    if (typeof mg.claimTasks === 'function') mg.claimTasks();
-                    if (typeof mg.likeRankings === 'function') mg.likeRankings(); // Like 2 tab BXH
+                    if (left <= 0 && !s.extraUsed && s.rounds < MEMORY_MAX_ROUNDS) {
+                        s.extraUsed = true;   // theo yêu cầu: mỗi lần chạy thêm đúng 1 ván dù đã hết lượt thưởng
+                        sendLog(`ℹ️ [M6 - Ảo Cảnh] Đã hết lượt nhận thưởng (${d.passTaken}/${d.rewardRuns}); chơi thêm 1 ván (không thưởng).`, "info");
+                    } else if (left <= 0 || s.rounds >= MEMORY_MAX_ROUNDS) {
+                        sendLog(`ℹ️ [M6 - Ảo Cảnh] Hết ván cần chơi (${d.passTaken}/${d.rewardRuns}); chuyển sang nhận thưởng mốc điểm.`, "info");
+                        s.phase = 'claim';
+                        return true;
+                    }
+                    s.passBefore = d.passTaken;
+                    s.scoreBefore = d.scores;
+                    s.phase = 'start';
+                    sendLog(`🧩 [M6 - Ảo Cảnh] Lượt thưởng còn ${Math.max(0, left)}/${d.rewardRuns}; bấm Bắt đầu.`, "action");
                     return true;
                 }
-                logUnsupportedOnce('m6', "⚠️ [M6 - Ảo Cảnh] Bản game hiện tại không có bộ điều khiển MemoryGameCtrl; tính năng chưa hỗ trợ, không gửi thao tác nào.");
+
+                if (s.phase === 'start') {
+                    if (now < s.nextAt) return false;
+                    if (!s.startSentAt) s.startSentAt = now;
+                    const r = pollTowerDailyRefresh(s, 'refreshing', now, () => ctrl.send32061(0), tokenOf);
+                    if (r === 'wait') return true;
+                    if (r !== 'ready') { memoryFail(s, "Máy chủ chưa xác nhận việc bắt đầu ván; không gửi lại để tránh mất lượt."); return false; }
+                    const d = memoryRead(ctrl);
+                    if (!d || d.beginMs <= 0) { memoryFail(s, "Đã bấm Bắt đầu nhưng máy chủ chưa mở ván (begin_ms = 0); dừng."); return false; }
+                    s.rounds++;
+                    s.roundStartedAt = now;
+                    s.pairs = memoryBuildPairs(ctrl);
+                    s.pairsTotal = s.pairs.length;
+                    if (s.pairsTotal !== 8) { memoryFail(s, `Bàn có ${s.pairsTotal} cặp thay vì 8 (bản game đổi); không tự ghép.`); return false; }
+                    const previewMs = d.previewSec * 1000;
+                    s.firstPairAt = s.startSentAt + previewMs + 300;
+                    s.phase = 'preview';
+                    sendLog(`🧩 [M6 - Ảo Cảnh] Ván ${s.rounds} đã mở; xem thẻ ${d.previewSec}s rồi ghép 8 cặp.`, "action");
+                    return true;
+                }
+
+                if (s.phase === 'preview') {
+                    if (now < s.firstPairAt - 400) return false;
+                    memoryScheduleSolve(ctrl, s);
+                    s.phase = 'solve';
+                    return false;
+                }
+
+                if (s.phase === 'solve') {
+                    // Các cặp đã được hẹn giờ gửi (memoryScheduleSolve); chờ gửi xong rồi kiểm tra bằng dữ liệu máy chủ.
+                    if (s.sentPairs >= s.pairsTotal) {
+                        s.phase = 'finish';
+                        s.refreshing = null;
+                        s.nextAt = now + 800;
+                    }
+                    return false;
+                }
+
+                if (s.phase === 'finish') {
+                    if (now < s.nextAt) return false;
+                    closeResult();
+                    const r = pollTowerDailyRefresh(s, 'refreshing', now, () => ctrl.send32060(), tokenOf);
+                    if (r === 'wait') return false;
+                    const d = memoryRead(ctrl);
+                    if (r !== 'ready' || !d) { memoryFail(s, "Không tải lại được dữ liệu sau ván; dừng."); return false; }
+                    const secs = Math.round((now - s.roundStartedAt) / 100) / 10;
+                    if (d.beginMs === 0) {
+                        sendLog(`✅ [M6 - Ảo Cảnh] Máy chủ xác nhận đã đóng ván ${s.rounds} sau ${secs}s (điểm ${s.scoreBefore} → ${d.scores}, lượt thưởng ${s.passBefore} → ${d.passTaken}).`, "action");
+                        s.phase = 'open';
+                        s.startSentAt = 0;
+                        s.refreshing = null;
+                        s.nextAt = now + humanDelay(1500);
+                        return true;
+                    }
+                    memoryFail(s, `Đã ghép đủ 8 cặp nhưng máy chủ chưa đóng ván (begin_ms=${d.beginMs}, điểm ${d.scores}); dừng.`);
+                    return false;
+                }
+
+                if (s.phase === 'claim') {
+                    if (s.claimSent) {
+                        if (!memoryClaimable(ctrl)) {
+                            closeResult();
+                            sendLog("✅ [M6 - Ảo Cảnh] Máy chủ xác nhận đã nhận thưởng mốc điểm.", "action");
+                            s.phase = 'done';
+                        } else if (now - s.claimSent >= MEMORY_REQUEST_TIMEOUT_MS) {
+                            sendLog("⚠️ [M6 - Ảo Cảnh] Đã gửi nhận thưởng mốc điểm nhưng máy chủ chưa xác nhận; không gửi lại.", "warn");
+                            s.failed = true;
+                            s.phase = 'done';
+                        }
+                        return false;
+                    }
+                    if (!memoryClaimable(ctrl)) {
+                        sendLog("ℹ️ [M6 - Ảo Cảnh] Không có thưởng mốc điểm nào để nhận.", "info");
+                        s.phase = 'done';
+                        return false;
+                    }
+                    s.claimSent = now;
+                    ctrl.send32064();
+                    sendLog("🎁 [M6 - Ảo Cảnh] Đã gửi nhận thưởng mốc điểm; chờ máy chủ xác nhận.", "action");
+                    return true;
+                }
                 return false;
-            } catch(e) { return false; }
+            } catch (e) {
+                sendLog(`❌ [M6 - Ảo Cảnh] Lỗi: ${e && e.message || e}`, "error");
+                if (memoryState) { memoryState.failed = true; memoryState.phase = 'done'; }
+                return false;
+            }
         }
 
         // [Module 7] Kiếm Hành & Điêu Long Khắc Tinh QTE
@@ -7485,6 +8199,16 @@
         const CUOI_NGAY_ACTION_INTERVAL_MS = 800;
         const OTHER_TRIALS_ACTION_INTERVAL_MS = 600;
 
+        let disconnectPauseLogged = false;
+
+        function isGameDisconnected(ctx) {
+            try {
+                const vm = ctx.ViewMgr && ctx.ViewMgr.gInst && ctx.ViewMgr.gInst();
+                const name = (ctx.ViewConst && ctx.ViewConst.disconnectUi) || 'disconnectUi';
+                return !!(vm && typeof vm.isUpViewVisible === 'function' && vm.isUpViewVisible(name));
+            } catch (e) { return false; }
+        }
+
         function markActed(baseMs) {
             nextActionAt = Date.now() + humanDelay(baseMs);
         }
@@ -7574,6 +8298,16 @@
                 sendRoleInfo(false);
                 hookGameEvents(ctx);
 
+                // Mất kết nối (hộp thoại "Đăng nhập lại"): không gửi thao tác nào, chờ tự vào lại game.
+                if (isGameDisconnected(ctx)) {
+                    if (!disconnectPauseLogged) {
+                        disconnectPauseLogged = true;
+                        sendLog("⚠️ [Kết nối] Game đang báo mất kết nối; tạm dừng mọi thao tác, chờ tự vào lại game (nếu bật).", "warn");
+                    }
+                    return;
+                }
+                disconnectPauseLogged = false;
+
                 if ((CONFIG.autoArena || CONFIG.autoSkipFight) && handleArenaFightResult(ctx)) {
                     markActed(actionInterval);
                     return;
@@ -7620,7 +8354,10 @@
                 }
                 // [Module 6] Minigame Ảo Cảnh Pháp Trận
                 else if (active === 'autoMinigameMemory' || (CONFIG.autoMinigameMemory && !active)) {
-                    if (handleMinigameMemory(ctx)) { markActed(actionInterval); return; }
+                    // Ván ghép thẻ tính giờ: nhịp ngắn cố định; máy trạng thái trong memory-minigame.js tự điều tốc từng cặp.
+                    handleMinigameMemory(ctx);
+                    nextActionAt = Date.now() + 150;
+                    return;
                 }
                 // [Module 7] Kiếm Hành & Điêu Long Khắc Tinh QTE
                 else if (active === 'autoMinigameDragon' || (CONFIG.autoMinigameDragon && !active)) {
