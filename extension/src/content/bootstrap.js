@@ -65,7 +65,7 @@
         autoTienHuu: false,             // Tặng nhanh quà Bạn Bè (Tiên Hữu)
         autoArena: false,               // Đấu Tiên Đài PvP (giới hạn lượt, chọn đối thủ thấp)
         arenaBattleLimit: 5,             // Số trận Đấu Tiên Đài tối đa mỗi lần chạy Auto
-        autoMaDaoUyPhai: false,         // Tác chiến nhanh, Thưởng ủy phái Cam/Tím, Quà Tiên & Đạo Cụ Phường
+        autoMaDao: false,               // Ma Đạo gộp: Thưởng treo máy, Tác chiến nhanh, Ải chính tuyến, Ủy phái Sử Thi
         autoTienMinh: false,            // Tiên Minh: Trả giá, Bí Cảnh, Tỉ Thí, Vấn Đạo, Viện trợ, Cung phụng
         tienMinhDungeonLimit: 3,        // Số trận Bí Cảnh Tông Môn tối đa mỗi ngày (2 miễn phí + mua thêm)
         autoCuoiNgay: false,            // Nhận thư, Like BXH Đạo Thành 3 lần, Nhận rương Sôi Nổi (25-100)
@@ -73,11 +73,7 @@
         // Các tính năng kinh điển bổ trợ
         autoClimbYMAbyss: false,        // Leo Vực U Minh
         autoSweepDungeons: false,       // Quét sạch phụ bản đã vượt
-        autoMainStage: false,           // Ải Chính Tuyến Ma Đạo
-        autoHangupReward: false,        // Nhận thưởng treo máy
-        autoQuickHang: false,           // Mua treo máy nhanh
         autoXianYuan: false,            // Quà Tiên Duyên
-        autoDailyTask: false,           // Nhiệm vụ ngày
         
         // Banner hero: tự nhận quà khi banner đang mở (tab Banner)
         bannerAuto: {},                 // { [unique_id]: true } banner được bật tự nhận quà

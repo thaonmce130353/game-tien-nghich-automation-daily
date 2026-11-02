@@ -174,10 +174,6 @@
                 else if (['autoTroChien', 'autoTamTienDai', 'autoTienHuu', 'autoTienMinh', 'autoCuoiNgay'].includes(active)) {
                     if (handleDailyRoutine(ctx)) { markActed(actionInterval); return; }
                 }
-                // Ủy Phái Ma Đạo & Quà Tiên: chưa có phần xử lý trong bản này -> báo rõ thay vì im lặng.
-                else if (active === 'autoMaDaoUyPhai') {
-                    logUnsupportedOnce('autoMaDaoUyPhai', "⚠️ [Ủy Phái Ma Đạo] Tính năng chưa được triển khai trong bản Auto này; không có thao tác nào được gửi. Hãy chọn tính năng khác.");
-                }
                 // 4. LỊCH LUYỆN: Leo Phụ Bản Ngày
                 else if (active === 'autoClimbDailyDungeons' || (CONFIG.autoClimbDailyDungeons && !active)) {
                     if (handleClimbDailyDungeons(ctx)) { markActed(actionInterval); return; }
@@ -198,25 +194,13 @@
                 else if (active === 'autoSweepDungeons' || (CONFIG.autoSweepDungeons && !active)) {
                     if (handleSweepDungeons(ctx)) { markActed(actionInterval); return; }
                 }
-                // 9. MA ĐẠO: Đi Ải Chính Tuyến
-                else if (active === 'autoMainStage' || (CONFIG.autoMainStage && !active)) {
-                    if (handleMainStage(ctx)) { markActed(actionInterval); return; }
-                }
-                // 10. MA ĐẠO: Nhận Thưởng Treo Máy (AFK)
-                else if (active === 'autoHangupReward' || (CONFIG.autoHangupReward && !active)) {
-                    if (handleHangup(ctx)) { markActed(actionInterval); return; }
-                }
-                // 11. MA ĐẠO: Mua Treo Máy Nhanh
-                else if (active === 'autoQuickHang' || (CONFIG.autoQuickHang && !active)) {
-                    if (handleHangup(ctx)) { markActed(actionInterval); return; }
+                // 9. MA ĐẠO tổng hợp: Treo Máy -> Tác Chiến Nhanh -> Ải Chính Tuyến -> Ủy Phái
+                else if (active === 'autoMaDao' || (CONFIG.autoMaDao && !active)) {
+                    if (handleMaDao(ctx)) { markActed(actionInterval); return; }
                 }
                 // 12. MA ĐẠO: Quà Tiên Duyên (SK Rút x1000)
                 else if (active === 'autoXianYuan' || (CONFIG.autoXianYuan && !active)) {
                     if (handleXianYuan(ctx)) { markActed(actionInterval); return; }
-                }
-                // 13. MA ĐẠO: Nhiệm Vụ Ngày
-                else if (active === 'autoDailyTask' || (CONFIG.autoDailyTask && !active)) {
-                    if (handleDailyTasks(ctx)) { markActed(actionInterval); return; }
                 }
 
                 if (isManualOnce) {

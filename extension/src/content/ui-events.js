@@ -82,7 +82,7 @@
             const mainFeatures = [
                 'autoTongTian', 'autoClimbDailyDungeons', 'autoClimbYMAbyss', 'autoClimbCamp',
                 'autoSweepDungeons', 'autoExtremeYin', 'autoArena',
-                'autoMainStage', 'autoHangupReward', 'autoQuickHang', 'autoXianYuan', 'autoDailyTask'
+                'autoMaDao', 'autoXianYuan'
             ];
 
             const mutexCheckboxes = document.querySelectorAll('.tn-mutex-feature');

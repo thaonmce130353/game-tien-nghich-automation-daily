@@ -55,10 +55,6 @@
             runResetHooks.forEach((reset) => { try { reset(); } catch (e) { } });
         }
 
-        let lastHangupCheck = 0;
-        let lastQuickHangCheck = 0;
-        let lastTaskQueryTime = 0;
-        let lastTaskActionTime = 0;
         let lastDailyClimbIndex = 0;
         let lastDailyClimbTime = 0;
         let lastCampClimbIndex = 0;

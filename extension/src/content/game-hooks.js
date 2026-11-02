@@ -43,6 +43,7 @@
                             t.type === n.ymAbyss ||
                             t.type === n.adventure ||
                             t.type === n.jyzd ||
+                            t.type === n.hangup ||
                             (t.type >= n.singCamp_wei && t.type <= n.singCamp_qun)
                         )) || (tienMinhActive && (
                             t.type === n.guild ||

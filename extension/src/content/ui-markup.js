@@ -232,38 +232,10 @@
                                 <div class="tn-opt-list">
                                     <label class="tn-opt-item" style="border-left: 3px solid #f9e2af;">
                                         <div>
-                                            <div style="font-weight:bold; color:#f9e2af;">📜 Ủy Phái Ma Đạo & Quà Tiên</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Ưu tiên ủy phái Cam/Tím, chặn làm mới nếu có nhiệm vụ hiếm; mua Đạo Cụ Phường.</div>
+                                            <div style="font-weight:bold; color:#f9e2af;">🔥 Ma Đạo tổng hợp</div>
+                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Lần lượt: nhận Thưởng Treo Máy &rarr; Tác Chiến Nhanh (hết free thì MUA bằng Tiên Ngọc, tối đa 20 lần/ngày) &rarr; Đi Ải Chính Tuyến (chưa đủ cấp thì chỉ ghi log) &rarr; Ủy Phái Sử Thi (Nhận nhanh, làm mới tới khi có Sử Thi, tối đa 30 lần làm mới/ngày, có thể tốn Tiên Ngọc).</div>
                                         </div>
-                                        <input type="checkbox" class="tn-mutex-feature" data-key="autoMaDaoUyPhai" ${CONFIG.activeFeature === 'autoMaDaoUyPhai' ? 'checked' : ''}>
-                                    </label>
-                                    <label class="tn-opt-item" style="border-left: 3px solid #f38ba8;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#f38ba8;">🚩 Đi Ải Chính Tuyến (Ải Ma Đạo)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Bắt đầu ải &rarr; Auto đội hình &rarr; Skip chiến đấu &rarr; Ải tiếp &rarr; Nhận thưởng.</div>
-                                        </div>
-                                        <input type="checkbox" class="tn-mutex-feature" data-key="autoMainStage" ${CONFIG.activeFeature === 'autoMainStage' ? 'checked' : ''}>
-                                    </label>
-                                    <label class="tn-opt-item" style="border-left: 3px solid #a6e3a1;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#a6e3a1;">🎁 Nhận Thưởng Treo Máy (AFK)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Tự động thu thập kinh nghiệm, tu vi và vật phẩm tích lũy treo máy ma đạo.</div>
-                                        </div>
-                                        <input type="checkbox" class="tn-mutex-feature" data-key="autoHangupReward" ${CONFIG.activeFeature === 'autoHangupReward' ? 'checked' : ''}>
-                                    </label>
-                                    <label class="tn-opt-item" style="border-left: 3px solid #89dceb;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#89dceb;">⚡ Tác Chiến Nhanh (Mua AFK)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Mua nhanh lượt treo máy nhận ngay 120 phút tài nguyên cấp tốc.</div>
-                                        </div>
-                                        <input type="checkbox" class="tn-mutex-feature" data-key="autoQuickHang" ${CONFIG.activeFeature === 'autoQuickHang' ? 'checked' : ''}>
-                                    </label>
-                                    <label class="tn-opt-item" style="border-left: 3px solid #b4befe;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#b4befe;">📜 Nhiệm Vụ Ngày & Rương Sôi Nổi</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Hoàn thành nhiệm vụ hàng ngày và nhận các mốc rương 25, 50, 75, 100.</div>
-                                        </div>
-                                        <input type="checkbox" class="tn-mutex-feature" data-key="autoDailyTask" ${CONFIG.activeFeature === 'autoDailyTask' ? 'checked' : ''}>
+                                        <input type="checkbox" class="tn-mutex-feature" data-key="autoMaDao" ${CONFIG.activeFeature === 'autoMaDao' ? 'checked' : ''}>
                                     </label>
                                 </div>
                             </div>
