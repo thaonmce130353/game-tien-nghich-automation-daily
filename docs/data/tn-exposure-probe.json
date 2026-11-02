@@ -1,0 +1,4034 @@
+{
+  "generatedAt": "2026-11-02T07:04:14.450Z",
+  "frame": "https://tiennghich.acejoygame.com/vnmaster/index_vnh5.html?pid=206&gid=100013&p_mid=1&mid=10000",
+  "controllerCount": 162,
+  "controllers": [
+    {
+      "name": "ActWarOrderCtrl",
+      "hasGInst": true,
+      "methodCount": 46,
+      "sendMethods": [
+        "send19447"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [
+        "reward"
+      ],
+      "flaggedMethods": {
+        "purchase": [
+          "getWarOrderRed",
+          "openActWarOrderHall"
+        ],
+        "reward": [
+          "getBoxRewardRed",
+          "receive19446",
+          "receive19447",
+          "receive19448"
+        ]
+      }
+    },
+    {
+      "name": "AcvCtrl",
+      "hasGInst": true,
+      "methodCount": 113,
+      "sendMethods": [
+        "send12501",
+        "send12503",
+        "send19121",
+        "send19122",
+        "send19126",
+        "send19127",
+        "send19128",
+        "send19129",
+        "send19130",
+        "send19131",
+        "send30501",
+        "send30503",
+        "send30504"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [
+        "reward"
+      ],
+      "flaggedMethods": {
+        "gm": [
+          "gMthCfgByIdNTId",
+          "gMthSLItem"
+        ],
+        "purchase": [
+          "clkZLAdvBuy",
+          "openZLBuyLv"
+        ],
+        "reward": [
+          "getTaskPrvAwardList",
+          "openRwdPrv",
+          "openTabRwdPrvUi"
+        ]
+      }
+    },
+    {
+      "name": "AdCtrl",
+      "hasGInst": true,
+      "methodCount": 43,
+      "sendMethods": [
+        "send19453"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "isBuyWelfare",
+          "isCanBuyGift"
+        ],
+        "reward": [
+          "getAdAwardByType",
+          "getAdAwardMaxCountByType"
+        ]
+      }
+    },
+    {
+      "name": "AdvCtrl",
+      "hasGInst": true,
+      "methodCount": 169,
+      "sendMethods": [
+        "send11060",
+        "send11061",
+        "send11062",
+        "send11063",
+        "send11065",
+        "send11066",
+        "send11067",
+        "send11068",
+        "send11069",
+        "send11070",
+        "send11072",
+        "send11073",
+        "send11074",
+        "send11075",
+        "send11077",
+        "send11078",
+        "send11079",
+        "send11080",
+        "send11082",
+        "send11083",
+        "send11084",
+        "send11089",
+        "send11091",
+        "send11092"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "closeBchBuyUi",
+          "closeShopBuyUi",
+          "exeShopBuyUi",
+          "mySHopBuy",
+          "openBchBuyUi",
+          "openShopBuyUi"
+        ],
+        "reward": [
+          "closeAwardUi",
+          "exeAwardUi",
+          "openAwardUi",
+          "sendGridAward",
+          "triggerGridAward"
+        ]
+      }
+    },
+    {
+      "name": "AlertCtrl",
+      "hasGInst": true,
+      "methodCount": 29,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "AnniversaryCtrl",
+      "hasGInst": true,
+      "methodCount": 98,
+      "sendMethods": [
+        "send19700",
+        "send19701",
+        "send19702",
+        "send19703",
+        "send19704",
+        "send19705",
+        "send19706",
+        "send19707",
+        "send19708",
+        "send19709",
+        "send19710",
+        "send19711",
+        "send19712",
+        "send19713",
+        "send19714",
+        "send19715",
+        "send19717"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [
+        "reward"
+      ],
+      "flaggedMethods": {
+        "reward": [
+          "checkTranGodRewardRed"
+        ]
+      }
+    },
+    {
+      "name": "ArenaCtrl",
+      "hasGInst": true,
+      "methodCount": 96,
+      "sendMethods": [
+        "send14201"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "getEmbattleOrder"
+        ],
+        "reward": [
+          "processAwards",
+          "reqGainAward",
+          "updateAward"
+        ]
+      }
+    },
+    {
+      "name": "AscendRealmCtrl",
+      "hasGInst": true,
+      "methodCount": 48,
+      "sendMethods": [
+        "send12415",
+        "send12416"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "BackRwdCtrl",
+      "hasGInst": true,
+      "methodCount": 45,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [
+        "reward"
+      ],
+      "flaggedMethods": {
+        "reward": [
+          "closeBackRwd",
+          "exeBackRwd",
+          "opBackDayRwdUi",
+          "opBackRwdUi"
+        ]
+      }
+    },
+    {
+      "name": "BackpackCtrl",
+      "hasGInst": true,
+      "methodCount": 141,
+      "sendMethods": [
+        "send17000Msg",
+        "send17037",
+        "send17051",
+        "send17055",
+        "send17057",
+        "send17059"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "clearFightReward",
+          "closeGetAwardUi",
+          "getRealFightReward",
+          "openRewardUi",
+          "openRewardUi2",
+          "showAdventureReward",
+          "showArrowEndReward",
+          "showCombEndReward",
+          "showFightEndReward",
+          "showGenerEffectEndReward",
+          "showHeroResolveReward",
+          "showMidAutumnEndReward",
+          "showSdgcEndReward",
+          "showTreasureEndReward"
+        ]
+      }
+    },
+    {
+      "name": "BankBookCtrl",
+      "hasGInst": true,
+      "methodCount": 46,
+      "sendMethods": [
+        "send19680",
+        "send19681",
+        "send19682"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [
+        "purchase"
+      ],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "BnqdCtrl",
+      "hasGInst": true,
+      "methodCount": 32,
+      "sendMethods": [
+        "send19360",
+        "send19361"
+      ],
+      "onMethods": [
+        "on19360",
+        "on19361"
+      ],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "CGCtrl",
+      "hasGInst": true,
+      "methodCount": 32,
+      "sendMethods": [
+        "send30110",
+        "send30111"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "ChangePowerCtrl",
+      "hasGInst": true,
+      "methodCount": 30,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "ChatCtrl",
+      "hasGInst": true,
+      "methodCount": 60,
+      "sendMethods": [
+        "send10400",
+        "send10402",
+        "send10411",
+        "send10413",
+        "send10414",
+        "send10415",
+        "send10416",
+        "send10417",
+        "send10418",
+        "send12091"
+      ],
+      "onMethods": [
+        "on10400",
+        "on10402",
+        "on10406",
+        "on10410",
+        "on10411",
+        "on10412",
+        "on10413",
+        "on10415",
+        "on10416",
+        "on10417",
+        "on10418",
+        "on10499",
+        "on12091"
+      ],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "ChatHBCtrl",
+      "hasGInst": true,
+      "methodCount": 49,
+      "sendMethods": [
+        "send31700",
+        "send31701",
+        "send31702",
+        "send31703",
+        "send31704",
+        "send31705"
+      ],
+      "onMethods": [
+        "on31700",
+        "on31701",
+        "on31702",
+        "on31703",
+        "on31704",
+        "on31705"
+      ],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "CityCtrl",
+      "hasGInst": true,
+      "methodCount": 89,
+      "sendMethods": [
+        "send19230",
+        "send31005"
+      ],
+      "onMethods": [
+        "on19229",
+        "on19230"
+      ],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "ComEmbattleCtrl",
+      "hasGInst": true,
+      "methodCount": 57,
+      "sendMethods": [
+        "send14310",
+        "send14311"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "CombCtrl",
+      "hasGInst": true,
+      "methodCount": 43,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "showRwd"
+        ]
+      }
+    },
+    {
+      "name": "CommonBuyGroupCtrl",
+      "hasGInst": true,
+      "methodCount": 49,
+      "sendMethods": [
+        "send19683",
+        "send19685",
+        "send19686",
+        "send19687",
+        "send19688",
+        "send19689"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [
+        "purchase"
+      ],
+      "flaggedMethods": {
+        "reward": [
+          "backAwardStatusById",
+          "checkRebateAwardRed"
+        ]
+      }
+    },
+    {
+      "name": "DailyDungeonCtrl",
+      "hasGInst": true,
+      "methodCount": 148,
+      "sendMethods": [
+        "send11001",
+        "send11002",
+        "send11004",
+        "send11005",
+        "send11006",
+        "send11007",
+        "send11008",
+        "send11009",
+        "send11015",
+        "send11020"
+      ],
+      "onMethods": [
+        "on11001",
+        "on11002",
+        "on11004",
+        "on11005",
+        "on11006",
+        "on11007",
+        "on11008",
+        "on11009",
+        "on11015",
+        "on11099",
+        "on12031"
+      ],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "gm": [
+          "openRunningManZhanLin"
+        ],
+        "purchase": [
+          "getAllTotalBuyCount",
+          "getBuyCountTypeObj"
+        ],
+        "reward": [
+          "gFaAward",
+          "getDgnPassRewardCfgByTypeAndId",
+          "getFourCostAwardCfgCrtArr",
+          "sFaAwardData"
+        ]
+      }
+    },
+    {
+      "name": "DesenoActivityCtrl",
+      "hasGInst": true,
+      "methodCount": 199,
+      "sendMethods": [
+        "send19002",
+        "send19011",
+        "send19012",
+        "send19013",
+        "send19014",
+        "send19021",
+        "send19023",
+        "send19024",
+        "send19025",
+        "send19026",
+        "send19028",
+        "send19030",
+        "send19043",
+        "send19045",
+        "send19046",
+        "send19048",
+        "send19068",
+        "send19070",
+        "send19071",
+        "send19072",
+        "send19073",
+        "send19101",
+        "send19103",
+        "send19305",
+        "send19306",
+        "send19307",
+        "send19308",
+        "send19309",
+        "send19310",
+        "send19329",
+        "send19331",
+        "send19362",
+        "send19367",
+        "send19368",
+        "send19378",
+        "send19379",
+        "send19420",
+        "send19421",
+        "send19422",
+        "send31501",
+        "send31502"
+      ],
+      "onMethods": [
+        "on19002",
+        "on19003",
+        "on19011",
+        "on19012",
+        "on19013",
+        "on19014",
+        "on19021",
+        "on19022",
+        "on19023",
+        "on19024",
+        "on19025",
+        "on19026",
+        "on19027",
+        "on19028",
+        "on19029",
+        "on19030",
+        "on19043",
+        "on19044",
+        "on19045",
+        "on19046",
+        "on19047",
+        "on19048",
+        "on19068",
+        "on19069",
+        "on19070",
+        "on19071",
+        "on19072",
+        "on19073",
+        "on19101",
+        "on19102",
+        "on19103",
+        "on19231",
+        "on19305",
+        "on19306",
+        "on19307",
+        "on19308",
+        "on19309",
+        "on19310",
+        "on19329",
+        "on19330",
+        "on19331",
+        "on19420",
+        "on19421",
+        "on19422",
+        "on30607",
+        "on30608",
+        "on30609",
+        "on30610",
+        "on30611",
+        "on30612",
+        "on30613",
+        "on31501",
+        "on31502"
+      ],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "buySkin",
+          "clkBuy",
+          "isBuyThemeGiftById",
+          "openShopBatchBuyView"
+        ],
+        "reward": [
+          "openFireRankAwardView",
+          "openMaoXianRankAwardView",
+          "openQuickRankAwardView",
+          "openTaxesRankAwardView",
+          "openTravelRankAwardView",
+          "sHsRRwDt",
+          "sKsRRwDt",
+          "sMxRRwDt",
+          "sSjRRwDt",
+          "sYlRRwDt",
+          "showChargerAwardUi",
+          "showHeroRecruitAwardInfoUi",
+          "showJadeAwardUi",
+          "showPjSetsAwardUi"
+        ]
+      }
+    },
+    {
+      "name": "DevilSeaCtrl",
+      "hasGInst": true,
+      "methodCount": 87,
+      "sendMethods": [
+        "send19370",
+        "send19371",
+        "send19372",
+        "send19373",
+        "send19375",
+        "send19376",
+        "send19377",
+        "send19378",
+        "send19379",
+        "send19380",
+        "send30040",
+        "send30041"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "getGiftBuyTimes"
+        ],
+        "reward": [
+          "clearGridAwardDic",
+          "closeDevilSeaTreasureRewardPreviewUI",
+          "getChargeAwardStatus",
+          "getGiftBuyTimes",
+          "getGiftRed",
+          "getGridAwardVo",
+          "getTreasureRewardRed",
+          "getZhanLingAwardRed",
+          "openDevilSeaTreasureRewardPreviewUI"
+        ]
+      }
+    },
+    {
+      "name": "DgnCtrl",
+      "hasGInst": true,
+      "methodCount": 66,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "DiceCtrl",
+      "hasGInst": true,
+      "methodCount": 57,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "buyBack",
+          "buyDice",
+          "cBuyUi",
+          "opBuyUi",
+          "rechargeChange"
+        ],
+        "reward": [
+          "getZhanLingAwardRed",
+          "showReward"
+        ]
+      }
+    },
+    {
+      "name": "DivineUnionCtrl",
+      "hasGInst": true,
+      "methodCount": 33,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "DoubleTeamDungeonCtrl",
+      "hasGInst": true,
+      "methodCount": 45,
+      "sendMethods": [
+        "send32080",
+        "send32081",
+        "send32082",
+        "send32083",
+        "send32084"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "getZhanLingAwardRed"
+        ]
+      }
+    },
+    {
+      "name": "DragonBoatCtrl",
+      "hasGInst": true,
+      "methodCount": 70,
+      "sendMethods": [
+        "send19381",
+        "send19382",
+        "send19383",
+        "send19384",
+        "send19385",
+        "send19386",
+        "send19387",
+        "send19388",
+        "send19389"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "getGiftBuyTimes"
+        ],
+        "reward": [
+          "closeDevilSeaTreasureRewardPreviewUI",
+          "getChargeAwardStatus",
+          "getExchangeGiftAward",
+          "getGiftBuyTimes",
+          "getGiftRed",
+          "getZhanLingAwardRed",
+          "openDevilSeaTreasureRewardPreviewUI"
+        ]
+      }
+    },
+    {
+      "name": "DragonBoatFestCtrl",
+      "hasGInst": true,
+      "methodCount": 66,
+      "sendMethods": [
+        "send19718",
+        "send19719",
+        "send19720",
+        "send19721",
+        "send19722",
+        "send19723",
+        "send19724",
+        "send19725"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "checkTranGodRewardRed"
+        ]
+      }
+    },
+    {
+      "name": "DzrCtrl",
+      "hasGInst": true,
+      "methodCount": 98,
+      "sendMethods": [],
+      "onMethods": [
+        "on14318"
+      ],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "getRankRwDt"
+        ]
+      }
+    },
+    {
+      "name": "ETCtrl",
+      "hasGInst": true,
+      "methodCount": 94,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "gm": [
+          "gMyAsLs"
+        ],
+        "reward": [
+          "getRankRwDt"
+        ]
+      }
+    },
+    {
+      "name": "ElrCtrl",
+      "hasGInst": true,
+      "methodCount": 81,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "canBuy"
+        ]
+      }
+    },
+    {
+      "name": "EmailCtrl",
+      "hasGInst": true,
+      "methodCount": 50,
+      "sendMethods": [
+        "send16000",
+        "send16001",
+        "send16002",
+        "send16004",
+        "send16007"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [
+        "reward"
+      ],
+      "flaggedMethods": {
+        "reward": [
+          "isCanReward"
+        ]
+      }
+    },
+    {
+      "name": "EmbattleCtrl",
+      "hasGInst": true,
+      "methodCount": 102,
+      "sendMethods": [
+        "send14010",
+        "send14012",
+        "send14016",
+        "send14017",
+        "send14025",
+        "send14026",
+        "send14027",
+        "send14028"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "EngraveCtrl",
+      "hasGInst": true,
+      "methodCount": 71,
+      "sendMethods": [
+        "send30427",
+        "send30428",
+        "send30429",
+        "send30430",
+        "send32611",
+        "send32613",
+        "send32614",
+        "send32615",
+        "send32616"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "gm": [
+          "closeEngraveLongMainUi",
+          "openEngraveLongMainUi"
+        ],
+        "purchase": [
+          "openEngraveBuyTipsUi"
+        ],
+        "reward": [
+          "checkLongRewardStatRed",
+          "getBigDrawData",
+          "getZhanLingAwardRed"
+        ]
+      }
+    },
+    {
+      "name": "EpncCtrl",
+      "hasGInst": true,
+      "methodCount": 37,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "ExMatterCtrl",
+      "hasGInst": true,
+      "methodCount": 57,
+      "sendMethods": [
+        "send19643",
+        "send19644",
+        "send19690"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "openBatchBuyUi"
+        ]
+      }
+    },
+    {
+      "name": "ExtremeYinCtrl",
+      "hasGInst": true,
+      "methodCount": 77,
+      "sendMethods": [
+        "send32200",
+        "send32201",
+        "send32202",
+        "send32203",
+        "send32204",
+        "send32205",
+        "send32206",
+        "send32207",
+        "send32208",
+        "send32209"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "getBuyCount",
+          "getPlayerBuyNum",
+          "toBuyHandler"
+        ]
+      }
+    },
+    {
+      "name": "FaZhenMirageCtrl",
+      "hasGInst": true,
+      "methodCount": 45,
+      "sendMethods": [
+        "send32060",
+        "send32061",
+        "send32062",
+        "send32064"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "checkRewardRed"
+        ]
+      }
+    },
+    {
+      "name": "FashionCtrl",
+      "hasGInst": true,
+      "methodCount": 64,
+      "sendMethods": [
+        "send12260",
+        "send12262",
+        "send12263",
+        "send12264",
+        "send12265"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "FashionRecCtrl",
+      "hasGInst": true,
+      "methodCount": 68,
+      "sendMethods": [
+        "send19532",
+        "send19533",
+        "send19534",
+        "send19535",
+        "send19536"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "getGiftBuyCount",
+          "getZsGiftBuyData"
+        ],
+        "reward": [
+          "checkRecruitRewardRed",
+          "getGiftBuyCount",
+          "getZhanLingAwardRed"
+        ]
+      }
+    },
+    {
+      "name": "FestivalActCtrl",
+      "hasGInst": true,
+      "methodCount": 79,
+      "sendMethods": [
+        "send19480",
+        "send19481",
+        "send19482",
+        "send19483",
+        "send19484",
+        "send19485",
+        "send19486",
+        "send19487",
+        "send19488"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [
+        "reward"
+      ],
+      "flaggedMethods": {
+        "purchase": [
+          "getGiftBuyTimes",
+          "openZhanLingScoreBuyUi"
+        ],
+        "reward": [
+          "closeDevilSeaTreasureRewardPreviewUI",
+          "getChargeAwardStatus",
+          "getGiftBuyTimes",
+          "getGiftRed",
+          "getZhanLingAwardRed",
+          "openDevilSeaTreasureRewardPreviewUI"
+        ]
+      }
+    },
+    {
+      "name": "FightCtrl",
+      "hasGInst": true,
+      "methodCount": 117,
+      "sendMethods": [
+        "send14009",
+        "send14015",
+        "send14031",
+        "send14032",
+        "send14047"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "gm": [
+          "closeGmFightReportUi",
+          "isRunningManFight",
+          "openGmFightReportUi"
+        ],
+        "reward": [
+          "getAwardsInfoGroup",
+          "getComAwardsInfoGroup"
+        ]
+      }
+    },
+    {
+      "name": "FireTreeCtrl",
+      "hasGInst": true,
+      "methodCount": 78,
+      "sendMethods": [
+        "send19726",
+        "send19727",
+        "send19728",
+        "send19729",
+        "send19730",
+        "send19731",
+        "send19732",
+        "send19733",
+        "send19734",
+        "send19735",
+        "send19736"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "openRechargeUi"
+        ],
+        "reward": [
+          "checkTranGodRewardRed"
+        ]
+      }
+    },
+    {
+      "name": "FriendCtrl",
+      "hasGInst": true,
+      "methodCount": 82,
+      "sendMethods": [
+        "send11800Msg",
+        "send11801Msg",
+        "send11802Msg",
+        "send11803Msg",
+        "send11804Msg",
+        "send11805Msg",
+        "send11806Msg",
+        "send11807Msg",
+        "send11808Msg",
+        "send11809Msg",
+        "send11810Msg",
+        "send11811Msg",
+        "send11812Msg",
+        "send11813Msg",
+        "send14030Msg"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "FullMoonCtrl",
+      "hasGInst": true,
+      "methodCount": 91,
+      "sendMethods": [
+        "send19401",
+        "send19402",
+        "send19403",
+        "send19404",
+        "send19405",
+        "send19406",
+        "send19407",
+        "send19408",
+        "send19409",
+        "send19410",
+        "send19411",
+        "send19412",
+        "send19413"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "getGiftBuyTimes"
+        ],
+        "reward": [
+          "getGiftBuyTimes",
+          "getZhanLingAwardRed"
+        ]
+      }
+    },
+    {
+      "name": "FunOpenCtrl",
+      "hasGInst": true,
+      "methodCount": 36,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "FundsCtrl",
+      "hasGInst": true,
+      "methodCount": 38,
+      "sendMethods": [
+        "send12303",
+        "send12304"
+      ],
+      "onMethods": [
+        "on12303",
+        "on12304"
+      ],
+      "ctrlFlags": [
+        "purchase"
+      ],
+      "flaggedMethods": {
+        "reward": [
+          "getAwardCfg",
+          "getAwardList",
+          "getRewardHis",
+          "openFundsAwardView"
+        ]
+      }
+    },
+    {
+      "name": "GACtrl",
+      "hasGInst": true,
+      "methodCount": 130,
+      "sendMethods": [
+        "send31301",
+        "send31302",
+        "send31303",
+        "send31304",
+        "send31305",
+        "send31306",
+        "send31307",
+        "send31308",
+        "send31309",
+        "send31401",
+        "send31402"
+      ],
+      "onMethods": [
+        "on31301",
+        "on31302",
+        "on31305",
+        "on31306",
+        "on31307",
+        "on31308",
+        "on31309",
+        "on31401",
+        "on31402"
+      ],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "closeGetAwardUi",
+          "gGAResReward",
+          "gPieReward",
+          "gReward",
+          "showRwd"
+        ]
+      }
+    },
+    {
+      "name": "GLHTZhanlingCtrl",
+      "hasGInst": true,
+      "methodCount": 35,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "checkTranGodRewardRed"
+        ]
+      }
+    },
+    {
+      "name": "GameCenterCtrl",
+      "hasGInst": true,
+      "methodCount": 30,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "GamePreviewCtrl",
+      "hasGInst": true,
+      "methodCount": 37,
+      "sendMethods": [
+        "send11205",
+        "send11206"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "GetWayCtrl",
+      "hasGInst": true,
+      "methodCount": 30,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "GldBsCtrl",
+      "hasGInst": true,
+      "methodCount": 66,
+      "sendMethods": [
+        "send31201",
+        "send31204",
+        "send31205",
+        "send31206",
+        "send31207",
+        "send31208",
+        "send31210",
+        "send31211",
+        "send31213"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "GldWrCtrl",
+      "hasGInst": true,
+      "methodCount": 75,
+      "sendMethods": [
+        "send18125",
+        "send18126",
+        "send18127",
+        "send18128",
+        "send18129",
+        "send18130",
+        "send18131",
+        "send18132",
+        "send18133",
+        "send18134",
+        "send18135"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "clearAward",
+          "showAward"
+        ]
+      }
+    },
+    {
+      "name": "GlobalCtrl",
+      "hasGInst": true,
+      "methodCount": 84,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "showBoxPreviewAward"
+        ]
+      }
+    },
+    {
+      "name": "GmCtrl",
+      "hasGInst": true,
+      "methodCount": 28,
+      "sendMethods": [
+        "send10110Msg"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [
+        "gm"
+      ],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "GnrlCtrl",
+      "hasGInst": true,
+      "methodCount": 59,
+      "sendMethods": [
+        "send30301",
+        "send30302",
+        "send30303",
+        "send30304",
+        "send30305"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "GodWeaponCtrl",
+      "hasGInst": true,
+      "methodCount": 79,
+      "sendMethods": [
+        "send32300",
+        "send32301",
+        "send32302",
+        "send32303",
+        "send32304",
+        "send32305",
+        "send32306",
+        "send32307",
+        "send32308",
+        "send32310",
+        "send32311",
+        "send32312"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "GuideCtrl",
+      "hasGInst": true,
+      "methodCount": 71,
+      "sendMethods": [
+        "send11201",
+        "send11202",
+        "send12071"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "getLevUpRewardData",
+          "guideGetAwardUiHandler"
+        ]
+      }
+    },
+    {
+      "name": "GuildCtrl",
+      "hasGInst": true,
+      "methodCount": 254,
+      "sendMethods": [
+        "send18000Msg",
+        "send18001Msg",
+        "send18002Msg",
+        "send18003Msg",
+        "send18004Msg",
+        "send18005Msg",
+        "send18006Msg",
+        "send18008Msg",
+        "send18009Msg",
+        "send18012Msg",
+        "send18013Msg",
+        "send18014Msg",
+        "send18015Msg",
+        "send18019Msg",
+        "send18020Msg",
+        "send18021Msg",
+        "send18025Msg",
+        "send18026Msg",
+        "send18030Msg",
+        "send18031Msg",
+        "send18032Msg",
+        "send18035Msg",
+        "send18036Msg",
+        "send18037Msg",
+        "send18040Msg",
+        "send18041Msg",
+        "send18042Msg",
+        "send18043Msg",
+        "send18044Msg",
+        "send18046",
+        "send18047",
+        "send18050Msg",
+        "send18051Msg",
+        "send18052Msg",
+        "send18053Msg",
+        "send18054Msg",
+        "send18055Msg",
+        "send18056Msg",
+        "send18057Msg",
+        "send18060",
+        "send18061",
+        "send18062",
+        "send18064",
+        "send18065",
+        "send18066",
+        "send18067",
+        "send18068",
+        "send18069",
+        "send18070",
+        "send18071",
+        "send18072",
+        "send18140",
+        "send18141",
+        "send18142",
+        "send18143",
+        "send18144",
+        "send18145",
+        "send18147"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "checkDungeonPassRewardRed",
+          "closeGuildActiveAwardUi",
+          "closeGuildFeteAwardUi",
+          "openGuildActiveAwardUi",
+          "openGuildFeteAwardUi"
+        ]
+      }
+    },
+    {
+      "name": "GzlCtrl",
+      "hasGInst": true,
+      "methodCount": 51,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "checkAwardRed",
+          "countCanGetAward",
+          "getAwardItemInfo",
+          "getRewardList"
+        ]
+      }
+    },
+    {
+      "name": "HalfYearCtrl",
+      "hasGInst": true,
+      "methodCount": 109,
+      "sendMethods": [
+        "send19555",
+        "send19556",
+        "send19557",
+        "send19558",
+        "send19559",
+        "send19560",
+        "send19561",
+        "send19562",
+        "send19563",
+        "send19564",
+        "send19565",
+        "send19566",
+        "send19567",
+        "send19568",
+        "send19570",
+        "send19571",
+        "send19572"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [
+        "reward"
+      ],
+      "flaggedMethods": {
+        "reward": [
+          "checkTurntableRewardRed",
+          "getZhanLingAwardRed",
+          "open2048AwardUi"
+        ]
+      }
+    },
+    {
+      "name": "HangupCtrl",
+      "hasGInst": true,
+      "methodCount": 173,
+      "sendMethods": [
+        "send14110"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "openRechargeTqUI"
+        ],
+        "reward": [
+          "checkCanRewardByStageId",
+          "closeBossAwardView",
+          "closeXianYuanAwardPreviewUI",
+          "exeAfterBossAwardView",
+          "getHangUpReward",
+          "getIsBossAwardRed",
+          "isGetAllRewardHaoLi",
+          "openBossAwardView",
+          "openXianYuanAwardPreviewUI",
+          "recvGainAwardResult",
+          "recvGetStageAwards",
+          "recvHangupAwards",
+          "recvStageAwardList",
+          "recvWipeoutAwards",
+          "reqGetHangupAwards",
+          "reqGetStageAwards",
+          "reqGetWipeoutAwards",
+          "updateBossAwardRedpoint",
+          "updateStageAward"
+        ]
+      }
+    },
+    {
+      "name": "HeavenCtrl",
+      "hasGInst": true,
+      "methodCount": 51,
+      "sendMethods": [
+        "send12410",
+        "send12412",
+        "send12413",
+        "send12414",
+        "send12417"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "getChallengeRewardTxt"
+        ]
+      }
+    },
+    {
+      "name": "HeavenWarCtrl",
+      "hasGInst": true,
+      "methodCount": 275,
+      "sendMethods": [
+        "send18300",
+        "send18301",
+        "send18302",
+        "send18303",
+        "send18304",
+        "send18305",
+        "send18306",
+        "send18308",
+        "send18311",
+        "send18312",
+        "send18313",
+        "send18314",
+        "send18315",
+        "send18316",
+        "send18317",
+        "send18319",
+        "send18320",
+        "send18322",
+        "send18324",
+        "send18325",
+        "send18326",
+        "send18328",
+        "send18330",
+        "send18331",
+        "send18332",
+        "send18334",
+        "send18335",
+        "send18336",
+        "send18337",
+        "send18338",
+        "send18340",
+        "send18342",
+        "send18343",
+        "send18345",
+        "send18346",
+        "send18350",
+        "send18351",
+        "send18352",
+        "send18353",
+        "send18354",
+        "send18355",
+        "send18357",
+        "send18358",
+        "send18361",
+        "send18362",
+        "send18363",
+        "send18370",
+        "send18371",
+        "send18372",
+        "send18374",
+        "send18375",
+        "send18376",
+        "send18377",
+        "send18380",
+        "send18381",
+        "send18384",
+        "send18385",
+        "send18386",
+        "send18387"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "getTqBuyStatue",
+          "getWarOrderRed",
+          "openActWarOrderHall"
+        ],
+        "reward": [
+          "canGetCwReward",
+          "getBoxRewardRed",
+          "getCwRewardCfgArr",
+          "getCwRewardOnlineTime",
+          "getPrevCwRewardNeedOnlineTime",
+          "hasGetCwReward"
+        ]
+      }
+    },
+    {
+      "name": "HeroCtrl",
+      "hasGInst": true,
+      "methodCount": 655,
+      "sendMethods": [
+        "send20000",
+        "send20001",
+        "send20004",
+        "send20005",
+        "send20006",
+        "send20007",
+        "send20008",
+        "send20009",
+        "send20010",
+        "send20011",
+        "send20012",
+        "send20013",
+        "send20014",
+        "send20018",
+        "send20020",
+        "send20021",
+        "send20022",
+        "send20023",
+        "send20030",
+        "send20031",
+        "send20032",
+        "send20033",
+        "send20039",
+        "send20040",
+        "send20041",
+        "send20044",
+        "send20045",
+        "send20046",
+        "send20050",
+        "send20051",
+        "send20052",
+        "send20053",
+        "send20054",
+        "send20067",
+        "send20068",
+        "send20069",
+        "send20070",
+        "send20071",
+        "send20072",
+        "send20073",
+        "send20074",
+        "send20075",
+        "send20076",
+        "send20077",
+        "send20078",
+        "send20079",
+        "send20080",
+        "send20081",
+        "send20082",
+        "send31901",
+        "send31902",
+        "send32000",
+        "send32001",
+        "send32002",
+        "send32003",
+        "send32004",
+        "send32005",
+        "send32006",
+        "send32007",
+        "send32040",
+        "send32041",
+        "send32042",
+        "send32043",
+        "send32044",
+        "send32045",
+        "send32046",
+        "send32047",
+        "send32048"
+      ],
+      "onMethods": [
+        "on20000",
+        "on20001",
+        "on20002",
+        "on20003",
+        "on20004",
+        "on20005",
+        "on20006",
+        "on20007",
+        "on20008",
+        "on20009",
+        "on20010",
+        "on20011",
+        "on20012",
+        "on20013",
+        "on20014",
+        "on20018",
+        "on20020",
+        "on20021",
+        "on20030",
+        "on20031",
+        "on20032",
+        "on20033",
+        "on20040",
+        "on20041",
+        "on20042",
+        "on20043",
+        "on20046",
+        "on20049",
+        "on20050",
+        "on20051",
+        "on20052",
+        "on20053",
+        "on20054",
+        "on20099"
+      ],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "gm": [
+          "gMaterials",
+          "gMgJhDt",
+          "gMgMaxLev"
+        ],
+        "purchase": [
+          "closeHeroBuyGirdUi",
+          "getSealJlDsLevBuyJlLev",
+          "getSealStrengDsLevBuyStrengLev",
+          "openHeroBuyGirdUi"
+        ],
+        "reward": [
+          "closeHeroResolveRewardUi",
+          "getHeroResolvedReward",
+          "getHeroTjzrRewardCount",
+          "getQuenchRewardVo",
+          "getRelifeRewardByHero",
+          "getResolveRewardData",
+          "getReward",
+          "getRewardByHeroData",
+          "isCanRewardHeroTjzrById",
+          "isGetAllHeroTjzrReward",
+          "openHeroResolveRewardUi",
+          "showRwd"
+        ]
+      }
+    },
+    {
+      "name": "HeroFuseCtrl",
+      "hasGInst": true,
+      "methodCount": 69,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "HorseYearCtrl",
+      "hasGInst": true,
+      "methodCount": 102,
+      "sendMethods": [
+        "send19601",
+        "send19602",
+        "send19603",
+        "send19604",
+        "send19605",
+        "send19606",
+        "send19607",
+        "send19608",
+        "send19609",
+        "send19610",
+        "send19611",
+        "send19612",
+        "send19613",
+        "send19614",
+        "send19615",
+        "send19617",
+        "send19618",
+        "send19619",
+        "send19621",
+        "send19622",
+        "send19623",
+        "send19624"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [
+        "reward"
+      ],
+      "flaggedMethods": {
+        "reward": [
+          "checkTranGodRewardRed",
+          "openKlotskiAwardUi"
+        ]
+      }
+    },
+    {
+      "name": "ItemColorStoneCtrl",
+      "hasGInst": true,
+      "methodCount": 38,
+      "sendMethods": [
+        "send17064",
+        "send17066"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "getRewardList",
+          "openItemColorStoneRewardUi"
+        ]
+      }
+    },
+    {
+      "name": "JewelDrawCtrl",
+      "hasGInst": true,
+      "methodCount": 39,
+      "sendMethods": [
+        "send19667",
+        "send19668"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [
+        "purchase"
+      ],
+      "flaggedMethods": {
+        "reward": [
+          "openJewelDrawExShopUi",
+          "openJewelDrawUi"
+        ]
+      }
+    },
+    {
+      "name": "KFRainRuinsCtrl",
+      "hasGInst": true,
+      "methodCount": 81,
+      "sendMethods": [
+        "send32710",
+        "send32711",
+        "send32712",
+        "send32713",
+        "send32714",
+        "send32715",
+        "send32716",
+        "send32717",
+        "send32722",
+        "send32724"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "openKFRRCountBuyUi"
+        ]
+      }
+    },
+    {
+      "name": "KfLolCtrl",
+      "hasGInst": true,
+      "methodCount": 100,
+      "sendMethods": [
+        "send14301",
+        "send14302",
+        "send14303",
+        "send14304",
+        "send14307",
+        "send14308",
+        "send14312",
+        "send14313",
+        "send14314",
+        "send14315",
+        "send14316",
+        "send14317",
+        "send14319"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "gm": [
+          "gMatRoleInfo"
+        ]
+      }
+    },
+    {
+      "name": "LabourDayCtrl",
+      "hasGInst": true,
+      "methodCount": 95,
+      "sendMethods": [
+        "send19646",
+        "send19647",
+        "send19648",
+        "send19649",
+        "send19650",
+        "send19651",
+        "send19652",
+        "send19653",
+        "send19654",
+        "send19655",
+        "send19656",
+        "send19657",
+        "send19658",
+        "send19659",
+        "send19660",
+        "send19661",
+        "send19662",
+        "send19663",
+        "send19664",
+        "send19666"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "checkTranGodRewardRed",
+          "openKlotskiAwardUi"
+        ]
+      }
+    },
+    {
+      "name": "LanguageCtrl",
+      "hasGInst": true,
+      "methodCount": 28,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "LeagueCraftCtrl",
+      "hasGInst": true,
+      "methodCount": 64,
+      "sendMethods": [
+        "send32801",
+        "send32803",
+        "send32804",
+        "send32805",
+        "send32806",
+        "send32807",
+        "send32808",
+        "send32809"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "LeagueCtrl",
+      "hasGInst": true,
+      "methodCount": 112,
+      "sendMethods": [
+        "send18200",
+        "send18201",
+        "send18202",
+        "send18203",
+        "send18204",
+        "send18205",
+        "send18206",
+        "send18207",
+        "send18208",
+        "send18209",
+        "send18210",
+        "send18211",
+        "send18212",
+        "send18213",
+        "send18214",
+        "send18215",
+        "send18216",
+        "send18220",
+        "send18221",
+        "send18222",
+        "send18223",
+        "send18224",
+        "send18225",
+        "send18226"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "isShowLvlAwardRed",
+          "openLvlAwardUi"
+        ]
+      }
+    },
+    {
+      "name": "LoadCtrl",
+      "hasGInst": true,
+      "methodCount": 42,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "LoginCtrl",
+      "hasGInst": true,
+      "methodCount": 112,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "getPayRoleInfo"
+        ]
+      }
+    },
+    {
+      "name": "LuckyDrawCtrl",
+      "hasGInst": true,
+      "methodCount": 36,
+      "sendMethods": [
+        "send19645"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [
+        "purchase"
+      ],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "MagicEmbattleCtrl",
+      "hasGInst": true,
+      "methodCount": 75,
+      "sendMethods": [
+        "send17058",
+        "send32050",
+        "send32053",
+        "send32054",
+        "send32055",
+        "send32056",
+        "send32057"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "openRewardBoxPreviewUi"
+        ]
+      }
+    },
+    {
+      "name": "MainCtrl",
+      "hasGInst": true,
+      "methodCount": 52,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "gm": [
+          "closeGmTestLanUi",
+          "openBagMainUIView",
+          "openGmTestLanUi"
+        ]
+      }
+    },
+    {
+      "name": "MarketCtrl",
+      "hasGInst": true,
+      "methodCount": 27,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [
+        "purchase"
+      ],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "MeituanCtrl",
+      "hasGInst": true,
+      "methodCount": 36,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "gm": [
+          "runningManUpdate"
+        ],
+        "reward": [
+          "travelRewardUpdate"
+        ]
+      }
+    },
+    {
+      "name": "MellowAskCtrl",
+      "hasGInst": true,
+      "methodCount": 31,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "openRecharge"
+        ]
+      }
+    },
+    {
+      "name": "MidAutumnActivityCtrl",
+      "hasGInst": true,
+      "methodCount": 65,
+      "sendMethods": [
+        "send19055",
+        "send19056",
+        "send19057",
+        "send19058",
+        "send19059",
+        "send19140",
+        "send19141",
+        "send19145",
+        "send19146",
+        "send19150",
+        "send19151",
+        "send19152",
+        "send19155",
+        "send19156"
+      ],
+      "onMethods": [
+        "on19055",
+        "on19056",
+        "on19057",
+        "on19058",
+        "on19059",
+        "on19140",
+        "on19141",
+        "on19145",
+        "on19146",
+        "on19150",
+        "on19151",
+        "on19152",
+        "on19155",
+        "on19156",
+        "on19157"
+      ],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "openShopBatchBuyView"
+        ],
+        "reward": [
+          "openAwardPreviewUi",
+          "showHeroRecruitAwardInfoUi",
+          "showHeroRecruitAwardUi"
+        ]
+      }
+    },
+    {
+      "name": "MxActCtrl",
+      "hasGInst": true,
+      "methodCount": 38,
+      "sendMethods": [
+        "send31101",
+        "send31104",
+        "send31105"
+      ],
+      "onMethods": [
+        "on31101",
+        "on31102",
+        "on31103",
+        "on31104",
+        "on31105"
+      ],
+      "ctrlFlags": [
+        "reward"
+      ],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "MzCtrl",
+      "hasGInst": true,
+      "methodCount": 147,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "gm": [
+          "gMapDtLs"
+        ],
+        "purchase": [
+          "altBuy",
+          "cMzAdvBuy",
+          "yzShopBuy"
+        ],
+        "reward": [
+          "checkPassRewardRed",
+          "countCanGetAward"
+        ]
+      }
+    },
+    {
+      "name": "NationalActCtrl",
+      "hasGInst": true,
+      "methodCount": 137,
+      "sendMethods": [
+        "send19501",
+        "send19502",
+        "send19503",
+        "send19504",
+        "send19505",
+        "send19506",
+        "send19507",
+        "send19508",
+        "send19509",
+        "send19510",
+        "send19511",
+        "send19515",
+        "send19516",
+        "send19517",
+        "send19518",
+        "send19519",
+        "send19522",
+        "send19524",
+        "send19525",
+        "send19526",
+        "send19527"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [
+        "reward"
+      ],
+      "flaggedMethods": {
+        "purchase": [
+          "getGiftBuyTimes",
+          "openZhanLingScoreBuyUi"
+        ],
+        "reward": [
+          "checkTurntableRewardRed",
+          "getChargeAwardStatus",
+          "getGiftBuyTimes",
+          "getGiftRed",
+          "getGiftVo",
+          "getZhanLingAwardRed",
+          "isShowFightRewardRed"
+        ]
+      }
+    },
+    {
+      "name": "NewDevilSeaCtrl",
+      "hasGInst": true,
+      "methodCount": 78,
+      "sendMethods": [
+        "send19425",
+        "send19426",
+        "send19427",
+        "send19428",
+        "send19429",
+        "send19430",
+        "send19431",
+        "send19432",
+        "send19433",
+        "send19434"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "getGiftBuyTimes"
+        ],
+        "reward": [
+          "closeDevilSeaTreasureRewardPreviewUI",
+          "getChargeAwardStatus",
+          "getGiftBuyTimes",
+          "getGiftRed",
+          "getZhanLingAwardRed",
+          "openDevilSeaAwardPreviewUi",
+          "openDevilSeaTreasureRewardPreviewUI"
+        ]
+      }
+    },
+    {
+      "name": "NewSpiritBeastCtrl",
+      "hasGInst": true,
+      "methodCount": 60,
+      "sendMethods": [
+        "send19587",
+        "send19588",
+        "send19589"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "getZhanLingAwardRed"
+        ]
+      }
+    },
+    {
+      "name": "NewSuperHeroCtrl",
+      "hasGInst": true,
+      "methodCount": 78,
+      "sendMethods": [
+        "send19398",
+        "send19455",
+        "send19456",
+        "send19457",
+        "send19458",
+        "send19459",
+        "send19460",
+        "send19461"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "getGiftBuyCount",
+          "getZsGiftBuyData",
+          "openZhanLingScoreBuyUi"
+        ],
+        "reward": [
+          "getGiftBuyCount",
+          "getZhanLingAwardRed",
+          "isGetFightReward"
+        ]
+      }
+    },
+    {
+      "name": "NewZhongQiuCtrl",
+      "hasGInst": true,
+      "methodCount": 74,
+      "sendMethods": [
+        "send19489",
+        "send19490",
+        "send19491",
+        "send19492",
+        "send19493",
+        "send19494",
+        "send19495",
+        "send19496"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "OneYuanRenewalCtrl",
+      "hasGInst": true,
+      "methodCount": 31,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [
+        "purchase"
+      ],
+      "flaggedMethods": {
+        "purchase": [
+          "openRecharge"
+        ]
+      }
+    },
+    {
+      "name": "OriginCtrl",
+      "hasGInst": true,
+      "methodCount": 79,
+      "sendMethods": [
+        "send32314",
+        "send32315",
+        "send32317",
+        "send32318",
+        "send32319",
+        "send32320",
+        "send32321",
+        "send32322",
+        "send32323"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "PlatCtrl",
+      "hasGInst": true,
+      "methodCount": 194,
+      "sendMethods": [
+        "send30133",
+        "send30135",
+        "send30136",
+        "send30137",
+        "send30138",
+        "send30139",
+        "send30140",
+        "send30145",
+        "send30146",
+        "send30147",
+        "send30148",
+        "send30149",
+        "send30150",
+        "send30151",
+        "send30152"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "canGetAward",
+          "canGetBlDesktopAward",
+          "canGetBlEdgeAward",
+          "canGetMeituanDesktopAward",
+          "canGetMeituanFtenuseAward",
+          "canGetMeituanSubscribeAward",
+          "canGetTiktokBindAward",
+          "canGetTiktokDesktopAward",
+          "canGetTiktokEdgeAward",
+          "canGetTiktokSubScribeAward",
+          "canGetWxRyjlAddDesktopAward",
+          "canGetWxRyjlLaunchGiftAward",
+          "canGetZhifubaoFuFangAward",
+          "canGetZhifubaoShouFangAward",
+          "isGotAward",
+          "rvGetAward",
+          "sendGetAward"
+        ]
+      }
+    },
+    {
+      "name": "PropitiousActivityCtrl",
+      "hasGInst": true,
+      "methodCount": 50,
+      "sendMethods": [
+        "send19060",
+        "send19062",
+        "send19063",
+        "send19064",
+        "send19065",
+        "send19066",
+        "send19067"
+      ],
+      "onMethods": [
+        "on19060",
+        "on19061",
+        "on19062",
+        "on19063",
+        "on19064",
+        "on19065",
+        "on19066",
+        "on19067"
+      ],
+      "ctrlFlags": [
+        "reward"
+      ],
+      "flaggedMethods": {
+        "purchase": [
+          "openShopBatchBuyView"
+        ],
+        "reward": [
+          "openPropitiousActivityLevelAwardUi",
+          "openPropitiousActivityRankAwardUi"
+        ]
+      }
+    },
+    {
+      "name": "PropsCtrl",
+      "hasGInst": true,
+      "methodCount": 73,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "checkReachRewardVoList",
+          "getRewardListByReward",
+          "getRewardListByReward1",
+          "getRewardVo",
+          "getRewardVo1",
+          "getRewardVoList",
+          "getRewardVoList1"
+        ]
+      }
+    },
+    {
+      "name": "QQCtrl",
+      "hasGInst": true,
+      "methodCount": 43,
+      "sendMethods": [
+        "send30141",
+        "send30142",
+        "send30143"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "receive30141",
+          "receive30142",
+          "receive30143",
+          "receive30144"
+        ]
+      }
+    },
+    {
+      "name": "QiXiFestivalActCtrl",
+      "hasGInst": true,
+      "methodCount": 59,
+      "sendMethods": [
+        "send19464",
+        "send19465",
+        "send19466",
+        "send19467",
+        "send19468",
+        "send19469",
+        "send19470",
+        "send19471"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [
+        "reward"
+      ],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "QingmingCtrl",
+      "hasGInst": true,
+      "methodCount": 80,
+      "sendMethods": [
+        "send19629",
+        "send19630",
+        "send19631",
+        "send19632",
+        "send19633",
+        "send19635",
+        "send19636",
+        "send19637",
+        "send19638",
+        "send19639",
+        "send19640",
+        "send19641",
+        "send19642"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "gm": [
+          "closeAllQingmingUi",
+          "openQingmingAnswerRwPreviewUi",
+          "openQingmingAnswerUi",
+          "openQingmingMainUI",
+          "openQingmingQuestionUi",
+          "openQingmingShareView"
+        ],
+        "reward": [
+          "checkTranGodRewardRed"
+        ]
+      }
+    },
+    {
+      "name": "QuizCtrl",
+      "hasGInst": true,
+      "methodCount": 43,
+      "sendMethods": [
+        "send10420",
+        "send10421",
+        "send10423",
+        "send10424"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "RacingCtrl",
+      "hasGInst": true,
+      "methodCount": 75,
+      "sendMethods": [
+        "send32501",
+        "send32502",
+        "send32503",
+        "send32504",
+        "send32505",
+        "send32506",
+        "send32507",
+        "send32508",
+        "send32512"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "openRacingRankAwardUi"
+        ]
+      }
+    },
+    {
+      "name": "RainRuinsCtrl",
+      "hasGInst": true,
+      "methodCount": 55,
+      "sendMethods": [
+        "send32700",
+        "send32701",
+        "send32702",
+        "send32703",
+        "send32704",
+        "send32707"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "RankCtrl",
+      "hasGInst": true,
+      "methodCount": 63,
+      "sendMethods": [
+        "send15001",
+        "send15005",
+        "send15006",
+        "send15008",
+        "send15009",
+        "send15010",
+        "send15011"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "showRankRechargeUi"
+        ],
+        "reward": [
+          "checkRankRewardIdIsGet",
+          "getOneRankRewardRed",
+          "getRankRewardHasGetIdArr",
+          "getRankRewardRoleInfo",
+          "showRankRewardUi"
+        ]
+      }
+    },
+    {
+      "name": "RankRwCtrl",
+      "hasGInst": true,
+      "methodCount": 28,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "RechargeCtrl",
+      "hasGInst": true,
+      "methodCount": 114,
+      "sendMethods": [
+        "send12301",
+        "send12302",
+        "send12321",
+        "send12322",
+        "send12323",
+        "send12325",
+        "send12326"
+      ],
+      "onMethods": [
+        "on12301",
+        "on12302"
+      ],
+      "ctrlFlags": [
+        "purchase"
+      ],
+      "flaggedMethods": {
+        "purchase": [
+          "bBuyTermById",
+          "buyAdvZl",
+          "checkRechargetTime",
+          "closeDailyRechargeView",
+          "closeRechargeSuperView",
+          "closeSpecialGiftBuyUi",
+          "getIsRechargeGift",
+          "getRechargeRankRewardList",
+          "getZlBuyVal",
+          "isBuyTermById",
+          "isBuyTermLuxuryById",
+          "openSpecialGiftBuyUi",
+          "realRechargeMoney",
+          "rechargeMoney",
+          "rechargeMoneyReal",
+          "rechargeMoneyYuanJing",
+          "recvRechargeGiftStatus",
+          "reqRechargeGiftStatus",
+          "sRecharge",
+          "showDailyRechargeView",
+          "showRechargeSuperView",
+          "showRechargeView",
+          "updateRechargeGift",
+          "updateRechargeTime"
+        ],
+        "reward": [
+          "countCanGetAward",
+          "getCurShowRewardVo",
+          "getCurTermNormalRewardListByTermId",
+          "getRechargeRankRewardList",
+          "isCanAdvancedIdRewardByTermId",
+          "isCanLuxuryIdRewardByTermId",
+          "isCanNormalIdRewardByTermId",
+          "isGetAdvancedIdRewardByTermId",
+          "isGetLuxuryIdRewardByTermId",
+          "isGetNormalIdRewardByTermId"
+        ]
+      }
+    },
+    {
+      "name": "RecruitCtrl",
+      "hasGInst": true,
+      "methodCount": 134,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "opTmqcGiftBuyUi"
+        ],
+        "reward": [
+          "getDrawInfoByDrawId",
+          "getRewardStr",
+          "getSpiritAnimalRewardGridList"
+        ]
+      }
+    },
+    {
+      "name": "RedCtrl",
+      "hasGInst": true,
+      "methodCount": 40,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "RelicsAdvCtrl",
+      "hasGInst": true,
+      "methodCount": 34,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "RiseGoldCtrl",
+      "hasGInst": true,
+      "methodCount": 95,
+      "sendMethods": [
+        "send19435",
+        "send19436",
+        "send19437",
+        "send19438",
+        "send19439",
+        "send19440",
+        "send19441",
+        "send19442"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "getZhanLingAwardRed"
+        ]
+      }
+    },
+    {
+      "name": "RoleCtrl",
+      "hasGInst": true,
+      "methodCount": 47,
+      "sendMethods": [
+        "send12066",
+        "send12072"
+      ],
+      "onMethods": [
+        "on12001",
+        "on12002",
+        "on12003",
+        "on12010",
+        "on12011",
+        "on12064",
+        "on12067",
+        "on12072",
+        "on12096"
+      ],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "SamsaraFundCtrl",
+      "hasGInst": true,
+      "methodCount": 57,
+      "sendMethods": [
+        "send19672",
+        "send19673",
+        "send19674",
+        "send19675",
+        "send19676",
+        "send19678",
+        "send19679"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [
+        "purchase"
+      ],
+      "flaggedMethods": {
+        "reward": [
+          "backAwardStatusById",
+          "checkRebateAwardRed",
+          "checkSignAwardRed",
+          "getAwardStatusByDay",
+          "isAwardAllDone",
+          "isCanAward",
+          "isCanAwardByDay"
+        ]
+      }
+    },
+    {
+      "name": "ScsmCtrl",
+      "hasGInst": true,
+      "methodCount": 32,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "SeTgtCtrl",
+      "hasGInst": true,
+      "methodCount": 57,
+      "sendMethods": [
+        "send30901",
+        "send30904",
+        "send30905",
+        "send30906"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "getGiftRed",
+          "getGiftVo"
+        ]
+      }
+    },
+    {
+      "name": "ServerMergeActCtrl",
+      "hasGInst": true,
+      "methodCount": 111,
+      "sendMethods": [
+        "send19540",
+        "send19541",
+        "send19542",
+        "send19543",
+        "send19544",
+        "send19545",
+        "send19546",
+        "send19547",
+        "send19548",
+        "send19549",
+        "send19550",
+        "send19551",
+        "send19552",
+        "send30050",
+        "send30052"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [
+        "reward"
+      ],
+      "flaggedMethods": {
+        "purchase": [
+          "getGiftBuyTimes"
+        ],
+        "reward": [
+          "checkLottreyStatRewardRed",
+          "getGiftBuyTimes",
+          "getZhanLingAwardRed",
+          "isShowFightRewardRed",
+          "open2048AwardUi"
+        ]
+      }
+    },
+    {
+      "name": "SettingCtrl",
+      "hasGInst": true,
+      "methodCount": 97,
+      "sendMethods": [
+        "send11130",
+        "send11131",
+        "send12076",
+        "send12095",
+        "send12211",
+        "send12212",
+        "send12213",
+        "send12221",
+        "send12222",
+        "send12223",
+        "send12231",
+        "send12232",
+        "send12241",
+        "send12242",
+        "send12251",
+        "send12253"
+      ],
+      "onMethods": [
+        "on12253"
+      ],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "closeHeadBorderTips",
+          "showHeadBorderTips"
+        ]
+      }
+    },
+    {
+      "name": "SevenLoginCtrl",
+      "hasGInst": true,
+      "methodCount": 36,
+      "sendMethods": [
+        "send30801",
+        "send30802"
+      ],
+      "onMethods": [
+        "on30801"
+      ],
+      "ctrlFlags": [
+        "reward"
+      ],
+      "flaggedMethods": {
+        "reward": [
+          "getRewardStr",
+          "isAllGetDayReward"
+        ]
+      }
+    },
+    {
+      "name": "ShopCtrl",
+      "hasGInst": true,
+      "methodCount": 62,
+      "sendMethods": [
+        "send12100",
+        "send12101",
+        "send12110",
+        "send12111",
+        "send12112"
+      ],
+      "onMethods": [
+        "on12100",
+        "on12101",
+        "on12110",
+        "on12111",
+        "on12112",
+        "on12199"
+      ],
+      "ctrlFlags": [
+        "purchase"
+      ],
+      "flaggedMethods": {
+        "purchase": [
+          "clearAutoBuyingPos",
+          "clearAutoBuyingShopType",
+          "closeBchBuyUi",
+          "getAutoBuyState",
+          "getIsAutoBuyingShopType",
+          "openBchBuyUi",
+          "openQuickBuyView",
+          "openShopAutoBuyUi",
+          "quickBuy",
+          "setAutoBuyState",
+          "setAutoBuyingPos"
+        ]
+      }
+    },
+    {
+      "name": "SidePlotCtrl",
+      "hasGInst": true,
+      "methodCount": 63,
+      "sendMethods": [
+        "send12510",
+        "send12511",
+        "send12512",
+        "send12513",
+        "send12514"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "SongliGifCtrl",
+      "hasGInst": true,
+      "methodCount": 52,
+      "sendMethods": [],
+      "onMethods": [
+        "on31601",
+        "on31602"
+      ],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "onBuyGift"
+        ]
+      }
+    },
+    {
+      "name": "SpiritAnimalCtrl",
+      "hasGInst": true,
+      "methodCount": 138,
+      "sendMethods": [
+        "send32010",
+        "send32011",
+        "send32012",
+        "send32013",
+        "send32014",
+        "send32015",
+        "send32016",
+        "send32017",
+        "send32018",
+        "send32019",
+        "send32020",
+        "send32021",
+        "send32022",
+        "send32023",
+        "send32024",
+        "send32025"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "buyAdvZl",
+          "isBuyTermById"
+        ],
+        "reward": [
+          "getCurTermNormalRewardListByTermId",
+          "isCanAdvancedIdRewardByTermId",
+          "isCanGetHomeTypeProduceReward",
+          "isCanGetRewardByLev",
+          "isCanNormalIdRewardByTermId",
+          "isCheckLevelReward",
+          "isGetAdvancedIdRewardByTermId",
+          "isGetNormalIdRewardByTermId",
+          "isHasGetRewardByLev"
+        ]
+      }
+    },
+    {
+      "name": "SpiritBeastCtrl",
+      "hasGInst": true,
+      "methodCount": 59,
+      "sendMethods": [
+        "send19528",
+        "send19529",
+        "send19530",
+        "send19531"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "getGiftBuyCount",
+          "getZsGiftBuyData"
+        ],
+        "reward": [
+          "getGiftBuyCount",
+          "getZhanLingAwardRed"
+        ]
+      }
+    },
+    {
+      "name": "StealingHeavenCtrl",
+      "hasGInst": true,
+      "methodCount": 50,
+      "sendMethods": [
+        "send12327"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "getGiftBuyTimes",
+          "isGiftCanBuy"
+        ],
+        "reward": [
+          "getGiftBuyTimes"
+        ]
+      }
+    },
+    {
+      "name": "SuperFaBaoCtrl",
+      "hasGInst": true,
+      "methodCount": 69,
+      "sendMethods": [
+        "send19397",
+        "send19415",
+        "send19416",
+        "send19417",
+        "send19418",
+        "send19669",
+        "send19670",
+        "send19671"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "checkActivityBuyStatu",
+          "getGiftBuyCount",
+          "getUpGiftHasBuy",
+          "getZgGiftBuyData",
+          "isCanBuyGift",
+          "lastGiftIsBuy"
+        ],
+        "reward": [
+          "getGiftBuyCount",
+          "getZhanLingAwardRed"
+        ]
+      }
+    },
+    {
+      "name": "SuperFaZhenCtrl",
+      "hasGInst": true,
+      "methodCount": 51,
+      "sendMethods": [
+        "send19473",
+        "send19474",
+        "send19475"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "getZhanLingAwardRed"
+        ]
+      }
+    },
+    {
+      "name": "SuperForeverCtrl",
+      "hasGInst": true,
+      "methodCount": 48,
+      "sendMethods": [
+        "send19625",
+        "send19626",
+        "send19627",
+        "send19628"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "getGiftBuyCount"
+        ],
+        "reward": [
+          "getGiftBuyCount"
+        ]
+      }
+    },
+    {
+      "name": "SuperHeroCtrl",
+      "hasGInst": true,
+      "methodCount": 82,
+      "sendMethods": [
+        "send19390",
+        "send19391",
+        "send19392",
+        "send19393",
+        "send19394",
+        "send19395",
+        "send19396",
+        "send19398",
+        "send19399"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "getGiftBuyCount",
+          "getZsGiftBuyData",
+          "openZhanLingScoreBuyUi"
+        ],
+        "reward": [
+          "getGiftBuyCount",
+          "getZhanLingAwardRed",
+          "isGetFightReward"
+        ]
+      }
+    },
+    {
+      "name": "SuperHeroEncoreCtrl",
+      "hasGInst": true,
+      "methodCount": 96,
+      "sendMethods": [
+        "send19737",
+        "send19738",
+        "send19739",
+        "send19740",
+        "send19741",
+        "send19742",
+        "send19743"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "getGiftBuyCount",
+          "getZsGiftBuyData",
+          "openZhanLingScoreBuyUi"
+        ],
+        "reward": [
+          "checkZhanlingAwardRed",
+          "getGiftBuyCount",
+          "getGiftUniqueId",
+          "isGetFightReward"
+        ]
+      }
+    },
+    {
+      "name": "SuperSptAniCtrl",
+      "hasGInst": true,
+      "methodCount": 43,
+      "sendMethods": [
+        "send19397"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "getGiftBuyCount",
+          "getUpGiftHasBuy",
+          "getZgGiftBuyData"
+        ],
+        "reward": [
+          "getGiftBuyCount"
+        ]
+      }
+    },
+    {
+      "name": "SuperVipCtrl",
+      "hasGInst": true,
+      "methodCount": 33,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [
+        "purchase"
+      ],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "SurveyCtrl",
+      "hasGInst": true,
+      "methodCount": 39,
+      "sendMethods": [
+        "send11141",
+        "send11142",
+        "send11143",
+        "send11144"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "SwdCtrl",
+      "hasGInst": true,
+      "methodCount": 79,
+      "sendMethods": [
+        "send14211",
+        "send14212",
+        "send14213",
+        "send14215",
+        "send14216",
+        "send14217",
+        "send14218",
+        "send14220",
+        "send14221",
+        "send14222",
+        "send14224"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "SwingGiftCtrl",
+      "hasGInst": true,
+      "methodCount": 191,
+      "sendMethods": [
+        "send19031",
+        "send19033",
+        "send19034",
+        "send19035",
+        "send19036",
+        "send19037",
+        "send19039",
+        "send19040",
+        "send19042",
+        "send19074",
+        "send19076",
+        "send19078",
+        "send19079",
+        "send19080",
+        "send19081",
+        "send19082",
+        "send19083",
+        "send19085",
+        "send19086",
+        "send19087",
+        "send19091",
+        "send19170",
+        "send19171",
+        "send19172",
+        "send19221",
+        "send19222",
+        "send19223",
+        "send19224",
+        "send19225",
+        "send19226",
+        "send19227",
+        "send19228",
+        "send19232",
+        "send19301",
+        "send19313",
+        "send19314",
+        "send19315",
+        "send19316",
+        "send19317",
+        "send19325",
+        "send19327",
+        "send19340",
+        "send19341",
+        "send19342",
+        "send19343"
+      ],
+      "onMethods": [
+        "on19031",
+        "on19032",
+        "on19033",
+        "on19034",
+        "on19035",
+        "on19036",
+        "on19037",
+        "on19038",
+        "on19039",
+        "on19040",
+        "on19041",
+        "on19042",
+        "on19074",
+        "on19075",
+        "on19076",
+        "on19077",
+        "on19078",
+        "on19079",
+        "on19080",
+        "on19081",
+        "on19082",
+        "on19083",
+        "on19084",
+        "on19085",
+        "on19086",
+        "on19087",
+        "on19091",
+        "on19092",
+        "on19170",
+        "on19171",
+        "on19172",
+        "on19173",
+        "on19221",
+        "on19222",
+        "on19223",
+        "on19224",
+        "on19225",
+        "on19226",
+        "on19227",
+        "on19228",
+        "on19232",
+        "on19301",
+        "on19302",
+        "on19312",
+        "on19313",
+        "on19314",
+        "on19315",
+        "on19316",
+        "on19317",
+        "on19318",
+        "on19319",
+        "on19325",
+        "on19326",
+        "on19327",
+        "on19340",
+        "on19341",
+        "on19342",
+        "on19343",
+        "on19344"
+      ],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "btnBuy",
+          "closeYbShopBuyUi",
+          "openSdgcBuyUi",
+          "openShopBatchBuyView",
+          "openYbShopBuyUi",
+          "rechargeMoney"
+        ],
+        "reward": [
+          "TjhyGetReward",
+          "showHeroRecruitAwardInfoNewUi",
+          "showHeroRecruitAwardInfoUi",
+          "showHeroRecruitAwardNewUi",
+          "showHeroRecruitAwardUi",
+          "showXjAwardUi"
+        ]
+      }
+    },
+    {
+      "name": "SwordDirCtrl",
+      "hasGInst": true,
+      "methodCount": 38,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "isCanBuyGift"
+        ]
+      }
+    },
+    {
+      "name": "TaxLyCtrl",
+      "hasGInst": true,
+      "methodCount": 34,
+      "sendMethods": [
+        "send30701",
+        "send30702"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "TianGongLuCtrl",
+      "hasGInst": true,
+      "methodCount": 35,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "TipsCtrl",
+      "hasGInst": true,
+      "methodCount": 54,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "TotalSignCtrl",
+      "hasGInst": true,
+      "methodCount": 34,
+      "sendMethods": [
+        "send30191",
+        "send30192",
+        "send30193"
+      ],
+      "onMethods": [
+        "on30191",
+        "on30192",
+        "on30193"
+      ],
+      "ctrlFlags": [
+        "reward"
+      ],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "TransGodCtrl",
+      "hasGInst": true,
+      "methodCount": 55,
+      "sendMethods": [
+        "send12328"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "getZlBuyVal",
+          "isBuyTermById",
+          "isBuyTermLuxuryById",
+          "setZlBuyVal"
+        ],
+        "reward": [
+          "checkTranGodRewardRed",
+          "countCanGetAward",
+          "getCurTermNormalRewardListByTermId",
+          "isCanAdvancedIdRewardByTermId",
+          "isCanLuxuryIdRewardByTermId",
+          "isCanNormalIdRewardByTermId",
+          "isGetAdvancedIdRewardByTermId",
+          "isGetLuxuryIdRewardByTermId",
+          "isGetNormalIdRewardByTermId"
+        ]
+      }
+    },
+    {
+      "name": "TravelCtrl",
+      "hasGInst": true,
+      "methodCount": 53,
+      "sendMethods": [
+        "send30201",
+        "send30202",
+        "send30203",
+        "send30204",
+        "send30205"
+      ],
+      "onMethods": [
+        "on30201",
+        "on30202",
+        "on30203",
+        "on30204",
+        "on30205"
+      ],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "UpdateCtrl",
+      "hasGInst": true,
+      "methodCount": 60,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "checkIsMapPay"
+        ]
+      }
+    },
+    {
+      "name": "VdoCtrl",
+      "hasGInst": true,
+      "methodCount": 54,
+      "sendMethods": [
+        "send14040",
+        "send14041",
+        "send14042",
+        "send14043",
+        "send14044",
+        "send14045",
+        "send14046"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "VipCtrl",
+      "hasGInst": true,
+      "methodCount": 63,
+      "sendMethods": [
+        "send12401",
+        "send12403",
+        "send12404",
+        "send12405",
+        "send12407",
+        "send12408"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [
+        "purchase"
+      ],
+      "flaggedMethods": {
+        "purchase": [
+          "isHasBuyVipGiftByLev"
+        ],
+        "reward": [
+          "getGift0Red"
+        ]
+      }
+    },
+    {
+      "name": "VnOffLieCtrl",
+      "hasGInst": true,
+      "methodCount": 36,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "claimDailyReward",
+          "getAwardRed"
+        ]
+      }
+    },
+    {
+      "name": "VnVideoActCtrl",
+      "hasGInst": true,
+      "methodCount": 34,
+      "sendMethods": [],
+      "onMethods": [
+        "on12389"
+      ],
+      "ctrlFlags": [
+        "reward"
+      ],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "WHPracticeCtrl",
+      "hasGInst": true,
+      "methodCount": 41,
+      "sendMethods": [
+        "send19462",
+        "send19463"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "getRechargeRed",
+          "openRecharge"
+        ],
+        "reward": [
+          "initRewardData"
+        ]
+      }
+    },
+    {
+      "name": "WanJieDingZunCtrl",
+      "hasGInst": true,
+      "methodCount": 105,
+      "sendMethods": [
+        "send32401",
+        "send32402",
+        "send32403",
+        "send32404",
+        "send32405",
+        "send32406",
+        "send32409",
+        "send32410",
+        "send32411",
+        "send32412",
+        "send32413",
+        "send32414",
+        "send32415",
+        "send32416",
+        "send32417",
+        "send32418",
+        "send32422",
+        "send32423",
+        "send32424",
+        "send32425",
+        "send32426"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "WarlordsCtrl",
+      "hasGInst": true,
+      "methodCount": 64,
+      "sendMethods": [
+        "send14241",
+        "send14242",
+        "send14243",
+        "send14244",
+        "send14245",
+        "send14246",
+        "send14247",
+        "send14248",
+        "send14249",
+        "send14253"
+      ],
+      "onMethods": [
+        "on14240",
+        "on14241",
+        "on14242",
+        "on14243",
+        "on14244",
+        "on14245",
+        "on14246",
+        "on14247",
+        "on14248",
+        "on14249",
+        "on14250",
+        "on14251",
+        "on14252",
+        "on14253"
+      ],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "WarlordsKfCtrl",
+      "hasGInst": true,
+      "methodCount": 82,
+      "sendMethods": [
+        "send14271",
+        "send14272",
+        "send14273",
+        "send14274",
+        "send14275",
+        "send14276",
+        "send14277",
+        "send14278",
+        "send14279",
+        "send14283",
+        "send14285",
+        "send14286",
+        "send14287",
+        "send14288",
+        "send14289",
+        "send14290",
+        "send14291",
+        "send14292",
+        "send14293"
+      ],
+      "onMethods": [
+        "on14270",
+        "on14271",
+        "on14272",
+        "on14273",
+        "on14274",
+        "on14275",
+        "on14276",
+        "on14277",
+        "on14278",
+        "on14279",
+        "on14280",
+        "on14281",
+        "on14282",
+        "on14283",
+        "on14285",
+        "on14286",
+        "on14287",
+        "on14288",
+        "on14289",
+        "on14290",
+        "on14291",
+        "on14292",
+        "on14293"
+      ],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "WeixinCtrl",
+      "hasGInst": true,
+      "methodCount": 45,
+      "sendMethods": [
+        "send30130"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "isGotAward",
+          "rvGetAward",
+          "sendGetAward"
+        ]
+      }
+    },
+    {
+      "name": "WelfareCtrl",
+      "hasGInst": true,
+      "methodCount": 117,
+      "sendMethods": [
+        "send30101",
+        "send30102",
+        "send30103",
+        "send30104",
+        "send30105",
+        "send30107",
+        "send30108",
+        "send30112",
+        "send30114",
+        "send30115",
+        "send30116",
+        "send30117",
+        "send30118",
+        "send30119",
+        "send30120",
+        "send30121",
+        "send30122",
+        "send30123",
+        "send30124",
+        "send31001",
+        "send31002",
+        "send31006",
+        "send31008"
+      ],
+      "onMethods": [
+        "on30101",
+        "on30102",
+        "on30103",
+        "on30104",
+        "on30105",
+        "on30106",
+        "on30107",
+        "on30108",
+        "on30109",
+        "on30112",
+        "on30113",
+        "on30114",
+        "on30115",
+        "on30116",
+        "on30117",
+        "on30118",
+        "on30119",
+        "on30122",
+        "on30123",
+        "on30124",
+        "on31001",
+        "on31002",
+        "on31003",
+        "on31004",
+        "on31008"
+      ],
+      "ctrlFlags": [
+        "reward"
+      ],
+      "flaggedMethods": {
+        "purchase": [
+          "clearLimitGiftBuyIdDicByType",
+          "getLimitGiftBuyNetVo",
+          "hasBuyXJTQ"
+        ],
+        "reward": [
+          "getGiftRedByType"
+        ]
+      }
+    },
+    {
+      "name": "WoodCarveCtrl",
+      "hasGInst": true,
+      "methodCount": 73,
+      "sendMethods": [
+        "send17061",
+        "send17062",
+        "send32600",
+        "send32601",
+        "send32602",
+        "send32603",
+        "send32604",
+        "send32605",
+        "send32606",
+        "send32607",
+        "send32608"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "WoodStarCtrl",
+      "hasGInst": true,
+      "methodCount": 44,
+      "sendMethods": [
+        "send32617",
+        "send32619"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "XianYuanCtrl",
+      "hasGInst": true,
+      "methodCount": 79,
+      "sendMethods": [
+        "send32100",
+        "send32101",
+        "send32102",
+        "send32103",
+        "send32104",
+        "send32105",
+        "send32106",
+        "send32107",
+        "send32108",
+        "send32109",
+        "send32120",
+        "send32121",
+        "send32122"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "XunBCtrl",
+      "hasGInst": true,
+      "methodCount": 48,
+      "sendMethods": [
+        "send30601",
+        "send30602",
+        "send30603",
+        "send30604"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "showReward"
+        ]
+      }
+    },
+    {
+      "name": "YD2026Ctrl",
+      "hasGInst": true,
+      "methodCount": 79,
+      "sendMethods": [
+        "send19573",
+        "send19574",
+        "send19575",
+        "send19576",
+        "send19577",
+        "send19578",
+        "send19579",
+        "send19580",
+        "send19581",
+        "send19582",
+        "send19583",
+        "send19584",
+        "send19585",
+        "send19586"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "checkTranGodRewardRed",
+          "openKlotskiAwardUi"
+        ]
+      }
+    },
+    {
+      "name": "YMAbyssCtrl",
+      "hasGInst": true,
+      "methodCount": 47,
+      "sendMethods": [
+        "send32070",
+        "send32071",
+        "send32072",
+        "send32073"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "reward": [
+          "getPassRewardRed",
+          "openYMAbyssPassReward"
+        ]
+      }
+    },
+    {
+      "name": "YXPracticeCtrl",
+      "hasGInst": true,
+      "methodCount": 46,
+      "sendMethods": [
+        "send19520",
+        "send19521"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "openRecharge",
+          "openWHPracticeNewRechargeU"
+        ]
+      }
+    },
+    {
+      "name": "YsEctCtrl",
+      "hasGInst": true,
+      "methodCount": 71,
+      "sendMethods": [
+        "send20101",
+        "send20102",
+        "send20103",
+        "send20104",
+        "send20106",
+        "send20110",
+        "send20112"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "cYsAdvBuy"
+        ],
+        "reward": [
+          "countCanGetAward"
+        ]
+      }
+    },
+    {
+      "name": "YuWaiTreasureCtrl",
+      "hasGInst": true,
+      "methodCount": 40,
+      "sendMethods": [
+        "send19476",
+        "send19478"
+      ],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {}
+    },
+    {
+      "name": "YuanXiaoCtrl",
+      "hasGInst": true,
+      "methodCount": 34,
+      "sendMethods": [],
+      "onMethods": [],
+      "ctrlFlags": [],
+      "flaggedMethods": {
+        "purchase": [
+          "openRecharge"
+        ],
+        "reward": [
+          "checkTranGodRewardRed"
+        ]
+      }
+    }
+  ]
+}

@@ -34,15 +34,19 @@ Leave the watcher running while editing, then reload the extension and refresh t
 | `scripts/build-content.js` | Validates and concatenates the ordered source files into `content.js` |
 | `scripts/validate-content.js` | Syntax check only; does not write `content.js` |
 | `scripts/watch-content.js` | Rebuilds `content.js` when a source file changes |
-| `memory/game-controllers.md` | Snapshot of game controller names and safe inspection guidance |
-| `memory/game-js-files/main.min_eef72ae3.js` | Local-only copy of the game client's `main.min` bundle (see below). Not part of the extension |
+| `docs/README.md` | Index of the game-controller research docs; start here for lookups |
+| `docs/game-controllers.md` | Snapshot of game controller names and safe inspection guidance |
+| `docs/controllers/` | Generated per-controller notes (`INDEX.md` plus one file each); regenerate with `node scripts/describe-controllers.js` |
+| `docs/banner-heroes.md` | Banner hero controllers, roster and observed schedule |
+| `scripts/describe-controllers.js`, `scripts/bundle-method.js` | Generate the controller notes; print one method from the local bundle |
+| `docs/game-client/main.min_eef72ae3.js` | Local-only copy of the game client's `main.min` bundle (see below). Not part of the extension |
 
 ## Game client bundle (`main.min_eef72ae3.js`)
 
-`memory/game-js-files/main.min_eef72ae3.js` is the game's own minified bundle, loaded by the game frame from `https://tiennghich.acejoygame.com/vnmaster/js/` (see `memory/game-controllers.md`). It is proprietary game code kept locally only as a read-only reference for finding controller, method and network-call names.
+`docs/game-client/main.min_eef72ae3.js` is the game's own minified bundle, loaded by the game frame from `https://tiennghich.acejoygame.com/vnmaster/js/` (see `docs/game-controllers.md`). It is proprietary game code kept locally only as a read-only reference for finding controller, method and network-call names.
 
 - Search it for names only (for example with grep); do not call methods found there against the live game without checking what they send or spend.
-- Do not commit, copy into `src/`, or redistribute it. Add `memory/game-js-files/` to `.gitignore` if it is not already ignored.
+- Do not commit, copy into `src/`, or redistribute it. Add `docs/game-client/` to `.gitignore` if it is not already ignored.
 - It is a snapshot: the game can publish a new hashed file at any time, so names may change. Re-verify against the current client before relying on them.
 - The extension never loads this file. It only uses the live game's globals at runtime.
 
