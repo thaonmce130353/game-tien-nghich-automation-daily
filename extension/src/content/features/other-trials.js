@@ -1,25 +1,11 @@
 
-        // [Module 4] Cửu Uyển Nhi, Cổ Thần Địa, Cực Âm Địa
+        // [Module 4] Cửu Uyển Nhi, Cổ Thần Địa, Cực Âm Địa - chạy lần lượt, xong bước nào mới sang bước kế tiếp.
         function handleOtherTrials(ctx) {
             try {
-                // 1. Chiến Lệnh Uyển Nhi
-                if (ctx.UyenNhiCtrl && ctx.UyenNhiCtrl.gInst) {
-                    const un = ctx.UyenNhiCtrl.gInst();
-                    if (typeof un.claimRewards === 'function') un.claimRewards();
-                }
-                // 2. Cổ Thần Địa: Lên trận nhanh & khiêu chiến map
-                if (ctx.CoThanCtrl && ctx.CoThanCtrl.gInst) {
-                    const ct = ctx.CoThanCtrl.gInst();
-                    if (typeof ct.quickEmbattle === 'function') ct.quickEmbattle();
-                    if (typeof ct.challengeMap === 'function') {
-                        ct.challengeMap();
-                        sendLog("⚔️ [M4 - Cổ Thần Địa] Đã tự lên trận nhanh và khiêu chiến ải!", "action");
-                    }
-                }
-                const missing = ['UyenNhiCtrl', 'CoThanCtrl'].filter((name) => !ctx[name]);
-                if (missing.length) {
-                    logUnsupportedOnce('m4-missing', `ℹ️ [M4] Bản game không có ${missing.join(', ')}; bỏ qua phần Uyển Nhi/Cổ Thần, chỉ chạy Cực Âm Địa.`);
-                }
+                const uyenNhi = handleUyenNhi(ctx);
+                if (uyenNhi !== 'done') return uyenNhi === 'acted';
+                const coThan = handleCoThanDia(ctx);
+                if (coThan !== 'done') return coThan === 'acted';
                 // 3. Cực Âm Địa
                 return handleExtremeYin(ctx);
             } catch(e) { return false; }

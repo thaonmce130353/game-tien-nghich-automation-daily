@@ -170,7 +170,7 @@
                                     <label class="tn-opt-item" style="border-left: 3px solid #89b4fa;">
                                         <div>
                                             <div style="font-weight:bold; color:#89b4fa;">🛡️ [M3] Thủ Vệ Tứ Phái (Buff Cột Giữa)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Cử trợ trận, chọn bạn ủng hộ, tự click Buff cột giữa (x=225, y=490) & nhận Chiến Lệnh.</div>
+                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Mở Thủ Vệ Tứ Phái, xếp đội & Khiêu Chiến, sau mỗi trận chọn Buff ở giữa; hết lượt thì vào Chiến Lệnh nhận thưởng miễn phí.</div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoSectDefense" ${CONFIG.activeFeature === 'autoSectDefense' ? 'checked' : ''}>
                                     </label>
@@ -178,7 +178,7 @@
                                     <label class="tn-opt-item" style="border-left: 3px solid #94e2d5;">
                                         <div>
                                             <div style="font-weight:bold; color:#94e2d5;">⚔️ [M4] Cửu Uyển Nhi, Cổ Thần, Cực Âm</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Nhận Chiến Lệnh Uyển Nhi, Lên trận nhanh Cổ Thần Địa & Khiêu chiến Cực Âm Địa.</div>
+                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Cửu Uyển Nhi: bấm Quét nhanh khi khả dụng. Cổ Thần Địa: xếp tướng, đánh 4 ải quanh rồi ải giữa, dùng vật phẩm đặc biệt, nhận thưởng Diệt Thủ Hộ. Sau đó Cực Âm Địa.</div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoOtherTrials" ${CONFIG.activeFeature === 'autoOtherTrials' ? 'checked' : ''}>
                                     </label>

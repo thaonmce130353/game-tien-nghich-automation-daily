@@ -1,6 +1,7 @@
 
         let wasAutoRunning = false;
         const CUOI_NGAY_ACTION_INTERVAL_MS = 800;
+        const OTHER_TRIALS_ACTION_INTERVAL_MS = 600;
 
         function markActed(baseMs) {
             nextActionAt = Date.now() + humanDelay(baseMs);
@@ -73,9 +74,10 @@
 
             const now = Date.now();
             const active = CONFIG.activeFeature;
+            // Chuỗi thao tác dài, mỗi bước chờ xác nhận từ máy chủ: nhịp ngắn hơn (vẫn ngẫu nhiên).
             const actionInterval = active === 'autoCuoiNgay'
                 ? CUOI_NGAY_ACTION_INTERVAL_MS
-                : (CONFIG.intervalMs || 1200);
+                : (active === 'autoOtherTrials' ? OTHER_TRIALS_ACTION_INTERVAL_MS : (CONFIG.intervalMs || 1200));
             if (now < nextActionAt) return;
 
             isExecuting = true;
@@ -199,12 +201,12 @@
             }
         }
 
-        // Nhịp kiểm tra lệch ngẫu nhiên 650-1050ms thay vì đúng 800ms.
+        // Nhịp kiểm tra lệch ngẫu nhiên 450-750ms thay vì đúng một nhịp cố định.
         (function scheduleTick() {
             setTimeout(() => {
                 try { executeCycle(false); } catch (e) { }
                 scheduleTick();
-            }, 650 + Math.floor(Math.random() * 400));
+            }, 450 + Math.floor(Math.random() * 300));
         })();
     }
 })();

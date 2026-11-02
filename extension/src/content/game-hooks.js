@@ -41,6 +41,7 @@
                             t.type === n.dungeon ||
                             t.type === n.runningMan ||
                             t.type === n.ymAbyss ||
+                            t.type === n.adventure ||
                             (t.type >= n.singCamp_wei && t.type <= n.singCamp_qun)
                         )) || (tienMinhActive && (
                             t.type === n.guild ||
@@ -155,7 +156,9 @@
                     }
 
                     // Tiên Minh tự xử lý bảng đội hình trong daily-routines.js (có giới hạn và log riêng).
-                    if (CONFIG.activeFeature !== 'autoTienMinh' && vm.viewIsVisible && vm.viewIsVisible('embattleUi')) {
+                    // Thủ Vệ Tứ Phái cũng tự xử lý bảng đội hình của nó (sect-defense.js).
+                    if (CONFIG.activeFeature !== 'autoTienMinh' && CONFIG.activeFeature !== 'autoSectDefense' &&
+                        vm.viewIsVisible && vm.viewIsVisible('embattleUi')) {
                         const embUi = vm.getViewByName('embattleUi');
                         if (embUi) {
                             if (typeof embUi.oneKeyEmbattleLogic === 'function') embUi.oneKeyEmbattleLogic(0);

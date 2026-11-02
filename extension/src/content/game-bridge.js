@@ -8,12 +8,12 @@
         let lastPassedFloor = 0;
         let sweptDayKey = '';
 
-        // Nhịp thao tác giống người chơi: nghỉ ngẫu nhiên quanh nhịp gốc, thỉnh thoảng dừng lâu hơn
+        // Nhịp thao tác giống người chơi: nghỉ ngẫu nhiên quanh nhịp gốc, thỉnh thoảng (~5%) dừng lâu hơn
         // (thay cho nhịp cố định đều đặn dễ bị nhận ra).
         function humanDelay(baseMs) {
             const base = baseMs > 0 ? baseMs : 1200;
             let delay = base * (0.85 + Math.random() * 0.75);
-            if (Math.random() < 0.08) delay += 2500 + Math.random() * 5500;
+            if (Math.random() < 0.05) delay += 2000 + Math.random() * 3500;
             return Math.round(delay);
         }
 

@@ -31,6 +31,8 @@ const allSourceFiles = [
     'features/tower-and-tu-linh.js',
     'features/daily-and-bi-canh.js',
     'features/sect-defense.js',
+    'features/uyen-nhi.js',
+    'features/co-than-dia.js',
     'features/other-trials.js',
     'features/immortal-relic.js',
     'features/memory-minigame.js',
