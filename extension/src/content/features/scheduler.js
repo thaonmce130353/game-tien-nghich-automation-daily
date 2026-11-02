@@ -11,6 +11,18 @@
 
             if (CONFIG.running && !wasAutoRunning) {
                 wasAutoRunning = true;
+                if (CONFIG.activeFeature === 'autoTongTian' && CONFIG.towerDailyRoutine) {
+                    if (towerDailyState && towerDailyState.phase === 'done' && towerDailyState.failed &&
+                        towerDailyState.dayKey === new Date().toDateString()) {
+                        towerDailyState = null;
+                        sendLog("ℹ️ [M1 - Quét mỗi ngày] Lần chạy trước có bước chưa hoàn tất; bắt đầu lại và kiểm tra trạng thái game.", "info");
+                    } else if (towerDailyState && towerDailyState.phase === 'done' &&
+                        towerDailyState.dayKey === new Date().toDateString()) {
+                        sendLog("ℹ️ [M1 - Quét mỗi ngày] Hôm nay đã hoàn tất; không lặp lại, chỉ chạy bỏ qua Thông Thiên Tháp.", "info");
+                    } else {
+                        sendLog("ℹ️ [M1 - Quét mỗi ngày] Auto đã bắt đầu/khởi động lại; đang kiểm tra số lượt từ game trước khi quét.", "info");
+                    }
+                }
                 if (CONFIG.activeFeature === 'autoTamTienDai' &&
                     tamTienDaiState && tamTienDaiState.phase === 'done') {
                     sendLog("ℹ️ [M8 - Tâm Tiên Đài] Lượt xử lý hôm nay đã hoàn tất trước đó; không nhận hoặc mua lại quà.", "info");
@@ -21,11 +33,28 @@
                     sendLog("ℹ️ [M8 - Tiên Hữu] Tặng nhanh hôm nay đã hoàn tất; không gửi lại.", "info");
                 }
                 if (CONFIG.activeFeature === 'autoTienMinh') {
-                    if (tienMinhState && tienMinhState.phase === 'done' &&
+                    if (tienMinhState && tienMinhState.phase === 'done' && tienMinhState.failed &&
+                        tienMinhState.dayKey === new Date().toDateString()) {
+                        // Lần chạy trước có bước lỗi/chưa xác nhận: kiểm tra lại từ máy chủ (bước đã xong sẽ tự bỏ qua).
+                        tienMinhState = null;
+                        sendLog("ℹ️ [M8 - Tiên Minh] Lần chạy trước có bước chưa hoàn tất; bắt đầu lại và kiểm tra trạng thái game.", "info");
+                    } else if (tienMinhState && tienMinhState.phase === 'done' &&
                         tienMinhState.dayKey === new Date().toDateString()) {
                         sendLog("ℹ️ [M8 - Tiên Minh] Trạng thái hôm nay đã được kiểm tra; không lặp lại thao tác.", "info");
                     } else {
                         sendLog("ℹ️ [M8 - Tiên Minh] Auto đã bắt đầu/khởi động lại; đang kiểm tra trạng thái game trước khi tiếp tục.", "info");
+                    }
+                }
+                if (CONFIG.activeFeature === 'autoTroChien') {
+                    if (troChienState && troChienState.phase === 'done' && troChienState.failed &&
+                        troChienState.dayKey === new Date().toDateString()) {
+                        troChienState = null;
+                        sendLog("ℹ️ [M8 - Trợ Chiến] Lần chạy trước chưa hoàn tất; bắt đầu lại và kiểm tra trạng thái game.", "info");
+                    } else if (troChienState && troChienState.phase === 'done' &&
+                        troChienState.dayKey === new Date().toDateString()) {
+                        sendLog("ℹ️ [M8 - Trợ Chiến] Hôm nay đã kiểm tra/nhận; không gửi lại thao tác.", "info");
+                    } else {
+                        sendLog("ℹ️ [M8 - Trợ Chiến] Auto đã bắt đầu/khởi động lại; đang kiểm tra trạng thái game trước khi nhận.", "info");
                     }
                 }
                 if (CONFIG.activeFeature === 'autoCuoiNgay') {
@@ -51,7 +80,7 @@
                 if (!ctx.DailyDungeonCtrl && !ctx.TowerCtrl && !ctx.CampCtrl && !ctx.WJCtrl &&
                     !ctx.GodWeaponCtrl && !ctx.HangupCtrl && !ctx.WelfareCtrl && !ctx.RecruitCtrl &&
                     !ctx.FriendCtrl && !ctx.EmailCtrl && !ctx.RankCtrl && !ctx.AcvCtrl &&
-                    !ctx.GuildCtrl && !ctx.GldWrCtrl &&
+                    !ctx.GuildCtrl && !ctx.GldWrCtrl && !ctx.SpiritAnimalCtrl &&
                     CONFIG.activeFeature !== 'autoTienMinh') return;
 
                 sendRoleInfo();

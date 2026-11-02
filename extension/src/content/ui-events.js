@@ -96,6 +96,33 @@
                 }
             });
 
+            const towerDailyEl = document.getElementById('tn-opt-tower-daily');
+            function setTowerDailyRoutine(enabled) {
+                CONFIG.towerDailyRoutine = enabled;
+                if (towerDailyEl) towerDailyEl.checked = enabled;
+            }
+            // Tùy chọn con chỉ bật khi M1 đang là chức năng chính.
+            if (CONFIG.activeFeature !== 'autoTongTian') setTowerDailyRoutine(false);
+            else if (towerDailyEl) towerDailyEl.checked = Boolean(CONFIG.towerDailyRoutine);
+
+            if (towerDailyEl) {
+                towerDailyEl.addEventListener('change', (e) => {
+                    if (CONFIG.activeFeature !== 'autoTongTian') {
+                        e.target.checked = false;
+                        return;
+                    }
+                    CONFIG.towerDailyRoutine = e.target.checked;
+                    saveConfig();
+                    sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
+                    addLogToUI(
+                        CONFIG.towerDailyRoutine
+                            ? "🟢 Đã bật Nhận thưởng và Quét ải mỗi ngày (Thông Thiên & Tứ Linh)."
+                            : "⏸️ Đã tắt Nhận thưởng và Quét ải mỗi ngày; chỉ chạy bỏ qua Thông Thiên Tháp.",
+                        "info"
+                    );
+                });
+            }
+
             mutexCheckboxes.forEach(cb => {
                 cb.addEventListener('change', (e) => {
                     const key = cb.dataset.key;
@@ -109,6 +136,7 @@
                             const buyTamTienGiftsEl = document.getElementById('tn-opt-buy-tam-tien-gifts');
                             if (buyTamTienGiftsEl) buyTamTienGiftsEl.checked = false;
                         }
+                        setTowerDailyRoutine(key === 'autoTongTian');
                         // Tắt tất cả các chức năng chính khác
                         mutexCheckboxes.forEach(other => {
                             if (other !== cb) other.checked = false;
@@ -128,6 +156,7 @@
                             const buyTamTienGiftsEl = document.getElementById('tn-opt-buy-tam-tien-gifts');
                             if (buyTamTienGiftsEl) buyTamTienGiftsEl.checked = false;
                         }
+                        if (key === 'autoTongTian') setTowerDailyRoutine(false);
                         if (CONFIG.activeFeature === key) CONFIG.activeFeature = null;
                         saveConfig();
                         sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
@@ -181,6 +210,18 @@
                     const limit = Number(input.value);
                     CONFIG.arenaBattleLimit = Number.isInteger(limit) && limit >= 1 ? limit : 5;
                     input.value = String(CONFIG.arenaBattleLimit);
+                    saveConfig();
+                    sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
+                });
+            }
+
+            const tienMinhDungeonLimitEl = document.getElementById('tn-opt-tien-minh-dungeon-limit');
+            if (tienMinhDungeonLimitEl) {
+                tienMinhDungeonLimitEl.addEventListener('change', (e) => {
+                    const input = e.target;
+                    const limit = Number(input.value);
+                    CONFIG.tienMinhDungeonLimit = Number.isInteger(limit) && limit >= 1 && limit <= 6 ? limit : 3;
+                    input.value = String(CONFIG.tienMinhDungeonLimit);
                     saveConfig();
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                 });

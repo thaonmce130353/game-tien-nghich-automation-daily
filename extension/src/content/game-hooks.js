@@ -33,15 +33,20 @@
 
             const origRecvFightFrame = fcProto.recvFightFrame;
             fcProto.recvFightFrame = function (t) {
-                if (CONFIG.autoSkipFight && t) {
+                const tienMinhActive = CONFIG.running && CONFIG.activeFeature === 'autoTienMinh';
+                if ((CONFIG.autoSkipFight || tienMinhActive) && t) {
                     const n = ctx.FightConst && ctx.FightConst.ERoundFightType;
                     if (n) {
-                        const isSkippable = (
+                        const isSkippable = (CONFIG.autoSkipFight && (
                             t.type === n.dungeon ||
                             t.type === n.runningMan ||
                             t.type === n.ymAbyss ||
                             (t.type >= n.singCamp_wei && t.type <= n.singCamp_qun)
-                        );
+                        )) || (tienMinhActive && (
+                            t.type === n.guild ||
+                            t.type === n.gldWr ||
+                            t.type === n.guildAsked
+                        ));
                         if (isSkippable) {
                             const showed = this.executeShowRoundFight(t, true);
                             if (showed) {
@@ -143,7 +148,8 @@
                         }
                     }
 
-                    if (vm.viewIsVisible && vm.viewIsVisible('embattleUi')) {
+                    // Tiên Minh tự xử lý bảng đội hình trong daily-routines.js (có giới hạn và log riêng).
+                    if (CONFIG.activeFeature !== 'autoTienMinh' && vm.viewIsVisible && vm.viewIsVisible('embattleUi')) {
                         const embUi = vm.getViewByName('embattleUi');
                         if (embUi) {
                             if (typeof embUi.oneKeyEmbattleLogic === 'function') embUi.oneKeyEmbattleLogic(0);

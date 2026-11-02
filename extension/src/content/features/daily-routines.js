@@ -7,11 +7,18 @@
         const TIEN_HUU_REQUEST_TIMEOUT_MS = 20000;
         const CUOI_NGAY_REQUEST_TIMEOUT_MS = 20000;
         const TIEN_MINH_REQUEST_TIMEOUT_MS = 20000;
+        const TIEN_MINH_DUNGEON_FIGHT_TIMEOUT_MS = 30000;
+        const TIEN_MINH_FIGHT_MAX_WAIT_MS = 90000;
+        const TIEN_MINH_DUNGEON_MAX_BUYS = 4;
+        const TIEN_MINH_ASKED_FIGHTS = 2;
         let tamTienDaiState = null;
         let tienHuuState = null;
         let cuoiNgayState = null;
         let tienMinhState = null;
         let tienMinhControllerUnavailableLogged = false;
+        const TRO_CHIEN_REQUEST_TIMEOUT_MS = 20000;
+        let troChienState = null;
+        let troChienControllerUnavailableLogged = false;
         let lastDailyRoutineError = '';
 
         function createCuoiNgayState(emailCtrl, rankCtrl, acvCtrl) {
@@ -882,11 +889,12 @@
                 skippedSteps: 0,
                 logged: new Set(),
                 bargain: { opened: false, step: 'open', pending: null },
+                fightingSince: 0,
                 dungeon: {
-                    opened: false,
-                    initialized: false,
-                    freeBattlesRemaining: 0,
-                    paidFightAvailable: false,
+                    stage: 'open',
+                    refreshing: null,
+                    fightsDone: 0,
+                    attempts: 0,
                     pending: null
                 },
                 war: {
@@ -897,17 +905,19 @@
                     requested: false,
                     requestStartedAt: 0,
                     pending: null,
+                    fightsDone: 0,
                     city: null,
                     targetType: null
                 },
-                asked: { opened: false, count: 0, pending: null },
+                asked: { checked: false, loading: null, count: 0, pending: null },
                 help: {
                     opened: false,
-                    slotIndex: 0,
-                    selectingSlot: 0,
-                    usedCategoryIds: new Set(),
                     pending: null,
-                    helping: false
+                    boxFailed: false,
+                    boxesLogged: false,
+                    attempted: new Set(),
+                    assisted: 0,
+                    assistRejected: 0
                 },
                 fete: { opened: false, pending: null, closeAttempted: false }
             };
@@ -1000,13 +1010,12 @@
             }
 
             if (bargain.step === 'open') {
-                if (typeof gc.openGuildTreasureUi !== 'function' ||
-                    typeof gc.send18070 !== 'function') {
+                if (typeof gc.send18070 !== 'function') {
                     failTienMinhStep(state, 'bargain-api', 'API mở Shop Tiên Giới/kiểm tra Trả Giá chưa sẵn sàng.', 'dungeon');
                     return true;
                 }
                 try {
-                    gc.openGuildTreasureUi();
+                    // Chỉ tải dữ liệu Trả Giá; openGuildTreasureUi() sẽ mở nhầm tab Rèn.
                     gc.send18070();
                     bargain.pending = {
                         kind: 'load',
@@ -1111,121 +1120,137 @@
             return hall && hall.viewDict && hall.viewDict['1'];
         }
 
-        function sendTienMinhDungeonFight(ctx, state, kind, now, data) {
-            const gc = state.guildCtrl;
-            const dungeonView = getTienMinhDungeonView(ctx);
-            const dungeonId = Number(dungeonView && dungeonView.guildDungeonCurId);
-            if (!Number.isFinite(dungeonId) || dungeonId <= 0 ||
-                typeof gc.saveGuildDungeonFightData !== 'function' ||
-                typeof gc.send18053Msg !== 'function') {
-                failTienMinhStep(state, `dungeon-${kind}-api`, 'Không tìm thấy API hoặc ải Bí Cảnh Tông Môn hợp lệ để Khiêu Chiến.', 'war');
-                return;
-            }
-            const beforeFightCount = Number(data.fight_count);
-            state.dungeon.pending = {
-                kind,
-                beforeFightCount,
-                startedAt: now
-            };
-            try {
-                gc.saveGuildDungeonFightData(dungeonId);
-                gc.send18053Msg(dungeonId);
-            } catch (error) {
-                state.dungeon.pending = null;
-                failTienMinhStep(state, `dungeon-${kind}-error`, `Không thể Khiêu Chiến Bí Cảnh Tông Môn: ${error.message || error}`, 'war');
-            }
+        function getTienMinhDungeonLimit() {
+            const limit = Number(CONFIG.tienMinhDungeonLimit);
+            return Number.isInteger(limit) && limit >= 1 ? Math.min(limit, 6) : 3;
+        }
+
+        function getTienMinhDungeonCurId(ctx, gc) {
+            const modelId = Number(gc.m_curModel && gc.m_curModel.guildDungeonCurId);
+            if (Number.isFinite(modelId) && modelId > 0) return modelId;
+            const view = getTienMinhDungeonView(ctx);
+            return Number(view && view.guildDungeonCurId);
         }
 
         function handleTienMinhDungeon(ctx, state, now) {
             const gc = state.guildCtrl;
             const dungeon = state.dungeon;
-            const data = gc.m_curModel && gc.m_curModel.scmd18052Data;
+            const model = gc.m_curModel;
+            const data = model && model.scmd18052Data;
+            const limit = getTienMinhDungeonLimit();
+
+            if (!model || typeof gc.send18052Msg !== 'function' ||
+                typeof gc.send18050Msg !== 'function' ||
+                typeof gc.openGuildDungeonUi !== 'function') {
+                failTienMinhStep(state, 'dungeon-open-api', 'API Bí Cảnh Tông Môn chưa sẵn sàng.', 'war');
+                return true;
+            }
 
             if (dungeon.pending) {
                 const pending = dungeon.pending;
                 const fightCount = Number(data && data.fight_count);
                 const buyCount = Number(data && data.buy_count);
-                const confirmed = pending.kind === 'buy'
-                    ? Number.isFinite(buyCount) && buyCount > pending.beforeBuyCount
-                    : Number.isFinite(fightCount) && fightCount > pending.beforeFightCount;
-                if (confirmed) {
-                    dungeon.pending = null;
-                    state.confirmedActions++;
-                    if (pending.kind === 'buy') {
-                        dungeon.paidFightAvailable = true;
-                        logTienMinh(state, 'dungeon-buy-confirmed', "✅ [M8 - Tiên Minh - Bí Cảnh Tông Môn] Máy chủ xác nhận đã mua thêm 1 lượt với giá 20 Tiên Ngọc.", "action");
-                    } else if (pending.kind === 'paid-fight') {
-                        logTienMinh(state, 'dungeon-paid-confirmed', "✅ [M8 - Tiên Minh - Bí Cảnh Tông Môn] Máy chủ xác nhận trận Khiêu Chiến trả phí.", "action");
-                        state.phase = 'war';
-                    } else {
-                        dungeon.freeBattlesRemaining--;
-                        logTienMinh(state, `dungeon-free-${dungeon.freeBattlesRemaining}`, `✅ [M8 - Tiên Minh - Bí Cảnh Tông Môn] Máy chủ xác nhận lượt miễn phí; còn ${dungeon.freeBattlesRemaining} lượt miễn phí trong kế hoạch.`, "action");
+                if (pending.kind === 'buy') {
+                    if (Number.isFinite(buyCount) && buyCount > pending.beforeBuyCount) {
+                        dungeon.pending = null;
+                        state.confirmedActions++;
+                        logTienMinh(state, `dungeon-buy-${buyCount}`, `✅ [M8 - Tiên Minh - Bí Cảnh Tông Môn] Máy chủ xác nhận đã mua thêm 1 lượt với giá 20 Tiên Ngọc (${buyCount} lượt đã mua).`, "action");
+                        dungeon.stage = 'decide';
+                    } else if (now - pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
+                        dungeon.pending = null;
+                        failTienMinhStep(state, 'dungeon-buy-timeout', 'Máy chủ chưa xác nhận mua thêm lượt Bí Cảnh Tông Môn; không gửi lại để tránh mua trùng.', 'war');
                     }
-                } else if (now - pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
-                    failTienMinhStep(
-                        state,
-                        `dungeon-${pending.kind}-timeout`,
-                        `Máy chủ chưa xác nhận ${pending.kind === 'buy' ? 'mua thêm lượt' : 'trận Khiêu Chiến'} Bí Cảnh Tông Môn; không gửi lại để tránh lặp trận hoặc mua trùng.`,
-                        'war'
-                    );
+                    return true;
+                }
+                if (Number.isFinite(fightCount) && fightCount > pending.beforeFightCount) {
+                    dungeon.pending = null;
+                    dungeon.fightsDone++;
+                    state.confirmedActions++;
+                    logTienMinh(state, `dungeon-fight-${fightCount}`, `✅ [M8 - Tiên Minh - Bí Cảnh Tông Môn] Máy chủ xác nhận trận ${fightCount}/${limit}.`, "action");
+                    dungeon.stage = 'decide';
+                } else if (now - pending.startedAt >= TIEN_MINH_DUNGEON_FIGHT_TIMEOUT_MS) {
+                    dungeon.pending = null;
+                    failTienMinhStep(state, 'dungeon-fight-timeout', 'Máy chủ chưa xác nhận trận Bí Cảnh Tông Môn; không gửi lại để tránh lặp trận.', 'war');
+                } else if (now - pending.startedAt >= 3000 && now - pending.lastRefreshAt >= 2000) {
+                    // Số trận chỉ cập nhật khi tải lại dữ liệu sau khi trận kết thúc.
+                    pending.lastRefreshAt = now;
+                    try {
+                        gc.send18052Msg();
+                    } catch (error) {
+                        // Lần kiểm tra kế tiếp sẽ thử lại cho tới khi hết thời gian chờ.
+                    }
                 }
                 return true;
             }
 
-            if (!dungeon.opened) {
-                if (typeof gc.openGuildDungeonUi !== 'function') {
-                    failTienMinhStep(state, 'dungeon-open-api', 'API mở Bí Cảnh Tông Môn chưa sẵn sàng.', 'war');
-                    return true;
-                }
+            if (dungeon.stage === 'open') {
                 try {
                     gc.openGuildDungeonUi();
-                    dungeon.opened = true;
-                    dungeon.openedAt = now;
                 } catch (error) {
                     failTienMinhStep(state, 'dungeon-open-error', `Không thể mở Bí Cảnh Tông Môn: ${error.message || error}`, 'war');
                     return true;
                 }
+                dungeon.stage = 'refresh';
                 return true;
             }
 
-            const fightCount = Number(data && data.fight_count);
-            const maxCount = Number(data && data.max_count);
-            const buyCount = Number(data && data.buy_count);
-            if (!data || !Number.isFinite(fightCount) || !Number.isFinite(maxCount) ||
-                !Number.isFinite(buyCount)) {
-                if (now - dungeon.openedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
+            if (dungeon.stage === 'refresh') {
+                if (!dungeon.refreshing) {
+                    dungeon.refreshing = { dataRef: data, startedAt: now };
+                    try {
+                        gc.send18050Msg();
+                        gc.send18052Msg();
+                    } catch (error) {
+                        dungeon.refreshing = null;
+                        failTienMinhStep(state, 'dungeon-refresh-error', `Không thể tải trạng thái Bí Cảnh Tông Môn: ${error.message || error}`, 'war');
+                    }
+                    return true;
+                }
+                if (data && data !== dungeon.refreshing.dataRef) {
+                    dungeon.refreshing = null;
+                    dungeon.stage = 'decide';
+                } else if (now - dungeon.refreshing.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
+                    dungeon.refreshing = null;
                     failTienMinhStep(state, 'dungeon-state-timeout', 'Không tải được trạng thái lượt Bí Cảnh Tông Môn từ máy chủ.', 'war');
                 }
                 return true;
             }
 
-            if (!dungeon.initialized) {
-                dungeon.initialized = true;
-                dungeon.freeBattlesRemaining = Math.max(0, maxCount - fightCount);
-                if (dungeon.freeBattlesRemaining === 0) {
-                    skipTienMinhStep(state, 'dungeon-no-free-turns', 'Bí Cảnh Tông Môn đã hết lượt còn; không mua hoặc Khiêu Chiến thêm.', 'war');
-                    return true;
-                }
-            }
-
-            if (dungeon.freeBattlesRemaining > 0) {
-                sendTienMinhDungeonFight(ctx, state, 'free-fight', now, data);
+            // stage === 'decide'
+            const fightCount = Number(data && data.fight_count);
+            const maxCount = Number(data && data.max_count);
+            const buyCount = Number(data && data.buy_count);
+            if (!data || !Number.isFinite(fightCount) || !Number.isFinite(maxCount) ||
+                !Number.isFinite(buyCount)) {
+                failTienMinhStep(state, 'dungeon-state', 'Không đọc được số lượt Bí Cảnh Tông Môn.', 'war');
                 return true;
             }
 
-            if (!dungeon.paidFightAvailable) {
-                if (buyCount > 0) {
-                    skipTienMinhStep(state, 'dungeon-paid-already-used', 'Đã có lượt Bí Cảnh mua thêm; không mua thêm lần nữa.', 'war');
-                    return true;
+            if (fightCount >= limit) {
+                if (dungeon.fightsDone > 0) {
+                    logTienMinh(state, 'dungeon-limit-reached', `✅ [M8 - Tiên Minh - Bí Cảnh Tông Môn] Đã hoàn thành ${fightCount}/${limit} trận trong ngày.`, "action");
+                    state.phase = 'war';
+                } else {
+                    skipTienMinhStep(state, 'dungeon-limit-already', `Bí Cảnh Tông Môn đã đánh ${fightCount}/${limit} trận; không đánh thêm.`, 'war');
                 }
-                if (typeof gc.getDungeonBuyLoss !== 'function' ||
+                return true;
+            }
+            if (dungeon.attempts >= 8) {
+                failTienMinhStep(state, 'dungeon-attempts', 'Bí Cảnh Tông Môn vượt quá số lần thử trong một lượt chạy; dừng để tránh lặp.', 'war');
+                return true;
+            }
+
+            if (maxCount - fightCount <= 0) {
+                // Hết lượt miễn phí/đã mua: chỉ mua thêm khi giá đúng 20 Tiên Ngọc.
+                if (buyCount >= TIEN_MINH_DUNGEON_MAX_BUYS ||
+                    typeof model.getDungeonBuyLoss !== 'function' ||
                     typeof gc.send18057Msg !== 'function') {
-                    failTienMinhStep(state, 'dungeon-buy-api', 'API kiểm tra giá/mua lượt Bí Cảnh chưa sẵn sàng.', 'war');
+                    skipTienMinhStep(state, 'dungeon-no-more-turns', `Bí Cảnh Tông Môn hết lượt (${fightCount}/${limit}); không thể mua thêm.`, 'war');
                     return true;
                 }
                 let cost;
                 try {
-                    cost = Number(gc.getDungeonBuyLoss());
+                    cost = Number(model.getDungeonBuyLoss(buyCount));
                 } catch (error) {
                     failTienMinhStep(state, 'dungeon-buy-cost-error', `Không thể kiểm tra giá mua lượt Bí Cảnh: ${error.message || error}`, 'war');
                     return true;
@@ -1234,11 +1259,8 @@
                     skipTienMinhStep(state, 'dungeon-buy-cost', `Giá mua lượt Bí Cảnh hiện là ${Number.isFinite(cost) ? cost : 'không xác định'} Tiên Ngọc, không phải 20; không mua.`, 'war');
                     return true;
                 }
-                dungeon.pending = {
-                    kind: 'buy',
-                    beforeBuyCount: buyCount,
-                    startedAt: now
-                };
+                dungeon.attempts++;
+                dungeon.pending = { kind: 'buy', beforeBuyCount: buyCount, startedAt: now };
                 try {
                     gc.send18057Msg(1);
                 } catch (error) {
@@ -1248,7 +1270,27 @@
                 return true;
             }
 
-            sendTienMinhDungeonFight(ctx, state, 'paid-fight', now, data);
+            const dungeonId = getTienMinhDungeonCurId(ctx, gc);
+            if (!Number.isFinite(dungeonId) || dungeonId <= 0 ||
+                typeof gc.saveGuildDungeonFightData !== 'function' ||
+                typeof gc.send18053Msg !== 'function') {
+                failTienMinhStep(state, 'dungeon-fight-api', 'Không tìm thấy API hoặc ải Bí Cảnh Tông Môn hợp lệ để Khiêu Chiến.', 'war');
+                return true;
+            }
+            dungeon.attempts++;
+            dungeon.pending = {
+                kind: 'fight',
+                beforeFightCount: fightCount,
+                startedAt: now,
+                lastRefreshAt: 0
+            };
+            try {
+                gc.saveGuildDungeonFightData(dungeonId);
+                gc.send18053Msg(dungeonId);
+            } catch (error) {
+                dungeon.pending = null;
+                failTienMinhStep(state, 'dungeon-fight-error', `Không thể Khiêu Chiến Bí Cảnh Tông Môn: ${error.message || error}`, 'war');
+            }
             return true;
         }
 
@@ -1273,16 +1315,6 @@
                 guildId &&
                 Number(guildId.m_highInt) === 0 &&
                 Number(guildId.m_lowInt) === 0;
-        }
-
-        function isTienMinhOtherGuildCity(city) {
-            const guildId = city && city.gldId;
-            const cityId = Number(city && city.cityId);
-            const high = Number(guildId && guildId.m_highInt);
-            const low = Number(guildId && guildId.m_lowInt);
-            return Number.isFinite(cityId) && cityId > 0 &&
-                Number.isFinite(high) && Number.isFinite(low) &&
-                (high !== 0 || low !== 0);
         }
 
         function handleTienMinhWar(state, now, ctx) {
@@ -1351,18 +1383,38 @@
                         : state.war.targetType === 'neutral'
                             ? 'thành trung lập'
                             : 'thành trì đang chiếm';
-                    logTienMinh(state, `war-fight-${Number(base.doneNums)}`, `✅ [M8 - Tiên Minh - Tỉ Thí Tông Môn] Máy chủ xác nhận lượt Khiêu Chiến tại ${targetType}.`, "action");
+                    logTienMinh(state, `war-fight-${Number(base.doneNums)}`, `✅ [M8 - Tiên Minh - Tỉ Thí Tông Môn] Máy chủ xác nhận lượt Khiêu Chiến ${Number(base.doneNums)}/${maxCount} tại ${targetType}.`, "action");
+                    state.war.fightsDone++;
+                    // Chọn lại mục tiêu ngẫu nhiên cho lượt kế tiếp.
+                    state.war.city = null;
+                    state.war.cityIndex = null;
                     return true;
                 } else if (now - pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
+                    state.war.pending = null;
                     failTienMinhStep(state, 'war-fight-timeout', 'Máy chủ chưa xác nhận lượt Tỉ Thí Tông Môn; không gửi lại để tránh lặp trận.', 'asked');
                     return true;
                 } else {
+                    // Số lượt chỉ cập nhật khi tải lại dữ liệu sau khi trận kết thúc.
+                    if (now - pending.startedAt >= 3000 && now - pending.lastRefreshAt >= 2000 &&
+                        typeof wr.send18125 === 'function') {
+                        pending.lastRefreshAt = now;
+                        try {
+                            wr.send18125();
+                        } catch (error) {
+                            // Lần kiểm tra kế tiếp sẽ thử lại cho tới khi hết thời gian chờ.
+                        }
+                    }
                     return true;
                 }
             }
 
             if (doneCount >= maxCount) {
-                skipTienMinhStep(state, 'war-no-turns', 'Tỉ Thí Tông Môn đã hết lượt Khiêu Chiến trong ngày.', 'asked');
+                if (state.war.fightsDone > 0) {
+                    logTienMinh(state, 'war-limit-reached', `✅ [M8 - Tiên Minh - Tỉ Thí Tông Môn] Đã hoàn thành ${doneCount}/${maxCount} lượt Khiêu Chiến trong ngày.`, "action");
+                    state.phase = 'asked';
+                } else {
+                    skipTienMinhStep(state, 'war-no-turns', 'Tỉ Thí Tông Môn đã hết lượt Khiêu Chiến trong ngày.', 'asked');
+                }
                 return true;
             }
 
@@ -1390,37 +1442,22 @@
             }
 
             if (!state.war.city) {
-                const cityIndex = cities.findIndex((city) => city &&
-                    (city.isSelf === true || Number(city.isSelf) === 1));
-                if (cityIndex < 0) {
-                    const availableCities = cities
-                        .map((city, index) => ({ city, index }))
-                        .filter(({ city }) => isTienMinhNeutralCity(city));
-                    if (availableCities.length > 0) {
-                        const selected = availableCities[Math.floor(Math.random() * availableCities.length)];
-                        state.war.city = selected.city;
-                        state.war.cityIndex = selected.index;
-                        state.war.targetType = 'neutral';
-                        logTienMinh(state, 'war-neutral-city-selected', `ℹ️ [M8 - Tiên Minh - Tỉ Thí Tông Môn] Không có thành trì do Tông Môn chiếm; chọn ngẫu nhiên thành trung lập ${selected.city.cityId}.`, "info");
-                    } else {
-                        const otherGuildCities = cities
-                            .map((city, index) => ({ city, index }))
-                            .filter(({ city }) => isTienMinhOtherGuildCity(city));
-                        if (otherGuildCities.length === 0) {
-                            skipTienMinhStep(state, 'war-no-target-city', 'Tông Môn không chiếm thành và bản đồ không có thành trung lập hoặc thành của Tông Môn khác để Tỉ Thí.', 'asked');
-                            return true;
-                        }
-                        const selected = otherGuildCities[Math.floor(Math.random() * otherGuildCities.length)];
-                        state.war.city = selected.city;
-                        state.war.cityIndex = selected.index;
-                        state.war.targetType = 'other';
-                        logTienMinh(state, 'war-other-guild-city-selected', `ℹ️ [M8 - Tiên Minh - Tỉ Thí Tông Môn] Không có thành trì do Tông Môn chiếm hoặc thành trung lập; chọn ngẫu nhiên thành ${selected.city.cityId} của Tông Môn khác.`, "info");
-                    }
-                } else {
-                    state.war.city = cities[cityIndex];
-                    state.war.cityIndex = cityIndex;
-                    state.war.targetType = 'owned';
+                // Mỗi lượt chọn ngẫu nhiên một thành trì hợp lệ trên bản đồ.
+                const candidates = cities
+                    .map((city, index) => ({ city, index }))
+                    .filter(({ city }) => city && Number.isFinite(Number(city.cityId)) && Number(city.cityId) > 0);
+                if (candidates.length === 0) {
+                    skipTienMinhStep(state, 'war-no-target-city', 'Bản đồ Tỉ Thí không có thành trì hợp lệ để Khiêu Chiến.', 'asked');
+                    return true;
                 }
+                const selected = candidates[Math.floor(Math.random() * candidates.length)];
+                state.war.city = selected.city;
+                state.war.cityIndex = selected.index;
+                state.war.targetType = (selected.city.isSelf === true || Number(selected.city.isSelf) === 1)
+                    ? 'owned'
+                    : isTienMinhNeutralCity(selected.city)
+                        ? 'neutral'
+                        : 'other';
             }
 
             if (typeof wr.showFightUi !== 'function' ||
@@ -1436,7 +1473,8 @@
             }
             state.war.pending = {
                 beforeCount: doneCount,
-                startedAt: now
+                startedAt: now,
+                lastRefreshAt: 0
             };
             try {
                 wr.cityIdx = state.war.cityIndex;
@@ -1449,26 +1487,39 @@
             return true;
         }
 
-        function getTienMinhAskedSignature(data) {
-            if (!data) return '';
-            return JSON.stringify([
-                data.is_active,
-                data.damage,
-                data.guild_damage,
-                data.tar_guild_damage,
-                Array.isArray(data.damage_award_ids) ? data.damage_award_ids.length : -1
-            ]);
-        }
-
-        function handleTienMinhAsked(state, now) {
+        function handleTienMinhAsked(ctx, state, now) {
             const gc = state.guildCtrl;
             const asked = state.asked;
             const model = gc.m_curModel;
-            const data = gc.m_curModel && gc.m_curModel.scmd18140Data;
-            if (!asked.opened && model && typeof model.getAskedIsOpen === 'function') {
+            if (!model || typeof model.getAskedIsOpen !== 'function' ||
+                typeof gc.send18140 !== 'function' ||
+                typeof gc.canJoinAskedUi !== 'function') {
+                failTienMinhStep(state, 'asked-api', 'API kiểm tra/Khiêu Chiến Tông Môn Vấn Đạo chưa sẵn sàng.', 'help');
+                return true;
+            }
+
+            if (asked.pending) {
+                const pending = asked.pending;
+                if (model.scmd18144Data !== pending.resultRef) {
+                    asked.pending = null;
+                    asked.count++;
+                    state.confirmedActions++;
+                    logTienMinh(state, `asked-fight-${asked.count}`, `✅ [M8 - Tiên Minh - Tông Môn Vấn Đạo] Máy chủ xác nhận lượt Khiêu Chiến ${asked.count}/${TIEN_MINH_ASKED_FIGHTS}.`, "action");
+                } else if (now - pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
+                    asked.pending = null;
+                    failTienMinhStep(state, 'asked-fight-timeout', 'Máy chủ chưa xác nhận trận Tông Môn Vấn Đạo; không gửi lại để tránh lặp trận.', 'help');
+                }
+                return true;
+            }
+
+            if (!asked.checked) {
                 let isOpenToday;
+                let residueSeconds = 0;
                 try {
                     isOpenToday = model.getAskedIsOpen();
+                    if (isOpenToday && typeof model.getAskedMatchResidueTime === 'function') {
+                        residueSeconds = Number(model.getAskedMatchResidueTime()) || 0;
+                    }
                 } catch (error) {
                     failTienMinhStep(state, 'asked-schedule-state', `Không thể kiểm tra lịch mở Tông Môn Vấn Đạo: ${error.message || error}`, 'help');
                     return true;
@@ -1477,84 +1528,68 @@
                     skipTienMinhStep(state, 'asked-not-scheduled', 'Tông Môn Vấn Đạo không mở theo lịch hôm nay; bỏ qua.', 'help');
                     return true;
                 }
-            }
-            if (asked.pending) {
-                const pending = asked.pending;
-                const currentData = gc.m_curModel && gc.m_curModel.scmd18140Data;
-                if (getTienMinhAskedSignature(currentData) !== pending.signature) {
-                    asked.pending = null;
-                    asked.count++;
-                    state.confirmedActions++;
-                    logTienMinh(state, `asked-fight-${asked.count}`, `✅ [M8 - Tiên Minh - Tông Môn Vấn Đạo] Máy chủ xác nhận lượt Khiêu Chiến ${asked.count}/2.`, "action");
-                    return true;
-                } else if (now - pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
-                    failTienMinhStep(state, 'asked-fight-timeout', 'Máy chủ chưa xác nhận trận Tông Môn Vấn Đạo; không gửi lại để tránh lặp trận.', 'help');
-                    return true;
-                } else {
+                if (residueSeconds > 0) {
+                    skipTienMinhStep(state, 'asked-matching', `Tông Môn Vấn Đạo đang ghép đối thủ (còn ${Math.ceil(residueSeconds / 60)} phút); bỏ qua lượt này.`, 'help');
                     return true;
                 }
-            }
-
-            if (!asked.opened) {
-                if (typeof gc.openGuildAskedUi !== 'function') {
-                    failTienMinhStep(state, 'asked-open-api', 'API mở Tông Môn Vấn Đạo chưa sẵn sàng.', 'help');
-                    return true;
-                }
+                asked.checked = true;
+                asked.loading = { dataRef: model.scmd18140Data, startedAt: now };
                 try {
-                    gc.openGuildAskedUi();
-                    asked.opened = true;
-                    asked.openedAt = now;
+                    gc.send18140(1);
                 } catch (error) {
-                    failTienMinhStep(state, 'asked-open-error', `Không thể mở Tông Môn Vấn Đạo: ${error.message || error}`, 'help');
+                    asked.loading = null;
+                    failTienMinhStep(state, 'asked-open-error', `Không thể tải trạng thái Tông Môn Vấn Đạo: ${error.message || error}`, 'help');
                 }
                 return true;
+            }
+            if (asked.loading) {
+                if (model.scmd18140Data !== asked.loading.dataRef) {
+                    asked.loading = null;
+                } else {
+                    if (now - asked.loading.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
+                        asked.loading = null;
+                        failTienMinhStep(state, 'asked-state-timeout', 'Không tải được trạng thái Tông Môn Vấn Đạo từ máy chủ.', 'help');
+                    }
+                    return true;
+                }
             }
 
-            if (!data || !Number.isFinite(Number(data.is_active))) {
-                if (now - asked.openedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
-                    failTienMinhStep(state, 'asked-state-timeout', 'Không tải được trạng thái Tông Môn Vấn Đạo từ máy chủ.', 'help');
-                }
-                return true;
-            }
-            if (Number(data.is_active) !== 1) {
-                if (now - asked.openedAt < 1500) return true;
-                skipTienMinhStep(state, 'asked-inactive', 'Tông Môn Vấn Đạo hiện không mở; bỏ qua.', 'help');
-                return true;
-            }
-            if (asked.count >= 2) {
+            if (asked.count >= TIEN_MINH_ASKED_FIGHTS) {
+                logTienMinh(state, 'asked-done', `ℹ️ [M8 - Tiên Minh - Tông Môn Vấn Đạo] Đã hoàn thành ${asked.count}/${TIEN_MINH_ASKED_FIGHTS} lượt Khiêu Chiến.`, "info");
                 state.phase = 'help';
                 return true;
             }
 
-            if (typeof gc.isActBtnSend18140 !== 'boolean' ||
-                typeof gc.getAskedChallengeUnitId !== 'function' ||
-                typeof gc.send18140 !== 'function') {
-                failTienMinhStep(state, 'asked-challenge-api', 'API kiểm tra/Khiêu Chiến Tông Môn Vấn Đạo chưa sẵn sàng.', 'help');
-                return true;
-            }
-            let enabled;
-            let challengeUnitId;
+            let canJoin;
             try {
-                enabled = gc.isActBtnSend18140;
-                challengeUnitId = Number(gc.getAskedChallengeUnitId());
+                canJoin = gc.canJoinAskedUi(false);
             } catch (error) {
-                failTienMinhStep(state, 'asked-challenge-state', `Không đọc được trạng thái nút Khiêu Chiến: ${error.message || error}`, 'help');
+                failTienMinhStep(state, 'asked-challenge-state', `Không đọc được trạng thái Tông Môn Vấn Đạo: ${error.message || error}`, 'help');
                 return true;
             }
-            if (!enabled) {
-                skipTienMinhStep(state, 'asked-no-challenge', 'Nút Khiêu Chiến Tông Môn Vấn Đạo không bật hoặc đã hết lượt.', 'help');
+            if (!canJoin) {
+                skipTienMinhStep(state, 'asked-inactive', 'Tông Môn Vấn Đạo hôm nay chưa có đối thủ hoặc không hoạt động; bỏ qua.', 'help');
                 return true;
             }
-            if (!Number.isFinite(challengeUnitId) || challengeUnitId <= 0) {
-                failTienMinhStep(state, 'asked-target', 'Không tìm thấy mục tiêu hợp lệ cho Tông Môn Vấn Đạo.', 'help');
+
+            const embattleType = ctx.EmbattleConst && ctx.EmbattleConst.embattleType;
+            if (!ctx.EmbattleCtrl || !ctx.EmbattleCtrl.gInst || !embattleType ||
+                embattleType.guildAsked === undefined) {
+                failTienMinhStep(state, 'asked-challenge-api', 'API Khiêu Chiến Tông Môn Vấn Đạo chưa sẵn sàng.', 'help');
                 return true;
             }
-            asked.pending = {
-                signature: getTienMinhAskedSignature(data),
-                startedAt: now
-            };
+            const fightCtrl = ctx.FightCtrl && ctx.FightCtrl.gInst ? ctx.FightCtrl.gInst() : null;
+            if (fightCtrl && typeof fightCtrl.gCanFight === 'function' && !fightCtrl.gCanFight(0)) {
+                asked.blocked = (asked.blocked || 0) + 1;
+                if (asked.blocked >= 10) {
+                    failTienMinhStep(state, 'asked-blocked', 'Game không cho phép Khiêu Chiến Tông Môn Vấn Đạo lúc này (đang trong trận khác).', 'help');
+                }
+                return true;
+            }
+            asked.pending = { resultRef: model.scmd18144Data, startedAt: now };
             try {
-                gc.send18140(challengeUnitId);
+                // Giống nút Khiêu Chiến: mở đội hình, sau đó bộ xử lý trận bấm Bắt Đầu.
+                ctx.EmbattleCtrl.gInst().openEmbattle(embattleType.guildAsked);
             } catch (error) {
                 asked.pending = null;
                 failTienMinhStep(state, 'asked-challenge-error', `Không thể Khiêu Chiến Tông Môn Vấn Đạo: ${error.message || error}`, 'help');
@@ -1564,66 +1599,47 @@
 
         function getTienMinhHelpSignature(data) {
             if (!data) return '';
-            const ids = (list) => Array.isArray(list) ? list.map((item) => item && [
-                item.base_id,
-                item.item_id,
-                item.hero_id,
-                item.type_id,
-                item.status,
-                item.help_status
-            ]) : [];
-            return JSON.stringify([
-                data.count,
-                ids(data.my_list),
-                ids(data.list)
-            ]);
+            const mine = Array.isArray(data.my_list)
+                ? data.my_list.map((item) => item && [item.pos, item.base_id, item.be_count, item.reward_count])
+                : [];
+            return JSON.stringify([data.count, data.vip_count, mine, Array.isArray(data.list) ? data.list.length : -1]);
         }
 
-        function getTienMinhUsedHelpIds(data) {
-            const ids = new Set();
-            const list = data && Array.isArray(data.my_list) ? data.my_list : [];
-            for (const item of list) {
-                if (!item) continue;
-                for (const key of ['base_id', 'item_id', 'hero_id', 'type_id', 'category_id', 'goods_id']) {
-                    const id = Number(item[key]);
-                    if (Number.isFinite(id) && id > 0) ids.add(id);
-                }
-            }
-            return ids;
+        function getTienMinhHelpEntryKey(entry) {
+            const id = entry && entry.id;
+            const idKey = id && id.m_highInt !== undefined
+                ? `${id.m_highInt}_${id.m_lowInt}`
+                : String(id);
+            return `${idKey}:${entry && entry.pos}`;
         }
 
-        function getTienMinhHelpView(ctx) {
-            const manager = ctx.ViewMgr && ctx.ViewMgr.gViewMgr;
-            const cache = manager && manager.m_viewCacheGroup;
-            return cache && cache.guildHelpUi;
+        // Danh mục vật phẩm Xin Giúp lấy từ cấu hình game (không phụ thuộc giao diện đang mở).
+        function getTienMinhHelpCategories(gc) {
+            const model = gc.m_curModel;
+            const cfg = model && typeof model.getGuildConfig === 'function'
+                ? model.getGuildConfig()
+                : null;
+            const raw = cfg && cfg.cfg && cfg.cfg[11] && cfg.cfg[11].val;
+            if (typeof raw !== 'string') return [];
+            return raw.replace(/[\[\]\s]/g, '').split(',')
+                .map(Number)
+                .filter((id) => Number.isFinite(id) && id > 0);
         }
 
-        function getTienMinhHelpCategory(ctx, state, helpData) {
-            const manager = ctx.ViewMgr && ctx.ViewMgr.gViewMgr;
-            const cache = manager && manager.m_viewCacheGroup;
-            const selector = cache && cache.guildHelpSelect;
-            if (!selector) return null;
-            const usedIds = getTienMinhUsedHelpIds(helpData);
-            state.help.usedCategoryIds.forEach((id) => usedIds.add(id));
-            const options = [];
-            for (let index = 1; index <= 4; index++) {
-                const item = selector[`item${index}`];
-                const baseData = item && item.m_itemBaseData;
-                const id = Number(baseData && baseData.base_id);
-                const lock = selector[`lock${index}`];
-                if (item && item.visible !== false && Number.isFinite(id) && id > 0 &&
-                    !usedIds.has(id) && !(lock && lock.visible)) {
-                    options.push(id);
-                }
-            }
-            if (options.length === 0) return null;
-            return options[Math.floor(Math.random() * options.length)];
+        function getTienMinhHelpBoxCount(gc) {
+            const model = gc.m_curModel;
+            const cfg = model && typeof model.getGuildConfig === 'function'
+                ? model.getGuildConfig()
+                : null;
+            const count = Number(cfg && cfg.cfg && cfg.cfg[9] && cfg.cfg[9].val);
+            return Number.isInteger(count) && count > 0 && count <= 4 ? count : 2;
         }
 
         function handleTienMinhHelp(ctx, state, now) {
             const gc = state.guildCtrl;
             const help = state.help;
-            const data = gc.m_curModel && gc.m_curModel.scmd18040Data;
+            const model = gc.m_curModel;
+            const data = model && model.scmd18040Data;
             if (!help.opened) {
                 if (typeof gc.openGuildHelpUi !== 'function' ||
                     typeof gc.send18040Msg !== 'function') {
@@ -1650,113 +1666,72 @@
 
             if (help.pending) {
                 const pending = help.pending;
-                const signature = getTienMinhHelpSignature(data);
-                if (pending.kind === 'help-all') {
-                    if (Number(data.count) > pending.beforeCount || signature !== pending.signature) {
+                if (pending.kind === 'box') {
+                    const placed = data.my_list.some((item) => item && Number(item.pos) === pending.slot);
+                    if (placed) {
                         help.pending = null;
-                        help.helping = false;
                         state.confirmedActions++;
-                        logTienMinh(state, 'help-all-confirmed', "✅ [M8 - Tiên Minh - Viện Trợ] Máy chủ xác nhận đã dùng lượt Viện trợ nhanh cho thành viên.", "action");
-                        state.phase = 'fete';
+                        logTienMinh(state, `help-box-${pending.slot}`, `✅ [M8 - Tiên Minh - Viện Trợ] Máy chủ xác nhận đã chọn vật phẩm Xin Giúp cho ô ${pending.slot}.`, "action");
                     } else if (now - pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
-                        failTienMinhStep(state, 'help-all-timeout', 'Máy chủ chưa xác nhận lượt Viện trợ nhanh; không gửi lại để tránh trùng lượt.', 'fete');
-                    }
-                    return true;
-                }
-                const changed = signature !== pending.signature;
-                if (pending.kind === 'category' && changed) {
-                    help.pending = null;
-                    help.usedCategoryIds.add(pending.categoryId);
-                    help.pending = {
-                        kind: 'request',
-                        slot: pending.slot,
-                        signature,
-                        startedAt: now
-                    };
-                    try {
-                        gc.send18043Msg(pending.slot);
-                    } catch (error) {
                         help.pending = null;
-                        failTienMinhStep(state, 'help-request-error', `Không thể gửi Cầu cứu ô ${pending.slot}: ${error.message || error}`, 'fete');
+                        help.boxFailed = true;
+                        failTienMinhStep(state, `help-box-timeout-${pending.slot}`, `Máy chủ chưa xác nhận Xin Giúp ô ${pending.slot}; không gửi lại để tránh yêu cầu trùng.`, 'help');
                     }
                     return true;
                 }
-                if (pending.kind === 'request' && changed) {
+                // pending.kind === 'assist': giúp thành viên (tab Viện trợ tông môn)
+                const count = Number(data.count);
+                if (Number.isFinite(count) && count > pending.beforeCount) {
                     help.pending = null;
-                    help.slotIndex++;
+                    help.assisted++;
                     state.confirmedActions++;
-                    logTienMinh(state, `help-request-${pending.slot}`, `✅ [M8 - Tiên Minh - Xin Giúp] Máy chủ xác nhận đã gửi Cầu cứu ô ${pending.slot}.`, "action");
-                    return true;
-                }
-                if (now - pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
-                    failTienMinhStep(
-                        state,
-                        `help-${pending.kind}-timeout`,
-                        `Máy chủ chưa xác nhận ${pending.kind === 'category' ? 'chọn loại trợ giúp' : `Cầu cứu ô ${pending.slot}`}; không gửi lại để tránh tạo yêu cầu trùng.`,
-                        'fete'
-                    );
+                    logTienMinh(state, `help-assist-${help.assisted}`, `✅ [M8 - Tiên Minh - Viện Trợ] Máy chủ xác nhận đã Viện trợ thành viên (${count}/${Number(data.max_count)} lượt miễn phí hôm nay).`, "action");
+                } else if (data !== pending.dataRef) {
+                    // Máy chủ từ chối và game tải lại danh sách (rv18042 → send18040Msg).
+                    help.pending = null;
+                    help.assistRejected++;
+                } else if (now - pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
+                    help.pending = null;
+                    help.assistRejected++;
                 }
                 return true;
             }
 
-            if (help.slotIndex < 2) {
-                const slot = help.slotIndex + 1;
-                const view = getTienMinhHelpView(ctx);
-                if (!view) {
-                    if (now - help.openedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
-                        failTienMinhStep(state, 'help-view-timeout', 'Không mở được giao diện Xin Giúp để kiểm tra hai ô yêu cầu.', 'fete');
-                    }
+            // Bước 1: điền đủ các ô (hộp) Xin Giúp.
+            const boxCount = getTienMinhHelpBoxCount(gc);
+            for (let slot = 1; slot <= boxCount && !help.boxFailed; slot++) {
+                if (data.my_list.some((item) => item && Number(item.pos) === slot)) continue;
+                if (typeof gc.send18041Msg !== 'function') {
+                    failTienMinhStep(state, 'help-action-api', 'API chọn vật phẩm Xin Giúp chưa sẵn sàng.', 'help');
+                    help.boxFailed = true;
                     return true;
                 }
-                const plus = view && view[`jia${slot - 1}`];
-                if (!plus || plus.visible !== true) {
-                    help.slotIndex++;
-                    logTienMinh(state, `help-slot-${slot}-occupied`, `ℹ️ [M8 - Tiên Minh - Xin Giúp] Ô ${slot} đã được cấu hình hoặc không còn nút +; không tạo yêu cầu trùng.`, "info");
+                const usedIds = new Set(data.my_list.map((item) => Number(item && item.base_id)));
+                const options = getTienMinhHelpCategories(gc).filter((id) => !usedIds.has(id));
+                if (options.length === 0) {
+                    help.boxFailed = true;
+                    failTienMinhStep(state, `help-options-${slot}`, `Không có vật phẩm Xin Giúp khả dụng, không trùng cho ô ${slot}.`, 'help');
                     return true;
                 }
-                if (!help.selectingSlot) {
-                    if (typeof gc.openGuildHelpSelectUi !== 'function') {
-                        failTienMinhStep(state, 'help-select-api', 'API mở danh mục Xin Giúp chưa sẵn sàng.', 'fete');
-                        return true;
-                    }
-                    try {
-                        gc.openGuildHelpSelectUi(slot);
-                        help.selectingSlot = slot;
-                        help.selectStartedAt = now;
-                    } catch (error) {
-                        failTienMinhStep(state, 'help-select-error', `Không thể mở danh mục Xin Giúp ô ${slot}: ${error.message || error}`, 'fete');
-                    }
-                    return true;
-                }
-                const categoryId = getTienMinhHelpCategory(ctx, state, data);
-                if (!categoryId) {
-                    if (now - help.selectStartedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
-                        failTienMinhStep(state, `help-options-${slot}`, `Không có danh mục Xin Giúp khả dụng, không trùng cho ô ${slot}.`, 'fete');
-                    }
-                    return true;
-                }
-                if (typeof gc.send18041Msg !== 'function' ||
-                    typeof gc.send18043Msg !== 'function') {
-                    failTienMinhStep(state, 'help-action-api', 'API chọn danh mục/Cầu cứu chưa sẵn sàng.', 'fete');
-                    return true;
-                }
-                help.pending = {
-                    kind: 'category',
-                    slot,
-                    categoryId,
-                    signature: getTienMinhHelpSignature(data),
-                    startedAt: now
-                };
-                help.selectingSlot = 0;
+                const baseId = options[Math.floor(Math.random() * options.length)];
+                help.pending = { kind: 'box', slot, startedAt: now };
                 try {
-                    gc.send18041Msg(slot, categoryId);
+                    gc.send18041Msg(slot, baseId);
                 } catch (error) {
                     help.pending = null;
-                    failTienMinhStep(state, `help-category-error-${slot}`, `Không thể chọn danh mục Xin Giúp ô ${slot}: ${error.message || error}`, 'fete');
+                    help.boxFailed = true;
+                    failTienMinhStep(state, `help-box-error-${slot}`, `Không thể chọn vật phẩm Xin Giúp ô ${slot}: ${error.message || error}`, 'help');
                 }
                 return true;
             }
+            if (!help.boxesLogged) {
+                help.boxesLogged = true;
+                if (!help.boxFailed) {
+                    logTienMinh(state, 'help-boxes-ready', `ℹ️ [M8 - Tiên Minh - Xin Giúp] Cả ${boxCount} ô Xin Giúp đã được cấu hình.`, "info");
+                }
+            }
 
+            // Bước 2: Viện trợ thành viên khác trong giới hạn lượt miễn phí.
             const count = Number(data.count);
             const maxCount = Number(data.max_count);
             if (!Number.isFinite(count) || !Number.isFinite(maxCount)) {
@@ -1764,33 +1739,34 @@
                 return true;
             }
             if (count >= maxCount) {
-                skipTienMinhStep(state, 'help-limit', 'Đã chạm giới hạn lượt Viện trợ Tông Môn trong ngày.', 'fete');
+                skipTienMinhStep(state, 'help-limit', `Đã dùng hết ${count}/${maxCount} lượt Viện trợ miễn phí trong ngày.`, 'fete');
                 return true;
             }
-            if (data.list.length === 0) {
-                skipTienMinhStep(state, 'help-no-requests', 'Không có thành viên nào cần Viện trợ Tông Môn.', 'fete');
+            const target = data.list.find((entry) => entry &&
+                !help.attempted.has(getTienMinhHelpEntryKey(entry)) &&
+                Number(entry.be_count) < Number(entry.max_count));
+            if (!target) {
+                if (help.assisted > 0) {
+                    logTienMinh(state, 'help-assist-done', `ℹ️ [M8 - Tiên Minh - Viện Trợ] Đã Viện trợ ${help.assisted} lượt, hết yêu cầu có thể giúp (${count}/${maxCount} lượt miễn phí).`, "info");
+                    state.phase = 'fete';
+                } else if (help.assistRejected > 0) {
+                    skipTienMinhStep(state, 'help-all-rejected', `Máy chủ không nhận ${help.assistRejected} yêu cầu Viện trợ (có thể đã giúp trước đó); không thử lại.`, 'fete');
+                } else {
+                    skipTienMinhStep(state, 'help-no-requests', 'Không có thành viên nào cần Viện trợ Tông Môn.', 'fete');
+                }
                 return true;
             }
-            if (help.helping) {
+            if (typeof gc.send18042Msg !== 'function') {
+                failTienMinhStep(state, 'help-assist-api', 'API Viện trợ thành viên chưa sẵn sàng.', 'fete');
                 return true;
             }
-            if (typeof gc.send18044Msg !== 'function') {
-                failTienMinhStep(state, 'help-all-api', 'API Viện trợ nhanh thành viên chưa sẵn sàng.', 'fete');
-                return true;
-            }
-            help.helping = true;
-            help.pending = {
-                kind: 'help-all',
-                slot: 0,
-                signature: getTienMinhHelpSignature(data),
-                startedAt: now,
-                beforeCount: count
-            };
+            help.attempted.add(getTienMinhHelpEntryKey(target));
+            help.pending = { kind: 'assist', beforeCount: count, dataRef: data, startedAt: now };
             try {
-                gc.send18044Msg();
+                gc.send18042Msg(target.id, target.pos);
             } catch (error) {
                 help.pending = null;
-                failTienMinhStep(state, 'help-all-error', `Không thể Viện trợ nhanh thành viên: ${error.message || error}`, 'fete');
+                failTienMinhStep(state, 'help-assist-error', `Không thể Viện trợ thành viên: ${error.message || error}`, 'fete');
             }
             return true;
         }
@@ -1897,6 +1873,78 @@
             }
         }
 
+        function isTienMinhFighting(ctx) {
+            try {
+                return !!(ctx.EntityMgr && ctx.EntityMgr.gInst && ctx.EntityMgr.gInst().getIsFighting());
+            } catch (error) {
+                return false;
+            }
+        }
+
+        function getTienMinhPendings(state) {
+            return [state.dungeon.pending, state.war.pending, state.asked.pending].filter(Boolean);
+        }
+
+        // Chờ trận đánh kết thúc, tự bấm Bắt Đầu ở bảng đội hình và đóng bảng kết quả.
+        // Trả về true nếu bước này đã chiếm lượt xử lý hiện tại.
+        function handleTienMinhBattle(ctx, state, now) {
+            const pendings = getTienMinhPendings(state);
+            if (pendings.length === 0) {
+                // Bảng đội hình còn sót lại sau khi hết lượt: đóng lại, không bấm Bắt Đầu nữa.
+                const leftoverVm = ctx.ViewMgr && ctx.ViewMgr.gInst ? ctx.ViewMgr.gInst() : null;
+                if (leftoverVm && typeof leftoverVm.viewIsVisible === 'function' &&
+                    !isTienMinhFighting(ctx) && leftoverVm.viewIsVisible('embattleUi')) {
+                    leftoverVm.closeView('embattleUi');
+                    logTienMinh(state, 'battle-embattle-leftover', "ℹ️ [M8 - Tiên Minh] Đã đóng bảng đội hình còn mở sau khi hết lượt Khiêu Chiến.", "info");
+                    return true;
+                }
+                return false;
+            }
+
+            if (isTienMinhFighting(ctx)) {
+                if (!state.fightingSince) {
+                    state.fightingSince = now;
+                    logTienMinh(state, `battle-start-${state.confirmedActions}-${now}`, "ℹ️ [M8 - Tiên Minh] Đang trong trận đánh; chờ trận kết thúc (tự bỏ qua hoạt ảnh).", "info");
+                }
+                if (now - state.fightingSince < TIEN_MINH_FIGHT_MAX_WAIT_MS) {
+                    // Thời gian đánh không tính vào thời gian chờ xác nhận của máy chủ.
+                    pendings.forEach((pending) => { pending.startedAt = now; });
+                    return true;
+                }
+                return false;
+            }
+            state.fightingSince = 0;
+
+            const vm = ctx.ViewMgr && ctx.ViewMgr.gInst ? ctx.ViewMgr.gInst() : null;
+            if (!vm || typeof vm.viewIsVisible !== 'function') return false;
+
+            let acted = false;
+            if (vm.viewIsVisible('embattleUi') && now - (state.lastEmbattleAt || 0) >= 2500) {
+                const embattleUi = typeof vm.getViewByName === 'function' ? vm.getViewByName('embattleUi') : null;
+                if (embattleUi && typeof embattleUi.cBtnH2 === 'function') {
+                    try {
+                        if (typeof embattleUi.oneKeyEmbattleLogic === 'function') embattleUi.oneKeyEmbattleLogic(0);
+                        if (typeof embattleUi.saveEmbattleLogic === 'function') embattleUi.saveEmbattleLogic();
+                        embattleUi.cBtnH2();
+                        state.lastEmbattleAt = now;
+                        state.embattleClicks = (state.embattleClicks || 0) + 1;
+                        logTienMinh(state, `battle-embattle-${state.embattleClicks}`, "ℹ️ [M8 - Tiên Minh] Đã tự chọn đội hình và bấm Bắt Đầu.", "info");
+                        acted = true;
+                    } catch (error) {
+                        logTienMinh(state, 'battle-embattle-error', `⚠️ [M8 - Tiên Minh] Không thể bấm Bắt Đầu ở bảng đội hình: ${error.message || error}`, "err");
+                    }
+                }
+            }
+            ['fightSuccessUi', 'fightFailUi', 'winUi', 'fightWinUi', 'fightResultUi',
+                'adventureResultUi', 'guildAskedFightResultUi'].forEach((name) => {
+                if (vm.viewIsVisible(name)) {
+                    vm.closeView(name);
+                    acted = true;
+                }
+            });
+            return acted;
+        }
+
         function handleTienMinh(ctx) {
             const gc = ctx.GuildCtrl && ctx.GuildCtrl.gInst
                 ? ctx.GuildCtrl.gInst()
@@ -1916,6 +1964,9 @@
             const dayKey = new Date().toDateString();
             if (!tienMinhState || tienMinhState.dayKey !== dayKey ||
                 tienMinhState.guildCtrl !== gc) {
+                if (tienMinhState && tienMinhState.dayKey === dayKey && tienMinhState.guildCtrl !== gc) {
+                    sendLog("ℹ️ [M8 - Tiên Minh] Game đã khởi động lại/kết nối lại; kiểm tra lại trạng thái từ máy chủ trước khi tiếp tục (không lặp thao tác đã hoàn tất).", "info");
+                }
                 tienMinhState = createTienMinhState(gc, wr);
             }
             const state = tienMinhState;
@@ -1931,10 +1982,12 @@
                 return true;
             }
 
+            if (handleTienMinhBattle(ctx, state, Date.now())) return true;
+
             if (state.phase === 'bargain') return handleTienMinhBargain(state, Date.now());
             if (state.phase === 'dungeon') return handleTienMinhDungeon(ctx, state, Date.now());
             if (state.phase === 'war') return handleTienMinhWar(state, Date.now(), ctx);
-            if (state.phase === 'asked') return handleTienMinhAsked(state, Date.now());
+            if (state.phase === 'asked') return handleTienMinhAsked(ctx, state, Date.now());
             if (state.phase === 'help') return handleTienMinhHelp(ctx, state, Date.now());
             if (state.phase === 'fete') return handleTienMinhFete(ctx, state, Date.now());
             if (state.phase === 'done') {
@@ -1946,15 +1999,119 @@
             return true;
         }
 
+        // ---- Trợ Chiến Linh Thú: Linh Thú -> tab Hoan Thú Viên (garden), nút Nhận nhanh bên ngoài (SpiritAnimalCtrl.send32022) ----
+        function failTroChien(ctx, state, key, message) {
+            state.failed = true;
+            state.phase = 'done';
+            closeTroChienView(ctx);
+            if (state.loggedErrors.has(key)) return;
+            state.loggedErrors.add(key);
+            sendLog(`⚠️ [M8 - Trợ Chiến] ${message}`, "err");
+        }
+
+        function closeTroChienView(ctx) {
+            try {
+                const ctrl = ctx.SpiritAnimalCtrl && ctx.SpiritAnimalCtrl.gInst ? ctx.SpiritAnimalCtrl.gInst() : null;
+                if (ctrl && typeof ctrl.closeSpiritAnimalMainUi === 'function') ctrl.closeSpiritAnimalMainUi();
+            } catch (error) { }
+        }
+
+        function handleTroChien(ctx) {
+            const ctrl = ctx.SpiritAnimalCtrl && ctx.SpiritAnimalCtrl.gInst
+                ? ctx.SpiritAnimalCtrl.gInst()
+                : null;
+            if (!ctrl) {
+                if (!troChienControllerUnavailableLogged) {
+                    troChienControllerUnavailableLogged = true;
+                    sendLog("⚠️ [M8 - Trợ Chiến] Không tìm thấy bộ điều khiển Linh Thú; chưa thể chạy.", "err");
+                }
+                return true;
+            }
+            troChienControllerUnavailableLogged = false;
+
+            const dayKey = new Date().toDateString();
+            if (!troChienState || troChienState.dayKey !== dayKey || troChienState.ctrl !== ctrl) {
+                if (troChienState && troChienState.dayKey === dayKey && troChienState.ctrl !== ctrl) {
+                    sendLog("ℹ️ [M8 - Trợ Chiến] Game đã khởi động lại/kết nối lại; kiểm tra lại trạng thái từ máy chủ trước khi nhận.", "info");
+                }
+                troChienState = {
+                    dayKey, ctrl, phase: 'open', failed: false, loggedErrors: new Set(),
+                    dataBefore: null, requestedAt: 0, lastRefreshAt: 0, claimedAt: 0
+                };
+            }
+            const state = troChienState;
+            if (state.phase === 'done') return true;
+
+            const indexes = ctx.SpiritAnimalConst && ctx.SpiritAnimalConst.SpiritAnimalMainIndexId;
+            if (typeof ctrl.openSpiritAnimalMainUi !== 'function' ||
+                typeof ctrl.getSC_32019 !== 'function' ||
+                typeof ctrl.isCanGetHomeTypeProduceReward !== 'function' ||
+                typeof ctrl.send32019 !== 'function' || typeof ctrl.send32022 !== 'function' ||
+                !indexes || !Number.isFinite(indexes.garden)) {
+                failTroChien(ctx, state, 'api', 'API Hoan Thú Viên chưa sẵn sàng; không thể nhận nhanh.');
+                return true;
+            }
+
+            if (state.phase === 'open') {
+                state.dataBefore = ctrl.getSC_32019();
+                state.requestedAt = Date.now();
+                ctrl.openSpiritAnimalMainUi(indexes.garden);
+                ctrl.send32019();
+                state.phase = 'load';
+                sendLog("ℹ️ [M8 - Trợ Chiến] Đã mở Linh Thú → Hoan Thú Viên; đang tải trạng thái từ máy chủ.", "info");
+                return true;
+            }
+
+            if (state.phase === 'load') {
+                const data = ctrl.getSC_32019();
+                if (data && data !== state.dataBefore) {
+                    state.phase = 'claim';
+                } else if (Date.now() - state.requestedAt >= TRO_CHIEN_REQUEST_TIMEOUT_MS) {
+                    failTroChien(ctx, state, 'load-timeout', 'Hết thời gian chờ trạng thái Hoan Thú Viên từ máy chủ; không xác nhận đã nhận.');
+                    return true;
+                } else {
+                    return true;
+                }
+            }
+
+            if (state.phase === 'claim') {
+                if (!ctrl.isCanGetHomeTypeProduceReward()) {
+                    sendLog("ℹ️ [M8 - Trợ Chiến] Hoan Thú Viên không có tài nguyên chờ nhận; bỏ qua.", "info");
+                    state.phase = 'done';
+                    closeTroChienView(ctx);
+                    return true;
+                }
+                ctrl.send32022();
+                state.claimedAt = state.lastRefreshAt = Date.now();
+                state.phase = 'confirm';
+                sendLog("ℹ️ [M8 - Trợ Chiến] Đã bấm Nhận nhanh ở Hoan Thú Viên; đang chờ máy chủ xác nhận.", "info");
+                return true;
+            }
+
+            if (state.phase === 'confirm') {
+                const now = Date.now();
+                if (!ctrl.isCanGetHomeTypeProduceReward()) {
+                    sendLog("✅ [M8 - Trợ Chiến] Máy chủ xác nhận đã nhận nhanh tài nguyên Hoan Thú Viên.", "action");
+                    state.phase = 'done';
+                    closeTroChienView(ctx);
+                } else if (now - state.claimedAt >= TRO_CHIEN_REQUEST_TIMEOUT_MS) {
+                    failTroChien(ctx, state, 'claim-timeout', 'Máy chủ chưa xác nhận Nhận nhanh Hoan Thú Viên; không gửi lại để tránh nhận trùng.');
+                } else if (now - state.lastRefreshAt >= 2000) {
+                    state.lastRefreshAt = now;
+                    ctrl.send32019();
+                }
+                return true;
+            }
+
+            failTroChien(ctx, state, 'unknown-phase', `Giai đoạn xử lý không hợp lệ: ${state.phase}.`);
+            return true;
+        }
+
         function handleDailyRoutine(ctx) {
             try {
                 // 1. Trợ chiến linh thú
-                if (CONFIG.activeFeature === 'autoTroChien' && ctx.LinhThuCtrl && ctx.LinhThuCtrl.gInst) {
-                    const lt = ctx.LinhThuCtrl.gInst();
-                    if (typeof lt.claimAllRefund === 'function') {
-                        lt.claimAllRefund();
-                        sendLog("🐾 [M8 - Trợ Chiến] Đã nhận nhanh toàn bộ Linh Thú tab Hoàn!", "action");
-                    }
+                if (CONFIG.activeFeature === 'autoTroChien') {
+                    return handleTroChien(ctx);
                 }
                 // 2. Tâm Tiên Đài
                 if (CONFIG.activeFeature === 'autoTamTienDai') {

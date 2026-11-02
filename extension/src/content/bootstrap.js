@@ -31,6 +31,7 @@
         // Module 1: Thông Thiên Tháp & Tứ Linh Tháp
         autoTongTian: true,             // Quét & Leo Thông Thiên Tháp (Hỗ trợ mua thêm bằng Tiên Ngọc)
         buyTowerSweep: true,            // Tự mua thêm lượt quét Thông Thiên Tháp
+        towerDailyRoutine: true,        // Nhận thưởng và Quét ải mỗi ngày: Thông Thiên (2 free + 1 mua) & Tứ Linh (10 ải mới + 2 quét free)
         autoTuLinhThap: true,           // Cử tướng Trợ Trận & Leo + Quét 4 Tháp Tứ Linh (Ma/Thiên/Nghịch/Dị)
         
         // Module 2: Phụ Bản Ngày & Bí Cảnh Tứ Quốc
@@ -64,7 +65,8 @@
         autoArena: false,               // Đấu Tiên Đài PvP (giới hạn lượt, chọn đối thủ thấp)
         arenaBattleLimit: 5,             // Số trận Đấu Tiên Đài tối đa mỗi lần chạy Auto
         autoMaDaoUyPhai: false,         // Tác chiến nhanh, Thưởng ủy phái Cam/Tím, Quà Tiên & Đạo Cụ Phường
-        autoTienMinh: false,            // Tiên Minh: Trả giá, Cung phụng, Viện trợ 5 sao, Tăng cấp, Boss
+        autoTienMinh: false,            // Tiên Minh: Trả giá, Bí Cảnh, Tỉ Thí, Vấn Đạo, Viện trợ, Cung phụng
+        tienMinhDungeonLimit: 3,        // Số trận Bí Cảnh Tông Môn tối đa mỗi ngày (2 miễn phí + mua thêm)
         autoCuoiNgay: false,            // Nhận thư, Like BXH Đạo Thành 3 lần, Nhận rương Sôi Nổi (25-100)
         
         // Các tính năng kinh điển bổ trợ

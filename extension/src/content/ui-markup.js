@@ -93,9 +93,16 @@
                                     <label class="tn-opt-item" style="border-left: 3px solid #cba6f7;">
                                         <div>
                                             <div style="font-weight:bold; color:#cba6f7;">🏛️ Tiên Minh (Bang Hội Trọn Gói)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Trả giá Shop, Dâng Tôn Sư, Xin & viện trợ mảnh 5 sao, Tăng cấp kỹ năng & Quét boss.</div>
+                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Trả giá Shop, Bí Cảnh, Tỉ Thí, Vấn Đạo, Viện trợ Tông Môn & Cung phụng Tôn Sư.</div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoTienMinh" ${CONFIG.activeFeature === 'autoTienMinh' ? 'checked' : ''}>
+                                    </label>
+                                    <label class="tn-opt-item" style="margin:0 0 4px 10px; padding:4px 8px; border-left:3px solid #cba6f7;">
+                                        <div>
+                                            <div style="font-size:10px; color:#cba6f7;">Giới hạn Bí Cảnh Tông Môn (2 free + mua 20 Tiên Ngọc/lượt):</div>
+                                            <div style="font-size:9px; color:#a6adc8; margin-top:2px;">Trên 2 trận sẽ tự mua thêm lượt; tối đa 6.</div>
+                                        </div>
+                                        <input type="number" id="tn-opt-tien-minh-dungeon-limit" min="1" max="6" step="1" value="${CONFIG.tienMinhDungeonLimit}" style="width:52px; padding:2px 4px; background:#181825; color:#cdd6f4; border:1px solid #45475a; border-radius:4px;">
                                     </label>
                                     <label class="tn-opt-item" style="border-left: 3px solid #f38ba8;">
                                         <div>
@@ -138,6 +145,13 @@
                                             <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Quét Thông Thiên (Free + Mua Tiên Ngọc). Cử trợ trận tướng 1, leo 4 tháp & quét 2 lần.</div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoTongTian" ${CONFIG.activeFeature === 'autoTongTian' ? 'checked' : ''}>
+                                    </label>
+                                    <label class="tn-opt-item" style="margin:0 0 4px 10px; padding:4px 8px; border-left:3px solid #f5c2e7;">
+                                        <div>
+                                            <div style="font-size:10px; color:#f5c2e7;">📅 Nhận thưởng và Quét ải mỗi ngày</div>
+                                            <div style="font-size:9px; color:#a6adc8; margin-top:2px;">Thông Thiên Tháp quét 3 lần (2 free + 1 mua); Tứ Linh Tháp đang mở: 10 ải mới + quét 2 lần free (không mua).</div>
+                                        </div>
+                                        <input type="checkbox" id="tn-opt-tower-daily" ${CONFIG.activeFeature === 'autoTongTian' && CONFIG.towerDailyRoutine ? 'checked' : ''}>
                                     </label>
                                     <!-- MODULE 2 -->
                                     <label class="tn-opt-item" style="border-left: 3px solid #fab387;">
