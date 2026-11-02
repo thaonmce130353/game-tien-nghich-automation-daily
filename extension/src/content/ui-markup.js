@@ -210,7 +210,7 @@
                                     <label class="tn-opt-item" style="border-left: 3px solid #f38ba8;">
                                         <div>
                                             <div style="font-weight:bold; color:#f38ba8;">🐉 [M7] Kiếm Hành & Điêu Long Khắc Tinh QTE</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Xúc xắc 3.5s; QTE bắt nhịp đúng 380ms Hoàn Mỹ, 5 lần, nhận 5 rương & Chiến Lệnh.</div>
+                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Kiếm Hành: gieo xúc xắc đi hết 1 vòng (hết free thì mua bằng Tiên Ngọc, tối đa 12 lần/ngày), nhận Chiến Lệnh. Điêu Long: bấm nhịp Hoàn Mỹ 5 lần/ván, nhận rương, Khiêu chiến & Chiến Lệnh.</div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoMinigameDragon" ${CONFIG.activeFeature === 'autoMinigameDragon' ? 'checked' : ''}>
                                     </label>

@@ -165,7 +165,10 @@
                 }
                 // [Module 7] Kiếm Hành & Điêu Long Khắc Tinh QTE
                 else if (active === 'autoMinigameDragon' || (CONFIG.autoMinigameDragon && !active)) {
-                    if (handleMinigameDragon(ctx)) { markActed(actionInterval); return; }
+                    // Gieo xúc xắc / bấm nhịp có hẹn giờ riêng trong dragon-minigame.js: nhịp ngắn cố định thay vì nhịp chậm chung.
+                    handleMinigameDragon(ctx);
+                    nextActionAt = Date.now() + 150;
+                    return;
                 }
                 // [Module 8] Hoạt Động Ngày, Tiên Minh & Nhận Cuối Ngày
                 else if (['autoTroChien', 'autoTamTienDai', 'autoTienHuu', 'autoTienMinh', 'autoCuoiNgay'].includes(active)) {
