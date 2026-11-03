@@ -85,11 +85,29 @@
                     letter-spacing: 0.4px;
                     font-weight: 800;
                 }
+                #tn-btn-main { flex: 1.15; min-width: 0; width: auto; }
+                /* Nhóm QUÉT NHANH: nút chính + (khi có tiến độ đã lưu) nút ↺ chạy lại, cùng chiều cao/bo góc/phông với nút chính. */
+                #tn-quick-group { flex: 1; min-width: 0; display: flex; gap: 2px; }
+                #tn-quick-group .tn-action-btn { margin: 0; width: auto; min-width: 0; }
                 #tn-btn-sweep {
-                    flex: 1.2;
-                    font-size: 11px;
-                    font-weight: 700;
+                    flex: 1;
+                    flex-direction: column;
+                    gap: 1px;
+                    padding: 0 6px;
+                    line-height: 1.1;
+                    text-align: center;
                 }
+                #tn-btn-sweep .tn-qb-main { font-size: 12px; font-weight: 800; letter-spacing: 0.3px; }
+                #tn-btn-sweep .tn-qb-sub { font-size: 9.5px; font-weight: 600; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+                #tn-btn-quick-fresh {
+                    flex: 0 0 38px;
+                    font-size: 17px;
+                    font-weight: 800;
+                    padding: 0;
+                    filter: brightness(0.88);
+                }
+                #tn-quick-group.has-saved #tn-btn-sweep { border-top-right-radius: 4px; border-bottom-right-radius: 4px; }
+                #tn-quick-group.has-saved #tn-btn-quick-fresh { border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
                 #tn-auto-hud::-webkit-scrollbar {
                     width: 4px;
                 }

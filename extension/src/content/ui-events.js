@@ -184,15 +184,19 @@
             }
 
             const btnSweep = document.getElementById('tn-btn-sweep');
-            btnSweep.addEventListener('click', () => {
+            btnSweep.dataset.baseTitle = btnSweep.title;
+            function startQuick(mode) {
                 if (CONFIG.running) {
                     addLogToUI("⚠️ Auto đang chạy; bấm TẠM DỪNG trước khi dùng QUÉT NHANH.", "warn");
                     return;
                 }
                 CONFIG.running = true;
                 updateBadge(true);
-                sendCommandToGame('TOGGLE_AUTO', { running: true, quick: true, config: CONFIG });
-            });
+                sendCommandToGame('TOGGLE_AUTO', { running: true, quick: true, quickMode: mode, config: CONFIG });
+            }
+            btnSweep.addEventListener('click', () => startQuick(quickSavedInfo ? 'resume' : 'fresh'));
+            const btnQuickFresh = document.getElementById('tn-btn-quick-fresh');
+            if (btnQuickFresh) btnQuickFresh.addEventListener('click', () => startQuick('fresh'));
 
             updateBadge(CONFIG.running);
             addLogToUI(`✨ Auto Tiên Nghịch Mobile v${CURRENT_AUTO_VERSION} (Bảng tính năng 5 tab, chạy cục bộ) đã sẵn sàng!`, "action");

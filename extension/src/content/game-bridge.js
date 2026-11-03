@@ -375,6 +375,7 @@
 
             if (data.action === 'REQUEST_ROLE_INFO') {
                 sendRoleInfo(true);
+                if (typeof quickReportSaved === 'function') quickReportSaved();
                 return;
             } else if (data.action === 'UPDATE_CONFIG') {
                 Object.assign(CONFIG, quickRunFilterConfig(data.config));
@@ -388,7 +389,7 @@
                     resetRunGuards();
                     isTowerChallenging = false;
                     waitingForFloorUpdate = false;
-                    quickRunStart();
+                    quickRunStart(data.quickMode);
                     executeCycle(false);
                 } else if (CONFIG.running) {
                     // resumed: Auto được bật lại sau khi tự vào lại game (không phải người dùng bấm BẮT ĐẦU).

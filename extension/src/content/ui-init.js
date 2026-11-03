@@ -54,6 +54,26 @@
             }
         }
 
+        // Tiến độ QUÉT NHANH đã lưu (null = không có): nút chính thành TIẾP TỤC, hiện thêm nút CHẠY LẠI TỪ ĐẦU.
+        let quickSavedInfo = null;
+        function updateQuickButtons(saved) {
+            quickSavedInfo = saved || null;
+            const btn = document.getElementById('tn-btn-sweep');
+            const fresh = document.getElementById('tn-btn-quick-fresh');
+            const group = document.getElementById('tn-quick-group');
+            if (btn) {
+                const main = btn.querySelector('.tn-qb-main');
+                const sub = btn.querySelector('.tn-qb-sub');
+                if (main) main.textContent = quickSavedInfo ? '⏯ TIẾP TỤC' : '⚡ QUÉT NHANH';
+                if (sub) sub.textContent = quickSavedInfo
+                    ? 'Bước ' + (quickSavedInfo.idx + 1) + '/' + quickSavedInfo.total + ' · ' + quickSavedInfo.label
+                    : '1 chạm · ' + QUICK_RUN_QUEUE.length + ' bước';
+                btn.title = quickSavedInfo ? 'Tiếp tục QUÉT NHANH từ bước: ' + quickSavedInfo.label + ' (đã xong ' + quickSavedInfo.done + ' bước)' : (btn.dataset.baseTitle || btn.title);
+            }
+            if (fresh) fresh.style.display = quickSavedInfo ? 'flex' : 'none';
+            if (group) group.classList.toggle('has-saved', Boolean(quickSavedInfo));
+        }
+
         function updateBadge(running) {
             const badge = document.getElementById('tn-status-badge');
             const btnMain = document.getElementById('tn-btn-main');
@@ -116,6 +136,8 @@
                 updateRoleDisplay(data.role);
             } else if (data.action === 'LOG') {
                 addLogToUI(data.message, data.logType);
+            } else if (data.action === 'QUICK_RUN_SAVED') {
+                updateQuickButtons(data.saved);
             } else if (data.action === 'AUTO_FINISHED') {
                 // Tính năng đã hoàn tất: trả nút về trạng thái dừng (dòng kết quả đã được game ghi log).
                 CONFIG.running = false;

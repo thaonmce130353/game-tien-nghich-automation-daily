@@ -17,6 +17,35 @@
         const QUICK_CONFIG_LOCKED_KEYS = ['activeFeature', 'running', 'towerSweepOnly', 'towerDailyRoutine'].concat(QUICK_RUN_QUEUE);
         let quickRun = null;
 
+        // ---- Lưu tiến độ để dừng giữa chừng rồi TIẾP TỤC (hoặc chạy lại từ đầu). sessionStorage: sống qua lần tải lại trang
+        // (tự vào lại game), chỉ hợp lệ trong ngày. idx = bước sẽ chạy tiếp theo; results = các bước đã xong.
+        const QUICK_SAVE_KEY = 'tn-quick-run-saved';
+        function quickSaveLoad() {
+            try {
+                const o = JSON.parse(sessionStorage.getItem(QUICK_SAVE_KEY) || 'null');
+                if (o && o.day === new Date().toDateString() && o.total === QUICK_RUN_QUEUE.length &&
+                    Number.isInteger(o.idx) && o.idx > 0 && o.idx < o.total && Array.isArray(o.results)) return o;
+            } catch (e) { }
+            return null;
+        }
+        function quickSaveWrite(nextIdx, results) {
+            try {
+                if (nextIdx <= 0) { sessionStorage.removeItem(QUICK_SAVE_KEY); return; }
+                sessionStorage.setItem(QUICK_SAVE_KEY, JSON.stringify({ day: new Date().toDateString(), total: QUICK_RUN_QUEUE.length, idx: nextIdx, results }));
+            } catch (e) { }
+        }
+        function quickSaveClear() { try { sessionStorage.removeItem(QUICK_SAVE_KEY); } catch (e) { } }
+
+        // Báo cho HUD biết có tiến độ đã lưu (null = không có hoặc đang chạy) để đổi nút thành "TIẾP TỤC".
+        function quickReportSaved() {
+            let saved = null;
+            if (!quickRun) {
+                const o = quickSaveLoad();
+                if (o) saved = { idx: o.idx, total: o.total, label: RUN_LABELS[QUICK_RUN_QUEUE[o.idx]] || QUICK_RUN_QUEUE[o.idx], done: o.results.length };
+            }
+            try { window.top.postMessage({ source: 'TIEN_NGHICH_AUTO_GAME', action: 'QUICK_RUN_SAVED', saved }, '*'); } catch (e) { }
+        }
+
         function quickRunActive() { return Boolean(quickRun); }
 
         function quickViewMgr() {
@@ -81,17 +110,25 @@
             if (key === 'autoBanner') bannerRunOnce();
         }
 
-        function quickRunStart() {
+        function quickRunStart(mode) {
             if (quickRun) return;
             const open = quickVisibleViews();
+            const saved = mode === 'resume' ? quickSaveLoad() : null;
+            quickSaveClear();
             quickRun = {
-                idx: 0, results: [], startedAt: Date.now(), stepStartedAt: Date.now(), gapUntil: 0,
+                idx: saved ? saved.idx : 0, results: saved ? saved.results : [], startedAt: Date.now(), stepStartedAt: Date.now(), gapUntil: 0,
                 savedActive: CONFIG.activeFeature, savedTowerDaily: CONFIG.towerDailyRoutine,
                 savedFlags: QUICK_RUN_QUEUE.map((k) => [k, CONFIG[k]]),
                 baseViews: open ? new Set(open) : null
             };
-            sendLog(`⚡ [Quét nhanh] Bắt đầu ${QUICK_RUN_QUEUE.length} bước, Nhận Cuối Ngày là bước cuối. Dừng bất cứ lúc nào bằng nút TẠM DỪNG.`, 'run');
-            quickRunBeginStep(0);
+            if (saved) {
+                quickRun.priorMs = saved.results.reduce((t, x) => t + (x.ms || 0), 0);
+                sendLog(`⏯ [Quét nhanh] Tiếp tục từ bước ${saved.idx + 1}/${QUICK_RUN_QUEUE.length} (đã xong ${saved.results.length} bước).`, 'run');
+            } else {
+                sendLog(`⚡ [Quét nhanh] Bắt đầu ${QUICK_RUN_QUEUE.length} bước, Nhận Cuối Ngày là bước cuối. Dừng bất cứ lúc nào bằng nút TẠM DỪNG (có thể tiếp tục sau).`, 'run');
+            }
+            quickReportSaved();
+            quickRunBeginStep(quickRun.idx);
         }
 
         // Gọi từ runFinish() sau dòng "Hoàn tất" của bước. true = dãy vẫn chạy (không dừng nút Auto).
@@ -99,6 +136,7 @@
             if (!quickRun) return false;
             quickRun.results.push({ key: info.key, label: info.label, bad: Boolean(bad), reason: reason || '', ms: Date.now() - info.startedAt });
             if (quickRun.idx + 1 < QUICK_RUN_QUEUE.length) {
+                quickSaveWrite(quickRun.idx + 1, quickRun.results);
                 quickReturnToMain();
                 quickRun.gapUntil = Date.now() + QUICK_STEP_GAP_MS;
                 return true;
@@ -107,8 +145,10 @@
             quickReturnToMain();
             quickRestoreConfig();
             quickRun = null;
+            quickSaveClear();
+            quickReportSaved();
             const badSteps = r.results.filter((x) => x.bad);
-            sendLog(`${badSteps.length ? '⚠️' : '✅'} [Quét nhanh] Hoàn tất ${r.results.length}/${QUICK_RUN_QUEUE.length} bước (${runFormatDuration(Date.now() - r.startedAt)})` +
+            sendLog(`${badSteps.length ? '⚠️' : '✅'} [Quét nhanh] Hoàn tất ${r.results.length}/${QUICK_RUN_QUEUE.length} bước (${runFormatDuration((r.priorMs || 0) + Date.now() - r.startedAt)})` +
                 `${badSteps.length ? '; cần xem lại: ' + badSteps.map((x) => x.label).join(', ') : ''}.`, 'result');
             return false;
         }
@@ -117,9 +157,14 @@
         function quickRunAbort() {
             if (!quickRun) return;
             const r = quickRun;
+            // Dừng giữa hai bước: bước đó đã xong, chạy tiếp từ bước sau; dừng giữa bước: làm lại bước đang dở.
+            const nextIdx = r.gapUntil ? r.idx + 1 : r.idx;
             quickRestoreConfig();
             quickRun = null;
-            sendLog(`⏸ [Quét nhanh] Đã dừng sau ${r.results.length}/${QUICK_RUN_QUEUE.length} bước.`, 'run');
+            quickSaveWrite(nextIdx, r.results);
+            quickReportSaved();
+            sendLog(`⏸ [Quét nhanh] Đã dừng sau ${r.results.length}/${QUICK_RUN_QUEUE.length} bước.` +
+                (nextIdx > 0 && nextIdx < QUICK_RUN_QUEUE.length ? ` Đã lưu tiến độ: bấm TIẾP TỤC QUÉT NHANH để chạy tiếp từ bước ${nextIdx + 1}, hoặc CHẠY LẠI TỪ ĐẦU.` : ''), 'run');
         }
 
         // Đầu mỗi nhịp scheduler: nghỉ giữa bước / bắt đầu bước kế / cắt bước kẹt. true = nhịp này đã được dùng.
