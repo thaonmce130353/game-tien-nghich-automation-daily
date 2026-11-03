@@ -13,6 +13,7 @@
     const RECONNECT_MAX_PER_WINDOW = 3;
     const RECONNECT_WINDOW_MS = 15 * 60 * 1000;
     const RECONNECT_SELF_RELOAD_MS = 6000;
+    const RECONNECT_SIGN_WAIT_MS = 6000;        // chờ máy chủ trả chữ ký đăng nhập mới trước khi game tự nối lại
 
     const reconnectPageStart = Date.now();
     let reconnectLossTicks = 0;
@@ -133,6 +134,55 @@
         return null;
     }
 
+    // Game tự nối lại bằng chữ ký/thời gian đăng nhập (sign/time) lấy từ lần tải trang đầu; để lâu máy chủ từ chối
+    // ("Xác minh đăng ký thất bại") và phải làm mới trang. Trước mỗi lần game gọi reconnectServer, xin lại danh sách
+    // server (cùng lệnh game dùng ở màn chọn server) để có sign/time mới, rồi mới để game nối lại.
+    let reconnectSignHooked = false;
+    function reconnectHookSignRefresh() {
+        if (reconnectSignHooked) return;
+        const g = window;
+        if (!g.LoginCtrl || !g.LoginCtrl.prototype || typeof g.LoginCtrl.prototype.reconnectServer !== 'function' ||
+            !g.PlatformMgr || typeof g.PlatformMgr.gInst !== 'function') return;
+        const proto = g.LoginCtrl.prototype;
+        reconnectSignHooked = true;
+        if (proto.__tnSignHooked) return;
+        proto.__tnSignHooked = true;
+        const orig = proto.reconnectServer;
+        proto.reconnectServer = function () {
+            const self = this;
+            const args = arguments;
+            if (!CONFIG.autoReconnect || self.__tnSignRefreshing) {
+                return self.__tnSignRefreshing ? undefined : orig.apply(self, args);
+            }
+            let platform = null;
+            try { platform = g.PlatformMgr.gInst(); } catch (e) { }
+            if (!platform || typeof platform.requestServerList !== 'function' || (typeof platform.isOutside === 'function' && !platform.isOutside())) {
+                return orig.apply(self, args);
+            }
+            const before = { sign: self.sign, time: self.time };
+            self.__tnSignRefreshing = true;
+            const startedAt = Date.now();
+            try { platform.requestServerList(); } catch (e) { }
+            let done = false;
+            const finish = (fresh) => {
+                if (done) return;
+                done = true;
+                self.__tnSignRefreshing = false;
+                reconnectLog(fresh
+                    ? '🔑 [Vào lại game] Đã lấy chữ ký đăng nhập mới từ máy chủ; cho game nối lại.'
+                    : 'ℹ️ [Vào lại game] Chưa nhận được chữ ký đăng nhập mới; cho game nối lại bằng chữ ký cũ (nếu bị từ chối sẽ làm mới trang).', fresh ? 'action' : 'info');
+                try { orig.apply(self, args); } catch (e) { console.error('[Tiên Nghịch Auto] reconnectServer lỗi.', e); }
+            };
+            const wait = setInterval(() => {
+                const fresh = self.sign !== before.sign || self.time !== before.time;
+                if (fresh || Date.now() - startedAt >= RECONNECT_SIGN_WAIT_MS) {
+                    clearInterval(wait);
+                    finish(fresh);
+                }
+            }, 200);
+        };
+    }
+
     // Frame game phát hiện mất kết nối -> nhờ cửa sổ trên cùng làm mới trang (frame con khác origin không tự reload được top).
     function reconnectBegin(reason) {
         if (reconnectReadState()) return;
@@ -186,7 +236,7 @@
         reconnectLossTicks = 0;
         reconnectGaveUp = false;
         if (!state) return;
-        reconnectLog('✅ [Vào lại game] Đã xác nhận vào lại game (trạng thái game: đã vào màn chính, kết nối ổn định).', 'action');
+        reconnectLog('✅ [Vào lại game] Đã xác nhận vào lại game (trạng thái game: đã vào màn chính, kết nối ổn định).', 'run');
         try {
             window.top.postMessage({
                 source: 'TIEN_NGHICH_AUTO_GAME',
@@ -265,7 +315,8 @@
 
         let reason = '';
         if (c.dialog && !c.inLogin) reason = 'hộp thoại “Đăng nhập lại”';
-        else if (c.kicked && !c.inLogin && reconnectWasInGame) reason = 'Xác minh thất bại / bị ngắt phiên';
+        // Xác minh thất bại: game đặt cờ bị đá và có thể về màn đăng nhập; vẫn phải làm mới trang (đã từng ở trong game ở trang này).
+        else if (c.kicked && reconnectWasInGame) reason = 'Xác minh thất bại / bị ngắt phiên';
         if (!reason) { reconnectLossTicks = 0; return; }
 
         reconnectLossTicks++;
@@ -277,6 +328,7 @@
 
     setInterval(() => {
         try {
+            reconnectHookSignRefresh();
             const state = reconnectReadState();
             if (state) reconnectPendingTick(state);
             else reconnectDetectTick();

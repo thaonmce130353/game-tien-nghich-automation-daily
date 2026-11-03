@@ -99,7 +99,7 @@
                 const b = s.pendingBuy;
                 const cost = dragonDiceCost(ctx, dice, info);
                 if (cost.have >= b.need) {
-                    sendLog(`✅ [M7 - Kiếm Hành] Máy chủ xác nhận đã mua xúc xắc (có ${cost.have}, cần ${b.need}).`, "action");
+                    sendLog(`✅ [M7 - Kiếm Hành] Máy chủ xác nhận đã mua xúc xắc (có ${cost.have}, cần ${b.need}).`, "result");
                     s.pendingBuy = null;
                 } else if (now - b.at >= DRAGON_REQUEST_TIMEOUT_MS) {
                     dragonFail(s, "[Kiếm Hành] Đã gửi mua xúc xắc nhưng số xúc xắc không tăng; dừng, không mua lại.", 'dice-war');
@@ -146,7 +146,7 @@
                     if (!ctx.ShopCtrl || typeof ctx.ShopCtrl.gInst().quickBuy !== 'function') { dragonFail(s, "[Kiếm Hành] Không có lệnh mua xúc xắc; dừng.", 'dice-war'); return false; }
                     s.buys++;
                     saveDiceBuys(s.buys);
-                    sendLog(`💎 [M7 - Kiếm Hành] Hết xúc xắc free; mua ${missing} xúc xắc (khoảng ${missing * cost.price} Tiên Ngọc, lần mua ${s.buys}/${DRAGON_DICE_MAX_BUYS}).`, "action");
+                    sendLog(`💎 [M7 - Kiếm Hành] Hết xúc xắc free; mua ${missing} xúc xắc (khoảng ${missing * cost.price} Tiên Ngọc, lần mua ${s.buys}/${DRAGON_DICE_MAX_BUYS}).`, "result");
                     ctx.ShopCtrl.gInst().quickBuy(1501001, missing);
                     s.pendingBuy = { need: cost.need, at: now };
                     return true;
@@ -307,7 +307,7 @@
             const claimable = () => ec.checkLongRewardStatRed() === true;
             if (s.stageSent) {
                 if (!claimable()) {
-                    sendLog("✅ [M7 - Điêu Long] Máy chủ xác nhận đã nhận rương mốc điểm.", "action");
+                    sendLog("✅ [M7 - Điêu Long] Máy chủ xác nhận đã nhận rương mốc điểm.", "result");
                     s.stageSent = 0;
                     s.phase = 'long-tasks';
                     return true;
@@ -346,7 +346,7 @@
                 const t = list().find((x) => x.id === s.claimPending.id);
                 if (t && t.status === 2) {
                     s.claimedTasks++;
-                    sendLog(`✅ [M7 - Điêu Long] Máy chủ xác nhận đã nhận nhiệm vụ Khiêu chiến #${t.id}.`, "action");
+                    sendLog(`✅ [M7 - Điêu Long] Máy chủ xác nhận đã nhận nhiệm vụ Khiêu chiến #${t.id}.`, "result");
                     s.claimPending = null;
                 } else if (now - s.claimPending.at >= DRAGON_REQUEST_TIMEOUT_MS) {
                     sendLog(`⚠️ [M7 - Điêu Long] Đã gửi nhận nhiệm vụ #${s.claimPending.id} nhưng máy chủ chưa xác nhận; không gửi lại.`, "warn");

@@ -61,7 +61,7 @@
                 }
                 const left = warOrderCountFree(rc, type, termId);
                 if (left === 0) {
-                    sendLog(`✅ [${opts.label}] Chiến Lệnh: máy chủ xác nhận đã nhận ${holder.before} phần thưởng.`, "action");
+                    sendLog(`✅ [${opts.label}] Chiến Lệnh: máy chủ xác nhận đã nhận ${holder.before} phần thưởng.`, "result");
                     return { status: 'done' };
                 }
                 sendLog(`⚠️ [${opts.label}] Chiến Lệnh: đã gửi nhận nhưng còn ${left} phần thưởng chưa nhận được (có thể cần điều kiện khác).`, "warn");

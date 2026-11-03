@@ -55,7 +55,22 @@
         function memoryFail(state, message) {
             sendLog(`❌ [M6 - Ảo Cảnh] ${message}`, "error");
             state.failed = true;
-            state.phase = 'done';
+            // Ván lỗi không được làm mất thưởng mốc điểm đã đủ: thử nhận thưởng một lần rồi mới dừng.
+            if (!state.claimBlocked && !state.claimDone && !state.claimSent) { state.phase = 'claim'; state.claimReturn = 'done'; }
+            else state.phase = 'done';
+        }
+
+        // Chữ ký trạng thái các mốc điểm (score -> status) từ máy chủ; đổi nghĩa là máy chủ đã phản hồi nhận thưởng.
+        function memoryStatusSig(ctrl) {
+            try { return JSON.stringify(ctrl.statusDic || {}); } catch (e) { return ''; }
+        }
+
+        function memoryMilestoneText(ctrl) {
+            try {
+                const model = ctrl.getCurlModel();
+                const cfg = model && model.getcfg2 ? model.getcfg2() : [];
+                return cfg.map((c) => `${c.num}:${ctrl.getStatusByScore(c.num)}`).join(', ');
+            } catch (e) { return '?'; }
         }
 
         // Hẹn giờ gửi lần lượt 8 cặp, cặp cuối vào khoảng MEMORY_ROUND_TARGET_MS sau lúc bấm Bắt đầu. Gửi nối tiếp,
@@ -111,7 +126,7 @@
                 if (s.phase === 'done') return false;
                 const now = Date.now();
                 const tokenOf = () => ctrl.sc32060;
-                const closeResult = () => { try { if (vm.viewIsVisible('fmDazzlingResultUi')) vm.closeView('fmDazzlingResultUi'); } catch (e) { } };
+                const closeResult = () => { for (const name of ['fmDazzlingResultUi', 'backpackGetAwardTipsUi']) { try { if (vm.viewIsVisible(name)) vm.closeView(name); } catch (e) { } } };
                 const openMain = () => { try { if (!vm.viewIsVisible('faZhenMirageMainUi') && typeof ctrl.opFaZhenMirageUi === 'function') ctrl.opFaZhenMirageUi(); } catch (e) { } };
 
                 // Bảng kết quả có thể che màn hình: đóng ngay khi hiện.
@@ -125,6 +140,12 @@
                     const d = memoryRead(ctrl);
                     if (!d || !(d.rewardRuns > 0)) { memoryFail(s, "Không đọc được số lượt thưởng Ảo Cảnh (bản game đổi); dừng."); return false; }
                     const left = d.rewardRuns - d.passTaken;
+                    if (d.beginMs === 0 && left <= 0 && !s.claimDone && !s.claimBlocked && memoryClaimable(ctrl)) {
+                        sendLog(`🎁 [M6 - Ảo Cảnh] Đã chơi đủ ${d.passTaken}/${d.rewardRuns} ván (điểm ${d.scores}; mốc ${memoryMilestoneText(ctrl)}); nhận thưởng mốc cuối (một lần nhận hết).`, "action");
+                        s.phase = 'claim';
+                        s.claimReturn = 'open';
+                        return true;
+                    }
                     if (d.beginMs > 0) {
                         sendLog("ℹ️ [M6 - Ảo Cảnh] Đang có ván dở; tiếp tục ghép thẻ.", "info");
                         s.pairs = memoryBuildPairs(ctrl);
@@ -142,6 +163,7 @@
                     } else if (left <= 0 || s.rounds >= MEMORY_MAX_ROUNDS) {
                         sendLog(`ℹ️ [M6 - Ảo Cảnh] Hết ván cần chơi (${d.passTaken}/${d.rewardRuns}); chuyển sang nhận thưởng mốc điểm.`, "info");
                         s.phase = 'claim';
+                        s.claimReturn = 'done';
                         return true;
                     }
                     s.passBefore = d.passTaken;
@@ -209,24 +231,32 @@
                 }
 
                 if (s.phase === 'claim') {
+                    const back = () => { s.claimDone = true; s.claimSent = 0; s.phase = s.claimReturn || 'done'; s.claimReturn = null; if (s.phase === 'open') { s.refreshing = null; s.nextAt = now + humanDelay(1200); } };
                     if (s.claimSent) {
-                        if (!memoryClaimable(ctrl)) {
+                        if (memoryStatusSig(ctrl) !== s.claimSig) {
                             closeResult();
-                            sendLog("✅ [M6 - Ảo Cảnh] Máy chủ xác nhận đã nhận thưởng mốc điểm.", "action");
-                            s.phase = 'done';
-                        } else if (now - s.claimSent >= MEMORY_REQUEST_TIMEOUT_MS) {
-                            sendLog("⚠️ [M6 - Ảo Cảnh] Đã gửi nhận thưởng mốc điểm nhưng máy chủ chưa xác nhận; không gửi lại.", "warn");
+                            const rest = memoryClaimable(ctrl);
+                            sendLog(rest ? `⚠️ [M6 - Ảo Cảnh] Máy chủ đã phản hồi nhận thưởng nhưng còn mốc chưa nhận (mốc ${memoryMilestoneText(ctrl)}).` : `✅ [M6 - Ảo Cảnh] Máy chủ xác nhận đã nhận thưởng mốc điểm (mốc ${memoryMilestoneText(ctrl)}).`, rest ? "warn" : "result");
+                            back();
+                            return true;
+                        }
+                        if (now - s.claimSent >= MEMORY_REQUEST_TIMEOUT_MS) {
+                            sendLog(`⚠️ [M6 - Ảo Cảnh] Đã gửi nhận thưởng mốc điểm nhưng máy chủ chưa xác nhận (mốc ${memoryMilestoneText(ctrl)}); không gửi lại.`, "warn");
+                            s.claimBlocked = true;
                             s.failed = true;
-                            s.phase = 'done';
+                            back();
                         }
                         return false;
                     }
+                    if (s.claimBlocked || (s.claimDone && s.claimReturn === 'done')) { back(); return false; }   // đã gửi mà máy chủ không xác nhận: không gửi lại
                     if (!memoryClaimable(ctrl)) {
-                        sendLog("ℹ️ [M6 - Ảo Cảnh] Không có thưởng mốc điểm nào để nhận.", "info");
-                        s.phase = 'done';
+                        const d = memoryRead(ctrl);
+                        sendLog(`ℹ️ [M6 - Ảo Cảnh] Không có thưởng mốc điểm nào để nhận (điểm ${d ? d.scores : '?'}; mốc ${memoryMilestoneText(ctrl)}).`, "info");
+                        back();
                         return false;
                     }
                     s.claimSent = now;
+                    s.claimSig = memoryStatusSig(ctrl);
                     ctrl.send32064();
                     sendLog("🎁 [M6 - Ảo Cảnh] Đã gửi nhận thưởng mốc điểm; chờ máy chủ xác nhận.", "action");
                     return true;

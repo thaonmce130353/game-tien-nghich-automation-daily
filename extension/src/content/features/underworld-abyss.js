@@ -1,5 +1,8 @@
 
         // 3. TỰ ĐỘNG LEO VỰC U MINH
+        let abyssGaveUp = 0;      // tầng đã thử đủ số lần mà chưa qua: tính năng kết thúc ngay (không chờ 90s rảnh)
+        runResetHooks.push(() => { abyssGaveUp = 0; });
+
         function handleClimbYMAbyss(ctx) {
             if (!CONFIG.autoClimbYMAbyss) return false;
             const now = Date.now();
@@ -22,7 +25,7 @@
 
                 const curAbyssId = curCfg.id;
                 lastAbyssClimbTime = now;
-                if (!tryAttemptTarget(`abyss-${curAbyssId}`, `[Vực U Minh] Tầng #${curAbyssId}`)) return false;
+                if (!tryAttemptTarget(`abyss-${curAbyssId}`, `[Vực U Minh] Tầng #${curAbyssId}`)) { abyssGaveUp = curAbyssId; return false; }
 
                 if (ctx.ViewMgr && ctx.ViewMgr.gInst) {
                     const vm = ctx.ViewMgr.gInst();

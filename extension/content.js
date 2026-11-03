@@ -36,7 +36,7 @@
         autoTuLinhThap: true,           // Cử tướng Trợ Trận & Leo + Quét 4 Tháp Tứ Linh (Ma/Thiên/Nghịch/Dị)
         
         // Module 2: Phụ Bản Ngày & Bí Cảnh Tứ Quốc
-        autoClimbDailyDungeons: false,  // Quét nhanh PB Ngày (Free & Mua 250 Tiên Ngọc)
+        autoClimbDailyDungeons: false,  // Leo PB Ngày (không dùng trong M2; M2 chỉ quét miễn phí)
         buyDailyDungeon: true,          // Tự mua thêm quét PB Ngày
         autoBiCanhTuQuoc: false,        // Quét Bí Cảnh Tứ Quốc tầng Đủ Vượt 10 lần
         
@@ -75,9 +75,10 @@
         autoSweepDungeons: false,       // Quét sạch phụ bản đã vượt
         autoXianYuan: false,            // Quà Tiên Duyên
         
-        // Banner hero: tự nhận quà khi banner đang mở (tab Banner)
-        bannerAuto: {},                 // { [unique_id]: true } banner được bật tự nhận quà
+        // Sự kiện đang mở (banner tướng Thần Lâm / Đạp Thiên): tính năng chính 'autoBanner' (làm việc ngày cho TẤT CẢ banner đang mở)
+        verboseLog: false,              // true = hiện cả các dòng log chi tiết từng bước (gỡ lỗi); mặc định chỉ hiện thông tin quan trọng
         bannerGoldPrice: 300,           // Quà Tiên Ngọc trong bảng Quà banner: mua mặc định, chỉ khi đúng giá này
+        bannerZlBuyGold: 300,           // Trần Tiên Ngọc mua điểm Chiến Lệnh mỗi banner (0 = tắt); chỉ mua trong 24 giờ cuối
 
         activeTab: 'daoThanh',
         intervalMs: 1200,
@@ -106,7 +107,11 @@
     // PHẦN 1: GIAO DIỆN ĐIỀU KHIỂN (TOP WINDOW)
     // =========================================================================
     if (isTopWindow || isStandaloneGame) {
+        // Chỉ hiện thông tin quan trọng: 'result' (mua/nhận thưởng/kết quả), 'run' (bắt đầu/hoàn tất/dừng), 'warn', 'err'.
+        // Các dòng chi tiết từng bước ('info', 'action', ...) chỉ hiện khi bật "Log chi tiết" (CONFIG.verboseLog).
+        const LOG_ALWAYS_SHOWN = ['result', 'run', 'warn', 'err', 'error'];
         function addLogToUI(msg, type = "info") {
+            if (!CONFIG.verboseLog && !LOG_ALWAYS_SHOWN.includes(type)) return;
             const logBox = document.getElementById('tn-log-content');
             if (!logBox) return;
             const time = new Date().toLocaleTimeString();
@@ -119,8 +124,9 @@
             
             let color = '#a6e3a1';
             if (type === 'warn') color = '#fab387';
-            if (type === 'err') color = '#f38ba8';
+            if (type === 'err' || type === 'error') color = '#f38ba8';
             if (type === 'action') color = '#89b4fa';
+            if (type === 'run') color = '#89dceb';
 
             p.innerHTML = `<span style="color:#888;">[${time}]</span> <span style="color:${color};">${msg}</span>`;
             logBox.appendChild(p);
@@ -174,10 +180,9 @@
             }
         }
 
-        // Có gì để chạy: một tính năng chính đã chọn, hoặc ít nhất 1 banner đã tick ở tab Banner.
+        // Có gì để chạy: đã chọn một tính năng chính (chỉ một tính năng mỗi lần, kể cả "Tướng Thần Lâm / Đạp Thiên").
         function hasRunnableSelection() {
-            return Boolean(CONFIG.activeFeature) ||
-                Object.keys(CONFIG.bannerAuto || {}).some((k) => CONFIG.bannerAuto[k]);
+            return Boolean(CONFIG.activeFeature);
         }
 
         function sendCommandToGame(action, data = {}) {
@@ -220,13 +225,13 @@
             } else if (data.action === 'LOG') {
                 addLogToUI(data.message, data.logType);
             } else if (data.action === 'AUTO_FINISHED') {
-                // Lượt chạy một lần (vd: chỉ nhận quà banner) đã xong: trả nút về trạng thái dừng.
+                // Tính năng đã hoàn tất: trả nút về trạng thái dừng (dòng kết quả đã được game ghi log).
                 CONFIG.running = false;
                 updateBadge(false);
-                addLogToUI(data.message || 'Đã xong, Auto tự dừng.', 'info');
+                if (data.message) addLogToUI(data.message, 'run');
             } else if (data.action === 'AUTO_RECONNECT_RELOAD') {
                 if (!reconnectTopPrepare(data.reason, data.resume)) return;
-                addLogToUI('🔄 [Vào lại game] Đang làm mới trang game để vào lại...', 'action');
+                addLogToUI('🔄 [Vào lại game] Đang làm mới trang game để vào lại...', 'run');
                 setTimeout(() => location.reload(), 800);
             } else if (data.action === 'AUTO_RECONNECT_GAME_READY') {
                 reconnectTopDone();
@@ -236,7 +241,7 @@
                     updateBadge(true);
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                     sendCommandToGame('TOGGLE_AUTO', { running: true, resumed: true, config: CONFIG });
-                    addLogToUI('▶️ [Vào lại game] Auto đã được khởi động lại sau khi vào lại game.', 'action');
+                    addLogToUI('▶️ [Vào lại game] Auto đã được khởi động lại sau khi vào lại game.', 'run');
                 } else {
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                     addLogToUI('ℹ️ [Vào lại game] Đã vào lại game; Auto vẫn đang tạm dừng như trước khi ngắt kết nối.', 'info');
@@ -728,9 +733,13 @@
                                 <span style="font-weight:bold; color:#cdd6f4;">⚡ Tối đa tốc độ x3</span>
                                 <input type="checkbox" id="tn-opt-speed" ${CONFIG.maxSpeed ? 'checked' : ''}>
                             </label>
-                            <label class="tn-opt-item" style="padding:4px 8px;">
+                            <label class="tn-opt-item" style="padding:4px 8px; margin-bottom:3px;">
                                 <span style="font-weight:bold; color:#cdd6f4;">🔌 Tự vào lại game khi bị ngắt kết nối</span>
                                 <input type="checkbox" id="tn-opt-reconnect" ${CONFIG.autoReconnect ? 'checked' : ''}>
+                            </label>
+                            <label class="tn-opt-item" style="padding:4px 8px;">
+                                <span style="font-weight:bold; color:#cdd6f4;">📜 Log chi tiết (gỡ lỗi)</span>
+                                <input type="checkbox" id="tn-opt-verbose" ${CONFIG.verboseLog ? 'checked' : ''}>
                             </label>
                         </div>
 
@@ -753,7 +762,7 @@
                             <button class="tn-tab-btn" data-tab="troChien" title="Khu vực Trợ Chiến">⚔️ Trợ Chiến</button>
                             <button class="tn-tab-btn" data-tab="lichLuyen" title="Khu vực Lịch Luyện">🗺️ Lịch Luyện</button>
                             <button class="tn-tab-btn" data-tab="maDao" title="Khu vực Ma Đạo">🔥 Ma Đạo</button>
-                            <button class="tn-tab-btn" data-tab="banner" title="Banner hero đang mở">🎴 Banner</button>
+                            <button class="tn-tab-btn" data-tab="banner" title="Sự kiện đang mở (banner tướng Thần Lâm / Đạp Thiên)" style="flex:1.7;">🎴 Sự kiện đang mở</button>
                         </div>
 
                         <!-- DANH SÁCH TÍNH NĂNG TRONG 5 TAB -->
@@ -860,7 +869,7 @@
                                     <label class="tn-opt-item" style="border-left: 3px solid #fab387;">
                                         <div>
                                             <div style="font-weight:bold; color:#fab387;">⚔️ [M2] Phụ Bản Ngày & Bí Cảnh Tứ Quốc</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Quét nhanh PB Ngày (Free & 250 Tiên Ngọc). Quét Bí Cảnh tầng Đủ Vượt 10 lần.</div>
+                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Quét PB Ngày chỉ bằng lượt MIỄN PHÍ (1 lần/ngày, không mua lượt bằng Tiên Ngọc). Bí Cảnh Tứ Quốc: đánh ải mới từng tháp đang mở (bỏ qua trận), hết ải thì quét ải cuối tới hết lượt miễn phí.</div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoDailyDungeon" ${CONFIG.activeFeature === 'autoDailyDungeon' ? 'checked' : ''}>
                                     </label>
@@ -892,7 +901,7 @@
                                     <label class="tn-opt-item" style="border-left: 3px solid #f9e2af;">
                                         <div>
                                             <div style="font-weight:bold; color:#f9e2af;">💎 [M5] Di Tích Tiên Giới (Bảo Vệ Lv4)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Quét 6 bệ Lv1-4, làm mới Lv1-3. Gặp cảnh báo Lv4 lập tức HỦY để khai thác bệ Lv4.</div>
+                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Phái 1 đội vào bệ cấp cao nhất. Toàn bệ cấp thấp thì làm mới miễn phí (tối đa 3 lần) tới khi gặp Lv3-5.</div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoImmortalRelic" ${CONFIG.activeFeature === 'autoImmortalRelic' ? 'checked' : ''}>
                                     </label>
@@ -924,7 +933,18 @@
                             </div>
 
                             <!-- TAB 5: MA ĐẠO (Treo máy, Ủy phái, Quà Tiên, Nhiệm vụ) -->
-                            <div id="tn-tab-panel-banner" class="tn-tab-panel"></div>
+                            <div id="tn-tab-panel-banner" class="tn-tab-panel">
+                                <div class="tn-opt-list">
+                                    <label class="tn-opt-item" style="border-left: 3px solid #cba6f7;">
+                                        <div>
+                                            <div style="font-weight:bold; color:#cba6f7;">🎴 Tướng Thần Lâm / Đạp Thiên</div>
+                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Làm việc ngày cho TẤT CẢ banner đang mở: nhận Quà (miễn phí + quà Tiên Ngọc ${CONFIG.bannerGoldPrice || 300}) → Chiêu mộ 1 lần → Khiêu Chiến Thí Luyện 1 lần → nhận điểm nhiệm vụ → Chiến Lệnh Nhận nhanh. Chạy một lượt rồi tự dừng. Không mua quà tiền thật.</div>
+                                        </div>
+                                        <input type="checkbox" class="tn-mutex-feature" data-key="autoBanner" ${CONFIG.activeFeature === 'autoBanner' ? 'checked' : ''}>
+                                    </label>
+                                    <div id="tn-banner-extra"></div>
+                                </div>
+                            </div>
 
                             <div id="tn-tab-panel-ma-dao" class="tn-tab-panel">
                                 <div class="tn-opt-list">
@@ -1034,7 +1054,7 @@
             const mainFeatures = [
                 'autoTongTian', 'autoClimbDailyDungeons', 'autoClimbYMAbyss', 'autoClimbCamp',
                 'autoSweepDungeons', 'autoExtremeYin', 'autoArena',
-                'autoMaDao', 'autoXianYuan'
+                'autoMaDao', 'autoXianYuan', 'autoBanner'
             ];
 
             const mutexCheckboxes = document.querySelectorAll('.tn-mutex-feature');
@@ -1097,8 +1117,10 @@
                         });
                         CONFIG.activeFeature = key;
                         sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
-                        const title = cb.closest('label').querySelector('div div') ? cb.closest('label').querySelector('div div').innerText : key;
-                        addLogToUI("🎯 Chế độ Auto đã kích hoạt: " + title, "info");
+                        // Chỉ lấy tên tính năng (div tiêu đề), không lấy cả phần mô tả.
+                        const titleEl = cb.closest('label').querySelector('div > div');
+                        const title = titleEl ? titleEl.innerText : key;
+                        addLogToUI("🎯 Đã chọn: " + title, "run");
                     } else {
                         CONFIG[key] = false;
                         if (key === 'autoTamTienDai') {
@@ -1122,6 +1144,16 @@
                     CONFIG.autoSkipFight = e.target.checked;
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                     addLogToUI(CONFIG.autoSkipFight ? "⏩ Bật bỏ qua trận đấu thần tốc!" : "⏸️ Tắt bỏ qua trận đấu", "info");
+                });
+            }
+
+            const verboseEl = document.getElementById('tn-opt-verbose');
+            if (verboseEl) {
+                verboseEl.checked = Boolean(CONFIG.verboseLog);
+                verboseEl.addEventListener('change', (e) => {
+                    CONFIG.verboseLog = e.target.checked;
+                    sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
+                    addLogToUI(CONFIG.verboseLog ? "📜 Đã bật log chi tiết (gỡ lỗi)." : "📜 Đã tắt log chi tiết; chỉ hiện thông tin quan trọng.", "run");
                 });
             }
 
@@ -1190,13 +1222,13 @@
             if (btnMain) {
                 btnMain.addEventListener('click', () => {
                     if (!CONFIG.running && !hasRunnableSelection()) {
-                        addLogToUI("⚠️ Hãy chọn ít nhất 1 tính năng (hoặc tick 1 banner ở tab Banner) trước khi bắt đầu.", "warn");
+                        addLogToUI("⚠️ Hãy chọn 1 tính năng (mỗi lần chỉ chạy một tính năng) trước khi bắt đầu.", "warn");
                         return;
                     }
                     CONFIG.running = !CONFIG.running;
                     updateBadge(CONFIG.running);
                     sendCommandToGame('TOGGLE_AUTO', { running: CONFIG.running, config: CONFIG });
-                    addLogToUI(CONFIG.running ? "🚀 Đã bắt đầu treo leo ải Auto!" : "⏸ Đã tạm dừng Auto.", CONFIG.running ? "action" : "warn");
+                    addLogToUI(CONFIG.running ? "🚀 Đã bắt đầu Auto." : "⏸ Đã dừng Auto.", CONFIG.running ? "run" : "warn");
                 });
             }
 
@@ -1253,7 +1285,8 @@
 
             const root = document.createElement('div');
             root.id = 'tn-probe-root';
-            root.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:2147483646;font:11px/1.35 monospace;color:#cdd6f4;';
+            // Mặc định ở góc trên bên phải (xa HUD và nút BẮT ĐẦU); kéo nút "Probe" để di chuyển, vị trí được nhớ lại.
+            root.style.cssText = 'position:fixed;right:8px;top:8px;z-index:2147483646;font:11px/1.35 monospace;color:#cdd6f4;';
 
             const toggle = document.createElement('button');
             toggle.textContent = '🔍 Probe';
@@ -1288,6 +1321,49 @@
             panel.append(bar, note, out);
             root.append(toggle, panel);
             document.body.appendChild(root);
+
+            // Kéo-thả bằng nút Probe (di chuyển > 4px thì không tính là bấm).
+            const PROBE_POS_KEY = 'tn-probe-pos';
+            const clampPos = (x, y) => ({
+                x: Math.max(0, Math.min(x, window.innerWidth - 60)),
+                y: Math.max(0, Math.min(y, window.innerHeight - 30))
+            });
+            const placeAt = (x, y) => {
+                const c = clampPos(x, y);
+                root.style.right = 'auto';
+                root.style.left = c.x + 'px';
+                root.style.top = c.y + 'px';
+            };
+            try {
+                const saved = JSON.parse(localStorage.getItem(PROBE_POS_KEY) || 'null');
+                if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) placeAt(saved.x, saved.y);
+            } catch (e) { }
+            let dragStart = null;
+            let dragged = false;
+            toggle.addEventListener('pointerdown', (e) => {
+                const r = root.getBoundingClientRect();
+                dragStart = { px: e.clientX, py: e.clientY, x: r.left, y: r.top };
+                dragged = false;
+                try { toggle.setPointerCapture(e.pointerId); } catch (err) { }
+            });
+            toggle.addEventListener('pointermove', (e) => {
+                if (!dragStart) return;
+                const dx = e.clientX - dragStart.px;
+                const dy = e.clientY - dragStart.py;
+                if (!dragged && Math.abs(dx) + Math.abs(dy) < 5) return;
+                dragged = true;
+                placeAt(dragStart.x + dx, dragStart.y + dy);
+            });
+            toggle.addEventListener('pointerup', () => {
+                if (dragged) {
+                    const r = root.getBoundingClientRect();
+                    try { localStorage.setItem(PROBE_POS_KEY, JSON.stringify({ x: r.left, y: r.top })); } catch (e) { }
+                }
+                dragStart = null;
+            });
+            toggle.addEventListener('click', (e) => {
+                if (dragged) { e.stopImmediatePropagation(); e.preventDefault(); dragged = false; }
+            }, true);
 
             function line(text, color) {
                 const d = document.createElement('div');
@@ -1418,7 +1494,7 @@
     }
 
     // =========================================================================
-    // BANNER HERO: tab điều khiển ở cửa sổ trên cùng (chọn banner đang mở để tự nhận quà)
+    // SỰ KIỆN ĐANG MỞ: tab điều khiển ở cửa sổ trên cùng (một tính năng "Tướng Thần Lâm / Đạp Thiên" cho mọi banner đang mở)
     // =========================================================================
     const BANNER_REQ_SOURCE = 'TIEN_NGHICH_AUTO_BANNER_REQ';
     const BANNER_RES_SOURCE = 'TIEN_NGHICH_AUTO_BANNER_RES';
@@ -1452,17 +1528,13 @@
 
         function bannerUiBuild() {
             if (bannerUiBuilt) return true;
-            const panel = document.getElementById('tn-tab-panel-banner');
-            if (!panel) return false;
+            const holder = document.getElementById('tn-banner-extra');
+            if (!holder) return false;
             bannerUiBuilt = true;
-            if (!CONFIG.bannerAuto || typeof CONFIG.bannerAuto !== 'object') CONFIG.bannerAuto = {};
 
-            const intro = document.createElement('div');
-            intro.style.cssText = 'font-size:9.5px;color:#a6adc8;line-height:1.35;margin-bottom:6px;';
-            intro.textContent = 'Banner hero đang mở. Tick để CHỌN banner; quy trình chỉ chạy đúng một lượt khi bấm ▶ BẮT ĐẦU, và chỉ khi banner còn mở.';
-
+            // Danh sách banner đang mở: nằm dưới tính năng, chỉ để xem.
             const bar = document.createElement('div');
-            bar.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;';
+            bar.style.cssText = 'display:flex;gap:6px;align-items:center;margin:0 0 0 10px;';
             const refresh = document.createElement('button');
             refresh.textContent = 'Tải lại danh sách';
             refresh.style.cssText = 'background:#45475a;color:#cdd6f4;border:0;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:10px;';
@@ -1472,19 +1544,11 @@
             bar.append(refresh, status);
 
             const listBox = document.createElement('div');
-            listBox.style.cssText = 'display:flex;flex-direction:column;gap:5px;';
-
-            const note = document.createElement('div');
-            note.style.cssText = 'font-size:9.5px;color:#a6adc8;line-height:1.35;margin-top:6px;';
-            note.textContent = 'Quy trình mỗi hero: nhận Quà (miễn phí + quà Tiên Ngọc ' + (CONFIG.bannerGoldPrice || 300) + ') → Chiêu mộ 1 lần → Khiêu Chiến Thí Luyện 1 lần → nhận điểm nhiệm vụ → Chiến Lệnh Nhận nhanh. Không mua quà tiền thật.';
+            listBox.style.cssText = 'display:flex;flex-direction:column;gap:5px;margin-left:10px;';
 
             refresh.addEventListener('click', () => { status.textContent = 'Đang tải...'; bannerUiRequest(); });
 
-            // Một khối .tn-opt-list duy nhất làm con đầu tiên của tab để bố cục HUD xếp nội dung từ trên xuống.
-            const wrap = document.createElement('div');
-            wrap.className = 'tn-opt-list';
-            wrap.append(intro, bar, listBox, note);
-            panel.appendChild(wrap);
+            holder.append(bar, listBox);
 
             function render(res) {
                 listBox.textContent = '';
@@ -1492,27 +1556,19 @@
                 if (!res.ready) { status.textContent = 'Chưa có dữ liệu banner từ game.'; return; }
                 status.textContent = res.banners.length ? res.banners.length + ' banner đang mở' : 'Hiện không có banner nào đang mở.';
                 for (const b of res.banners) {
-                    const label = document.createElement('label');
-                    label.className = 'tn-opt-item';
-                    label.style.cssText = 'border-left:3px solid #cba6f7;';
+                    const item = document.createElement('div');
+                    item.className = 'tn-opt-item';
+                    item.style.cssText = 'border-left:3px solid #cba6f7;padding:4px 8px;cursor:default;';
                     const text = document.createElement('div');
                     const title = document.createElement('div');
-                    title.style.cssText = 'font-weight:bold;color:#cba6f7;';
-                    title.textContent = '🎴 Quà ' + b.series;
+                    title.style.cssText = 'font-weight:bold;color:#cba6f7;font-size:10.5px;';
+                    title.textContent = '🎴 ' + b.series + (b.heroName ? ' · ' + b.heroName : '');
                     const desc = document.createElement('div');
                     desc.style.cssText = 'font-size:9.5px;color:#a6adc8;margin-top:2px;line-height:1.3;';
-                    desc.textContent = '#' + b.uniqueId + ' · hero ' + b.heroId + ' · ' + bannerUiFormatRemain(b.remainSec);
+                    desc.textContent = '#' + b.uniqueId + (b.heroName ? '' : ' · hero ' + b.heroId) + ' · ' + bannerUiFormatRemain(b.remainSec);
                     text.append(title, desc);
-                    const box = document.createElement('input');
-                    box.type = 'checkbox';
-                    box.checked = Boolean(CONFIG.bannerAuto[b.uniqueId]);
-                    box.addEventListener('change', () => {
-                        if (box.checked) CONFIG.bannerAuto[b.uniqueId] = true;
-                        else delete CONFIG.bannerAuto[b.uniqueId];
-                        bannerUiLog((box.checked ? '🟢' : '⏸️') + ' [Banner Hero] ' + (box.checked ? 'Đã chọn' : 'Bỏ chọn') + ' quà ' + b.series + ' #' + b.uniqueId + ' (chỉ chạy khi bấm BẮT ĐẦU).', 'info');
-                    });
-                    label.append(text, box);
-                    listBox.appendChild(label);
+                    item.appendChild(text);
+                    listBox.appendChild(item);
                 }
             }
 
@@ -1550,6 +1606,7 @@
     const RECONNECT_MAX_PER_WINDOW = 3;
     const RECONNECT_WINDOW_MS = 15 * 60 * 1000;
     const RECONNECT_SELF_RELOAD_MS = 6000;
+    const RECONNECT_SIGN_WAIT_MS = 6000;        // chờ máy chủ trả chữ ký đăng nhập mới trước khi game tự nối lại
 
     const reconnectPageStart = Date.now();
     let reconnectLossTicks = 0;
@@ -1670,6 +1727,55 @@
         return null;
     }
 
+    // Game tự nối lại bằng chữ ký/thời gian đăng nhập (sign/time) lấy từ lần tải trang đầu; để lâu máy chủ từ chối
+    // ("Xác minh đăng ký thất bại") và phải làm mới trang. Trước mỗi lần game gọi reconnectServer, xin lại danh sách
+    // server (cùng lệnh game dùng ở màn chọn server) để có sign/time mới, rồi mới để game nối lại.
+    let reconnectSignHooked = false;
+    function reconnectHookSignRefresh() {
+        if (reconnectSignHooked) return;
+        const g = window;
+        if (!g.LoginCtrl || !g.LoginCtrl.prototype || typeof g.LoginCtrl.prototype.reconnectServer !== 'function' ||
+            !g.PlatformMgr || typeof g.PlatformMgr.gInst !== 'function') return;
+        const proto = g.LoginCtrl.prototype;
+        reconnectSignHooked = true;
+        if (proto.__tnSignHooked) return;
+        proto.__tnSignHooked = true;
+        const orig = proto.reconnectServer;
+        proto.reconnectServer = function () {
+            const self = this;
+            const args = arguments;
+            if (!CONFIG.autoReconnect || self.__tnSignRefreshing) {
+                return self.__tnSignRefreshing ? undefined : orig.apply(self, args);
+            }
+            let platform = null;
+            try { platform = g.PlatformMgr.gInst(); } catch (e) { }
+            if (!platform || typeof platform.requestServerList !== 'function' || (typeof platform.isOutside === 'function' && !platform.isOutside())) {
+                return orig.apply(self, args);
+            }
+            const before = { sign: self.sign, time: self.time };
+            self.__tnSignRefreshing = true;
+            const startedAt = Date.now();
+            try { platform.requestServerList(); } catch (e) { }
+            let done = false;
+            const finish = (fresh) => {
+                if (done) return;
+                done = true;
+                self.__tnSignRefreshing = false;
+                reconnectLog(fresh
+                    ? '🔑 [Vào lại game] Đã lấy chữ ký đăng nhập mới từ máy chủ; cho game nối lại.'
+                    : 'ℹ️ [Vào lại game] Chưa nhận được chữ ký đăng nhập mới; cho game nối lại bằng chữ ký cũ (nếu bị từ chối sẽ làm mới trang).', fresh ? 'action' : 'info');
+                try { orig.apply(self, args); } catch (e) { console.error('[Tiên Nghịch Auto] reconnectServer lỗi.', e); }
+            };
+            const wait = setInterval(() => {
+                const fresh = self.sign !== before.sign || self.time !== before.time;
+                if (fresh || Date.now() - startedAt >= RECONNECT_SIGN_WAIT_MS) {
+                    clearInterval(wait);
+                    finish(fresh);
+                }
+            }, 200);
+        };
+    }
+
     // Frame game phát hiện mất kết nối -> nhờ cửa sổ trên cùng làm mới trang (frame con khác origin không tự reload được top).
     function reconnectBegin(reason) {
         if (reconnectReadState()) return;
@@ -1723,7 +1829,7 @@
         reconnectLossTicks = 0;
         reconnectGaveUp = false;
         if (!state) return;
-        reconnectLog('✅ [Vào lại game] Đã xác nhận vào lại game (trạng thái game: đã vào màn chính, kết nối ổn định).', 'action');
+        reconnectLog('✅ [Vào lại game] Đã xác nhận vào lại game (trạng thái game: đã vào màn chính, kết nối ổn định).', 'run');
         try {
             window.top.postMessage({
                 source: 'TIEN_NGHICH_AUTO_GAME',
@@ -1802,7 +1908,8 @@
 
         let reason = '';
         if (c.dialog && !c.inLogin) reason = 'hộp thoại “Đăng nhập lại”';
-        else if (c.kicked && !c.inLogin && reconnectWasInGame) reason = 'Xác minh thất bại / bị ngắt phiên';
+        // Xác minh thất bại: game đặt cờ bị đá và có thể về màn đăng nhập; vẫn phải làm mới trang (đã từng ở trong game ở trang này).
+        else if (c.kicked && reconnectWasInGame) reason = 'Xác minh thất bại / bị ngắt phiên';
         if (!reason) { reconnectLossTicks = 0; return; }
 
         reconnectLossTicks++;
@@ -1814,6 +1921,7 @@
 
     setInterval(() => {
         try {
+            reconnectHookSignRefresh();
             const state = reconnectReadState();
             if (state) reconnectPendingTick(state);
             else reconnectDetectTick();
@@ -1830,13 +1938,16 @@
         let waitingForFloorUpdate = false;
         let lastPassedFloor = 0;
         let sweptDayKey = '';
+        let sweepPending = null;          // quét miễn phí PB Ngày đã gửi, đang chờ xác nhận (xem sweepConfirmTick)
+        let runInfo = null;               // lượt chạy hiện tại: { key, label, startedAt, lastActAt, problems }
 
         // Nhịp thao tác giống người chơi: nghỉ ngẫu nhiên quanh nhịp gốc, thỉnh thoảng (~5%) dừng lâu hơn
         // (thay cho nhịp cố định đều đặn dễ bị nhận ra).
-        function humanDelay(baseMs) {
+        // noLongPause: bỏ cú nghỉ dài ngẫu nhiên (5%) cho chuỗi nhiều bước nhỏ liên tiếp như Nhận Cuối Ngày.
+        function humanDelay(baseMs, noLongPause) {
             const base = baseMs > 0 ? baseMs : 1200;
             let delay = base * (0.85 + Math.random() * 0.75);
-            if (Math.random() < 0.05) delay += 2000 + Math.random() * 3500;
+            if (!noLongPause && Math.random() < 0.05) delay += 2000 + Math.random() * 3500;
             return Math.round(delay);
         }
 
@@ -1871,11 +1982,134 @@
             sendLog(message, "warn");
         }
 
+        // Ghi log một lần mỗi lượt Auto với mức tùy chọn (khác logUnsupportedOnce luôn là cảnh báo).
+        function logOnce(key, message, type) {
+            if (unsupportedLogged[key]) return;
+            unsupportedLogged[key] = true;
+            sendLog(message, type || "info");
+        }
+
         function resetRunGuards() {
             for (const k of Object.keys(targetAttempts)) delete targetAttempts[k];
             for (const k of Object.keys(unsupportedLogged)) delete unsupportedLogged[k];
             for (const k of Object.keys(failCounts)) delete failCounts[k];
             runResetHooks.forEach((reset) => { try { reset(); } catch (e) { } });
+        }
+
+        // =====================================================================
+        // BẢNG ĐỘI HÌNH (embattleUi): bấm "Lên trận nhanh" -> KIỂM TRA ô đội hình đã có tướng -> mới bấm "Bắt đầu".
+        // Không gọi saveEmbattleLogic ngay sau khi xếp: nếu bảng chưa kịp cập nhật thì lưu lên máy chủ một đội hình trống.
+        // Nút "Bắt đầu" (cBtnH2) tự lưu đội hình hiện tại và tự kiểm tra điều kiện của từng loại bảng.
+        // st = { at, clicked, starts } do bên gọi giữ (đặt lại về null khi bảng đóng).
+        // =====================================================================
+        const EMBATTLE_ARRANGE_TRIES = 3;     // số lần bấm "Lên trận nhanh" mà ô đội hình vẫn trống thì bỏ cuộc
+        const EMBATTLE_START_TRIES = 3;       // số lần bấm "Bắt đầu" mà bảng vẫn còn mở thì bỏ cuộc
+
+        function embattleFilledCount(ui) {
+            try {
+                return (ui.modelItemList || []).filter((it) => {
+                    const d = it && typeof it.getItemData === 'function' ? it.getItemData() : null;
+                    return Boolean(d && (d.hero_data || d.heroId));
+                }).length;
+            } catch (e) { return 0; }
+        }
+
+        function embattleTeamReady(ui) {
+            if (embattleFilledCount(ui) <= 0) return false;
+            // Bảng Bí Cảnh Tứ Quốc có điều kiện riêng (ví dụ cần 1 Tu Sĩ Nghịch Tu): dùng chính hàm kiểm tra của game.
+            try {
+                const et = window.EmbattleConst && window.EmbattleConst.embattleType;
+                if (et && typeof ui.checkSiGuoCond === 'function' && ui.embattleType >= et.fairyland_wei && ui.embattleType <= et.fairyland_qun) {
+                    return Boolean(ui.checkSiGuoCond());
+                }
+            } catch (e) { return false; }
+            return true;
+        }
+
+        // 'wait' | 'arranged' (vừa bấm Lên trận nhanh) | 'ready' (đội hình hợp lệ: bên gọi bấm Bắt đầu rồi gọi embattleMarkStarted) | 'failed'
+        function embattleStep(ui, st, now) {
+            if (!st.at) st.at = now;
+            if (now - st.at < humanDelay(900)) return 'wait';
+            if ((st.starts || 0) >= EMBATTLE_START_TRIES) return 'failed';
+            if ((st.clicked || 0) > 0 && embattleTeamReady(ui)) return 'ready';
+            if ((st.clicked || 0) >= EMBATTLE_ARRANGE_TRIES || typeof ui.oneKeyEmbattleLogic !== 'function') return 'failed';
+            st.clicked = (st.clicked || 0) + 1;
+            st.at = now;
+            // Hàm của game có thể ném lỗi (ví dụ thiếu ải đang chọn); giữ lỗi lại để báo rõ thay vì im lặng.
+            try { ui.oneKeyEmbattleLogic(0); st.lastError = ''; } catch (e) { st.lastError = String((e && e.message) || e); }
+            return 'arranged';
+        }
+
+        // Mô tả ngắn tình trạng bảng đội hình khi xếp thất bại (đưa vào log lỗi).
+        function embattleDiagnose(ui, st) {
+            const total = ui && ui.modelItemList ? ui.modelItemList.length : 0;
+            return `ô có tướng ${embattleFilledCount(ui)}/${total}${st && st.lastError ? '; lỗi từ game: ' + st.lastError : ''}`;
+        }
+
+        function embattleMarkStarted(st) {
+            st.starts = (st.starts || 0) + 1;
+            st.clicked = 0;
+            st.at = 0;
+        }
+
+        // =====================================================================
+        // VÒNG ĐỜI MỘT LƯỢT CHẠY (chuẩn hóa cho mọi tính năng)
+        //   - Mỗi lần chỉ chạy MỘT tính năng (CONFIG.activeFeature).
+        //   - Xong việc: ghi dòng kết quả rồi tự dừng nút Auto (runFinish), trừ tính năng treo máy liên tục.
+        //   - Dừng giữa chừng: đặt lại trạng thái dở dang để tính năng khác/lần sau chạy sạch (runAbort).
+        // =====================================================================
+        const RUN_LABELS = {
+            autoArena: 'Đấu Tiên Đài', autoTongTian: 'M1 - Thông Thiên Tháp', autoDailyDungeon: 'M2 - Phụ Bản Ngày & Bí Cảnh',
+            autoSectDefense: 'M3 - Thủ Vệ Tứ Phái', autoOtherTrials: 'M4 - Cửu Uyển Nhi, Cổ Thần, Cực Âm',
+            autoImmortalRelic: 'M5 - Di Tích Tiên Giới', autoMinigameMemory: 'M6 - Ảo Cảnh', autoMinigameDragon: 'M7 - Kiếm Hành & Điêu Long',
+            autoTroChien: 'Trợ Chiến', autoTamTienDai: 'Tâm Tiên Đài', autoTienHuu: 'Tiên Hữu', autoTienMinh: 'Tiên Minh',
+            autoCuoiNgay: 'Nhận Cuối Ngày', autoClimbDailyDungeons: 'Leo Phụ Bản Ngày', autoClimbYMAbyss: 'Leo Vực U Minh',
+            autoExtremeYin: 'Cực Âm Địa', autoClimbCamp: 'Leo Tứ Linh Trận', autoSweepDungeons: 'Quét Phụ Bản',
+            autoMaDao: 'Ma Đạo', autoXianYuan: 'Quà Tiên Duyên', autoBanner: 'Tướng Thần Lâm / Đạp Thiên'
+        };
+
+        function runBegin(key) {
+            runInfo = { key, label: RUN_LABELS[key] || key || 'Auto', startedAt: Date.now(), lastActAt: Date.now(), acts: 0, problems: 0 };
+        }
+
+        // touch=true: chỉ báo còn sống (game chưa sẵn sàng/đang mất kết nối), không tính là đã làm việc.
+        function runNoteActed(touchOnly) {
+            if (!runInfo) return;
+            runInfo.lastActAt = Date.now();
+            if (!touchOnly) runInfo.acts++;
+        }
+
+        function runFormatDuration(ms) {
+            const sec = Math.max(0, Math.round(ms / 1000));
+            return sec >= 60 ? `${Math.floor(sec / 60)}p${sec % 60}s` : `${sec}s`;
+        }
+
+        // Tính năng đã xong việc: ghi một dòng kết quả, dừng Auto (nút về trạng thái dừng).
+        function runFinish(reason, failed) {
+            const info = runInfo;
+            if (!info) return;
+            runInfo = null;
+            const bad = Boolean(failed) || info.problems > 0;
+            sendLog(`${bad ? '⚠️' : '✅'} [${info.label}] Hoàn tất${reason ? ': ' + reason : ''} (${runFormatDuration(Date.now() - info.startedAt)})` +
+                `${bad ? '; có bước chưa hoàn tất/lỗi, xem các dòng ⚠️/❌ phía trên' : ''}.`, 'run');
+            CONFIG.running = false;
+            try {
+                window.top.postMessage({ source: 'TIEN_NGHICH_AUTO_GAME', action: 'AUTO_FINISHED' }, '*');
+            } catch (e) { }
+        }
+
+        // Người dùng dừng giữa chừng: bỏ trạng thái dở dang (giữ bản ghi "hôm nay đã xong" chống làm lại/mua lại).
+        function runAbort() {
+            const info = runInfo;
+            runInfo = null;
+            isTowerChallenging = false;
+            waitingForFloorUpdate = false;
+            nextActionAt = 0;
+            if (typeof bannerRequestAbort === 'function') bannerRequestAbort();
+            for (const k of Object.keys(failCounts)) delete failCounts[k];
+            for (const k of Object.keys(targetAttempts)) delete targetAttempts[k];
+            if (typeof resetUnfinishedRunStates === 'function') resetUnfinishedRunStates();
+            if (info) sendLog(`⏸ [${info.label}] Đã dừng giữa chừng; đã đặt lại trạng thái dở dang để chạy lại cho sạch.`, 'run');
         }
 
         let lastDailyClimbIndex = 0;
@@ -1887,6 +2121,7 @@
         let lastArenaFetchTime = 0;
         function sendLog(message, logType = 'info') {
             try {
+                if (runInfo && (logType === 'warn' || logType === 'err' || logType === 'error')) runInfo.problems++;
                 if (typeof addLogToUI === 'function') { try { addLogToUI(message, logType); } catch(e){} }
                 window.top.postMessage({
                     source: 'TIEN_NGHICH_AUTO_GAME',
@@ -2082,10 +2317,11 @@
                         resetRunGuards();
                         nextActionAt = 0;
                         if (typeof resetArenaRun === 'function') resetArenaRun(resumed);
-                        if (!resumed) {
-                            bannerRunOnce();
-                        } else if (Object.keys(CONFIG.bannerAuto || {}).some((k) => CONFIG.bannerAuto[k])) {
-                            sendLog("ℹ️ [Vào lại game] Không chạy lại lượt Banner Hero sau khi vào lại game (chỉ chạy 1 lượt mỗi lần bấm BẮT ĐẦU).", "info");
+                        runBegin(CONFIG.activeFeature);
+                        if (!resumed && CONFIG.activeFeature === 'autoBanner') bannerRunOnce();
+                        if (resumed && CONFIG.activeFeature === 'autoBanner') {
+                            runFinish('không chạy lại lượt này sau khi vào lại game (chỉ chạy 1 lượt mỗi lần bấm BẮT ĐẦU)');
+                            return;
                         }
                         if (resumed && !CONFIG.activeFeature) {
                             CONFIG.running = false;
@@ -2104,6 +2340,7 @@
                     executeCycle(false);
                 } else {
                     wasAutoRunning = false;
+                    runAbort();
                 }
             } else if (data.action === 'RUN_SWEEP') {
                 handleSweepDungeons(window, true);
@@ -2111,6 +2348,8 @@
         });
 
         // Hook toàn cục mở khóa Chiến Lệnh & Tự Động Chiến Đấu
+        let embattleHookState = null;      // trạng thái xếp đội hình của bộ xử lý trận đánh chung (xem embattleStep)
+
         function hookRecharge(ctx) {
             if (!ctx.RechargeCtrl) return;
             try {
@@ -2137,6 +2376,8 @@
             }
         }
 
+        const skipUnlistedLogged = {};     // loại trận chưa bỏ qua đã được ghi chẩn đoán (mỗi loại một lần)
+
         // Hook FightCtrl: TỰ ĐỘNG SKIP KHIÊU CHIẾN CHO MỌI PHỤ BẢN & ĐẤU TRƯỜNG
         function hookFightCtrl(ctx) {
             if (!ctx.FightCtrl) return;
@@ -2157,12 +2398,20 @@
                             t.type === n.adventure ||
                             t.type === n.jyzd ||
                             t.type === n.hangup ||
+                            // Bí Cảnh Tứ Quốc (M2) và Thí Luyện banner (superHeroEncore) do tính năng của extension tự khiêu chiến.
+                            (n.fairyland_wei !== undefined && t.type >= n.fairyland_wei && t.type <= n.fairyland_qun) ||
+                            t.type === n.superHeroEncore ||
                             (t.type >= n.singCamp_wei && t.type <= n.singCamp_qun)
                         )) || (tienMinhActive && (
                             t.type === n.guild ||
                             t.type === n.gldWr ||
                             t.type === n.guildAsked
                         ));
+                        if (!isSkippable && CONFIG.running && CONFIG.autoSkipFight && !skipUnlistedLogged[t.type]) {
+                            // Chẩn đoán: trận thuộc loại chưa nằm trong danh sách bỏ qua sẽ chạy đủ hoạt ảnh (chậm). Ghi tên loại một lần.
+                            skipUnlistedLogged[t.type] = true;
+                            sendLog(`ℹ️ [Bỏ qua trận] Loại trận ${t.type} (${n[t.type] || '?'}) chưa có trong danh sách bỏ qua nên chạy đủ hoạt ảnh.`, "info");
+                        }
                         if (isSkippable) {
                             const showed = this.executeShowRoundFight(t, true);
                             if (showed) {
@@ -2272,18 +2521,30 @@
 
                     // Tiên Minh tự xử lý bảng đội hình trong daily-routines.js (có giới hạn và log riêng).
                     // Thủ Vệ Tứ Phái, Cực Âm Địa (M4) tự xử lý bảng đội hình của chúng (sect-defense.js, extreme-yin.js).
-                    if (!['autoTienMinh', 'autoSectDefense', 'autoOtherTrials', 'autoExtremeYin'].includes(CONFIG.activeFeature) &&
+                    if (!['autoTienMinh', 'autoSectDefense', 'autoOtherTrials', 'autoExtremeYin', 'autoDailyDungeon'].includes(CONFIG.activeFeature) &&
                         vm.viewIsVisible && vm.viewIsVisible('embattleUi')) {
                         const embUi = vm.getViewByName('embattleUi');
                         if (embUi) {
-                            if (typeof embUi.oneKeyEmbattleLogic === 'function') embUi.oneKeyEmbattleLogic(0);
-                            if (typeof embUi.saveEmbattleLogic === 'function') embUi.saveEmbattleLogic();
-                            if (typeof embUi.cBtnH2 === 'function') {
+                            // Bấm "Lên trận nhanh", kiểm tra ô đội hình có tướng, mới bấm "Bắt đầu".
+                            if (!embattleHookState) embattleHookState = { at: 0, clicked: 0, starts: 0 };
+                            const step = embattleStep(embUi, embattleHookState, Date.now());
+                            if (step === 'arranged') {
+                                acted = true;
+                            } else if (step === 'ready' && typeof embUi.cBtnH2 === 'function') {
+                                embattleMarkStarted(embattleHookState);
                                 embUi.cBtnH2();
-                                sendLog("🌌 [Vực U Minh] Đã tự động chọn đội hình & bấm BẮT ĐẦU!", "action");
+                                sendLog("🌌 [Vực U Minh] Đã xếp đội hình & bấm BẮT ĐẦU!", "action");
+                                acted = true;
+                            } else if (step === 'failed') {
+                                const diag = embattleDiagnose(embUi, embattleHookState);
+                                embattleHookState = null;
+                                try { vm.closeView('embattleUi'); } catch (e) { }
+                                sendLog(`❌ [Đội hình] Không xếp được đội hình (${diag}); không bắt đầu trận.`, "error");
                                 acted = true;
                             }
                         }
+                    } else if (!(vm.viewIsVisible && vm.viewIsVisible('embattleUi'))) {
+                        embattleHookState = null;
                     }
 
                     const resultViewNames = [
@@ -2403,6 +2664,9 @@
         }
 
         // 3. TỰ ĐỘNG LEO VỰC U MINH
+        let abyssGaveUp = 0;      // tầng đã thử đủ số lần mà chưa qua: tính năng kết thúc ngay (không chờ 90s rảnh)
+        runResetHooks.push(() => { abyssGaveUp = 0; });
+
         function handleClimbYMAbyss(ctx) {
             if (!CONFIG.autoClimbYMAbyss) return false;
             const now = Date.now();
@@ -2425,7 +2689,7 @@
 
                 const curAbyssId = curCfg.id;
                 lastAbyssClimbTime = now;
-                if (!tryAttemptTarget(`abyss-${curAbyssId}`, `[Vực U Minh] Tầng #${curAbyssId}`)) return false;
+                if (!tryAttemptTarget(`abyss-${curAbyssId}`, `[Vực U Minh] Tầng #${curAbyssId}`)) { abyssGaveUp = curAbyssId; return false; }
 
                 if (ctx.ViewMgr && ctx.ViewMgr.gInst) {
                     const vm = ctx.ViewMgr.gInst();
@@ -2716,20 +2980,64 @@
 
         // 6. QUÉT PHỤ BẢN ĐÃ VƯỢT
         // Tự động: chỉ gửi 1 lần mỗi ngày (trước đây gửi lại mỗi nhịp). Bấm tay (isManual) luôn gửi.
+        // Số lượt quét MIỄN PHÍ còn lại của mọi loại phụ bản ngày (đúng hàm nút "Quét nhanh" của game dùng); -1 nếu game không có hàm.
+        function sweepFreeCount(ddCtrl) {
+            if (typeof ddCtrl.getAllMianFeiNum !== 'function') return -1;
+            return Number(ddCtrl.getAllMianFeiNum(true)) || 0;
+        }
+
+        // Xác nhận quét: số lượt miễn phí phải giảm. Game không có phản hồi thành công riêng (on11002 chỉ báo lỗi), nên sau vài giây
+        // tải lại dữ liệu các loại phụ bản một lần rồi so lại; không đổi thì chỉ ghi chú, không coi là lỗi (có thể đã quét từ trước).
+        function sweepConfirmTick(ctx) {
+            if (!sweepPending) return;
+            try {
+                const ddCtrl = ctx.DailyDungeonCtrl.gInst();
+                const free = sweepFreeCount(ddCtrl);
+                const age = Date.now() - sweepPending.at;
+                if (free >= 0 && free < sweepPending.before) {
+                    sendLog(`✅ [Quét Phụ Bản] Máy chủ xác nhận đã quét miễn phí (lượt miễn phí ${sweepPending.before} → ${free}).`, "result");
+                    sweepPending = null;
+                    return;
+                }
+                if (age >= 3000 && !sweepPending.refreshed) {
+                    sweepPending.refreshed = true;
+                    const types = (ctx.DailyDungeonConst && ctx.DailyDungeonConst.dailyDungeonTypeArr) || [];
+                    types.forEach((t) => { try { if (typeof ddCtrl.send11004 === 'function') ddCtrl.send11004(t); } catch (e) { } });
+                }
+                if (age >= 12000) {
+                    sendLog("ℹ️ [Quét Phụ Bản] Đã gửi quét miễn phí nhưng số lượt miễn phí chưa đổi (có thể hôm nay đã quét từ trước hoặc game chưa cập nhật); không gửi lại.", "info");
+                    sweepPending = null;
+                }
+            } catch (e) { sweepPending = null; }
+        }
+
+        // 6. QUÉT PHỤ BẢN NGÀY: CHỈ lượt MIỄN PHÍ (send11002(0)), tối đa một lần mỗi ngày. KHÔNG bao giờ gửi send11002(1)
+        // (đó là quét bằng Tiên Ngọc trong hộp thoại xác nhận của game). Hết lượt miễn phí là bình thường, không phải lỗi.
         function handleSweepDungeons(ctx, isManual = false) {
             try {
+                if (!isManual) sweepConfirmTick(ctx);
                 const dayKey = new Date().toDateString();
                 if (!isManual && sweptDayKey === dayKey) return false;
                 const ddCtrl = ctx.DailyDungeonCtrl.gInst();
                 if (!ddCtrl) return false;
                 if (ctx.FightCtrl && ctx.FightCtrl.gInst && !ctx.FightCtrl.gInst().gCanFight()) return false;
 
+                const free = sweepFreeCount(ddCtrl);
+                if (free < 0) {
+                    logUnsupportedOnce('sweep-free-api', "⚠️ [Quét Phụ Bản] Bản game không có hàm đếm lượt quét miễn phí; không quét (tránh quét bằng Tiên Ngọc).");
+                    sweptDayKey = dayKey;
+                    return false;
+                }
+                if (free === 0) {
+                    sweptDayKey = dayKey;
+                    logOnce('sweep-none-free', "ℹ️ [Quét Phụ Bản] Hôm nay không còn lượt quét miễn phí (đã quét từ trước); không quét, không mua lượt bằng Tiên Ngọc.", "info");
+                    return false;
+                }
                 if (typeof ddCtrl.send11002 === 'function') {
                     ddCtrl.send11002(0);
-                    ddCtrl.send11002(1);
                     sweptDayKey = dayKey;
-                    // on11002 chỉ báo lỗi (không có xác nhận thành công riêng) nên chỉ ghi là đã gửi yêu cầu.
-                    sendLog("⚡ [Quét Phụ Bản] Đã gửi yêu cầu quét các phụ bản đã vượt hôm nay (lỗi, nếu có, sẽ hiện trong game).", "action");
+                    if (!isManual) sweepPending = { before: free, at: Date.now(), refreshed: false };
+                    sendLog(`⚡ [Quét Phụ Bản] Đã gửi quét miễn phí (còn ${free} lượt miễn phí; không mua lượt bằng Tiên Ngọc).`, "action");
                     return true;
                 }
             } catch (e) { }
@@ -2798,7 +3106,7 @@
                 }
                 const left = warOrderCountFree(rc, type, termId);
                 if (left === 0) {
-                    sendLog(`✅ [${opts.label}] Chiến Lệnh: máy chủ xác nhận đã nhận ${holder.before} phần thưởng.`, "action");
+                    sendLog(`✅ [${opts.label}] Chiến Lệnh: máy chủ xác nhận đã nhận ${holder.before} phần thưởng.`, "result");
                     return { status: 'done' };
                 }
                 sendLog(`⚠️ [${opts.label}] Chiến Lệnh: đã gửi nhận nhưng còn ${left} phần thưởng chưa nhận được (có thể cần điều kiện khác).`, "warn");
@@ -2837,7 +3145,7 @@
                 plan: null,               // { landId, name, mode: 'occupy' | 'rob' }
                 pick: null,               // { cands, idx, results }
                 read: null,               // { landId, mode, at }
-                emb: { stage: 'arrange', at: 0 },
+                emb: { at: 0, clicked: 0, starts: 0 },
                 fight: null,              // { kind, at, target, robBefore }
                 claim: null,
                 warOrder: { stage: '', refreshing: null, before: 0 },
@@ -2923,22 +3231,27 @@
 
         // Bảng đội hình jyzd: xếp tự động rồi bấm xác nhận (giống người chơi). 'acted' | 'wait' | 'none'.
         function eyEmbattleStep(ctx, vm, state, now) {
-            if (!vm.viewIsVisible('embattleUi')) { state.emb = { stage: 'arrange', at: 0 }; return 'none'; }
+            if (!vm.viewIsVisible('embattleUi')) { state.emb = { at: 0, clicked: 0, starts: 0 }; return 'none'; }
             const ui = vm.getViewByName('embattleUi');
             const type = ctx.EmbattleConst && ctx.EmbattleConst.embattleType && ctx.EmbattleConst.embattleType.jyzd;
             if (!ui || type === undefined || ui.embattleType !== type) return 'none';
-            if (!state.emb.at) state.emb.at = now;
-            if (now - state.emb.at < humanDelay(900)) return 'wait';
-            state.emb.at = now;
-            if (state.emb.stage === 'arrange') {
-                if (typeof ui.oneKeyEmbattleLogic === 'function') ui.oneKeyEmbattleLogic(0);
-                if (typeof ui.saveEmbattleLogic === 'function') ui.saveEmbattleLogic();
-                state.emb.stage = 'confirm';
+            // Bấm "Lên trận nhanh", kiểm tra ô đội hình có tướng, mới bấm "Bắt đầu".
+            const step = embattleStep(ui, state.emb, now);
+            if (step === 'wait') return 'wait';
+            if (step === 'arranged') return 'acted';
+            if (step === 'failed') {
+                const diag = embattleDiagnose(ui, state.emb);
+                try { vm.closeView('embattleUi'); } catch (e) { }
+                sendLog(`❌ [Cực Âm Địa] Không xếp được đội hình sau ${EMBATTLE_ARRANGE_TRIES} lần Lên trận nhanh (${diag}); không khiêu chiến, sẽ kiểm tra lại sau.`, "error");
+                state.emb = { at: 0, clicked: 0, starts: 0 };
+                state.fight = null;
+                state.nextSyncAt = now + 120000;
+                state.phase = 'wait';
                 return 'acted';
             }
             if (typeof ui.cBtnH2 !== 'function') return 'none';
+            embattleMarkStarted(state.emb);
             ui.cBtnH2();
-            state.emb = { stage: 'arrange', at: 0 };
             return 'acted';
         }
 
@@ -3052,7 +3365,7 @@
                     state.fight = null;
                     clearTargetAttempts('ey-enter-' + plan.landId);
                     if (ctrl.bHaveSeat()) {
-                        sendLog(`✅ [Cực Âm Địa] Máy chủ xác nhận đã có chỗ tu luyện ở ${plan.name}.`, "action");
+                        sendLog(`✅ [Cực Âm Địa] Máy chủ xác nhận đã có chỗ tu luyện ở ${plan.name}.`, "result");
                         state.phase = 'sync'; state.refreshing = null; state.nextSyncAt = 0;
                     } else {
                         sendLog(`✅ [Cực Âm Địa] Đã vào ${plan.name} nhưng đầy chỗ; chuyển sang giành vị trí.`, "action");
@@ -3162,7 +3475,7 @@
                 const used = pd ? Number(pd.rob_times) || 0 : 0;
                 if (r.ready && used > r.fight.robBefore) {
                     state.plunders++;
-                    sendLog(`✅ [Cực Âm Địa] Máy chủ xác nhận đã Đoạt ${r.fight.target.name} (lượt Đoạt đã dùng ${used}).`, "action");
+                    sendLog(`✅ [Cực Âm Địa] Máy chủ xác nhận đã Đoạt ${r.fight.target.name} (lượt Đoạt đã dùng ${used}).`, "result");
                 } else {
                     state.plunderBlocked = true;
                     sendLog("⚠️ [Cực Âm Địa] Đã đánh nhưng máy chủ chưa ghi nhận lượt Đoạt; dừng Đoạt lần này.", "warn");
@@ -3199,7 +3512,7 @@
             const c = state.claim;
             state.claim = null;
             if (r === 'ready' && !ctrl.bHaveSeat()) {
-                sendLog("✅ [Cực Âm Địa] Máy chủ xác nhận đã nhận thưởng; sẽ chọn địa mới.", "action");
+                sendLog("✅ [Cực Âm Địa] Máy chủ xác nhận đã nhận thưởng; sẽ chọn địa mới.", "result");
             } else {
                 sendLog("⚠️ [Cực Âm Địa] Đã gửi nhận thưởng nhưng dữ liệu chưa đổi; kiểm tra lại sau, không gửi lại ngay.", "warn");
                 state.nextSyncAt = now + 60000; state.phase = 'wait'; return true;
@@ -3267,8 +3580,28 @@
         const MA_DAO_FIGHT_TIMEOUT_MS = 90000;
         const MA_DAO_MAX_QUICK_BUYS = 20;
         const MA_DAO_MAX_TRAVEL_REFRESH = 30;
+        // Ủy Phái chỉ làm MỘT việc: dùng điểm ủy phái để ủy phái việc MỚI. Không bao giờ gửi send30203 (tăng tốc/hoàn thành sớm: tốn
+        // Tiên Ngọc theo thời gian còn lại): việc đã ủy phái cứ để đồng hồ chạy. send30205 chỉ nhận các việc ĐÃ hết giờ (miễn phí).
+        // Tiên Ngọc chỉ dùng để làm mới danh sách khi chưa có việc Sử Thi trở lên; mỗi lần dự kiến MA_DAO_REFRESH_GOLD_EXPECTED.
+        const MA_DAO_REFRESH_GOLD_EXPECTED = 30;
+        function maDaoGold(ctx) {
+            try { return Number(ctx.CommonUtils.getRoleAsset('gold')) || 0; } catch (e) { return 0; }
+        }
         const MA_DAO_MAX_STAGE_FIGHTS = 200;
-        const MA_DAO_SHISHI_RARE = 4;              // TravelCtrl.isShiShiUp: rare_id >= 4 là Sử Thi
+        const MA_DAO_SHISHI_RARE = 4;              // TravelCtrl.isShiShiUp: rare_id >= 4 là Sử Thi trở lên
+        // Tên bậc việc ủy phái theo rare_id (game chỉ hiện ảnh yl_pic_pinzhi<rare_id>, không có tên chữ trong dữ liệu).
+        // Thời gian hoàn thành tăng theo bậc (8h / 12h / 16h) khớp với 3 bậc này; log luôn kèm số giờ để đối chiếu.
+        const MA_DAO_RARE_NAMES = { 4: 'Sử Thi', 5: 'Truyền Thuyết', 6: 'Bất Hủ' };
+
+        function maDaoRareName(rareId) {
+            return MA_DAO_RARE_NAMES[rareId] || `bậc ${rareId}`;
+        }
+
+        // "Bất Hủ, 16h" từ việc ủy phái đã xử lý của game (rare_id, rare_time tính bằng phút).
+        function maDaoRareText(ev) {
+            const hours = Number(ev.rare_time) > 0 ? `, ${Math.round(Number(ev.rare_time) / 6) / 10}h` : '';
+            return `${maDaoRareName(ev.rare_id)}${hours}`;
+        }
         const MA_DAO_STORAGE_KEY = 'TN_AUTO_MADAO_V1';
 
         function maDaoLoadCounts() {
@@ -3339,7 +3672,7 @@
             // confirm: recvHangupAwards đặt last_time mới và m_hgTime = 0
             const info = hg.m_stageBaseInfo;
             if (info && info.last_time !== a.lastTime) {
-                sendLog(`✅ [Treo Máy] Máy chủ xác nhận đã nhận thưởng treo máy (${a.minutes} phút).`, "action");
+                sendLog(`✅ [Treo Máy] Máy chủ xác nhận đã nhận thưởng treo máy (${a.minutes} phút).`, "result");
                 s.phase = 'quick';
                 return true;
             }
@@ -3365,7 +3698,7 @@
                 const p = q.pending;
                 if (info.left_free_count < p.free || info.left_buy_count < p.buy) {
                     q.used++;
-                    sendLog(`✅ [Tác Chiến Nhanh] Máy chủ xác nhận đã tác chiến nhanh (${p.paid ? 'mua bằng Tiên Ngọc' : 'lượt free'}); còn ${info.left_free_count} free, ${info.left_buy_count} lượt mua.`, "action");
+                    sendLog(`✅ [Tác Chiến Nhanh] Máy chủ xác nhận đã tác chiến nhanh (${p.paid ? 'mua bằng Tiên Ngọc' : 'lượt free'}); còn ${info.left_free_count} free, ${info.left_buy_count} lượt mua.`, "result");
                     q.pending = null;
                     s.nextAt = now + humanDelay(1500);
                 } else if (now - p.at >= MA_DAO_REQUEST_TIMEOUT_MS) {
@@ -3390,7 +3723,7 @@
             if (paid) {
                 s.quickBuys++;
                 maDaoSaveCounts(s);
-                sendLog(`💎 [Tác Chiến Nhanh] Hết lượt free; mua lượt tác chiến nhanh (${info.next_cost} Tiên Ngọc, còn ${buy} lượt mua, lần mua ${s.quickBuys}/${MA_DAO_MAX_QUICK_BUYS}).`, "action");
+                sendLog(`💎 [Tác Chiến Nhanh] Hết lượt free; mua lượt tác chiến nhanh (${info.next_cost} Tiên Ngọc, còn ${buy} lượt mua, lần mua ${s.quickBuys}/${MA_DAO_MAX_QUICK_BUYS}).`, "result");
             } else {
                 sendLog(`⚡ [Tác Chiến Nhanh] Dùng lượt free (còn ${free}).`, "action");
             }
@@ -3435,7 +3768,7 @@
             if (st.claiming) {
                 const c = st.claiming;
                 if (hg.m_gainStageIdGroup && hg.m_gainStageIdGroup[c.id]) {
-                    sendLog(`✅ [Ải Chính Tuyến] Máy chủ xác nhận đã nhận thưởng vượt ải ${c.id}.`, "action");
+                    sendLog(`✅ [Ải Chính Tuyến] Máy chủ xác nhận đã nhận thưởng vượt ải ${c.id}.`, "result");
                     st.claiming = null;
                 } else if (now - c.at >= MA_DAO_REQUEST_TIMEOUT_MS) {
                     sendLog(`⚠️ [Ải Chính Tuyến] Đã gửi nhận thưởng ải ${c.id} nhưng máy chủ chưa xác nhận; không gửi lại.`, "warn");
@@ -3569,7 +3902,7 @@
                 if (t.claimPending) {
                     const p = t.claimPending;
                     if (tc.travelInfo !== p.token) {
-                        sendLog(`✅ [Ủy Phái] Máy chủ xác nhận đã nhận nhanh các việc đã xong (${p.count} việc).`, "action");
+                        sendLog(`✅ [Ủy Phái] Máy chủ xác nhận đã nhận nhanh các việc đã xong (${p.count} việc).`, "result");
                         t.claimPending = null;
                         t.stage = 'plan';
                         return true;
@@ -3594,7 +3927,7 @@
                     const p = t.dispatchPending;
                     const ev = maDaoTravelEvents(tc).find((e) => e.id === p.id);
                     if (ev && ev.finish_time > 0) {
-                        sendLog(`✅ [Ủy Phái] Máy chủ xác nhận đã ủy phái "${ev.event_name}" (Sử Thi), hoàn thành lúc ${new Date(ev.finish_time * 1000).toLocaleTimeString()}.`, "action");
+                        sendLog(`✅ [Ủy Phái] Máy chủ xác nhận đã ủy phái "${ev.event_name}" (${maDaoRareText(ev)}), hoàn thành lúc ${new Date(ev.finish_time * 1000).toLocaleTimeString()}.`, "result");
                         t.dispatchPending = null;
                         s.nextAt = now + humanDelay(1500);
                         return true;
@@ -3607,7 +3940,22 @@
                 }
                 if (t.refreshPending) {
                     const p = t.refreshPending;
+                    if (tc.travelInfo !== p.token && p.paid && !p.settledAt) {
+                        p.settledAt = now;      // chờ số dư Tiên Ngọc cập nhật rồi mới đo chi phí thật của lần làm mới
+                        return false;
+                    }
+                    if (tc.travelInfo !== p.token && p.paid && now - p.settledAt < 1500) return false;
                     if (tc.travelInfo !== p.token) {
+                        if (p.paid && p.goldBefore > 0) {
+                            const cost = Math.max(0, p.goldBefore - maDaoGold(ctx));
+                            s.goldSpent = (s.goldSpent || 0) + cost;
+                            if (cost > MA_DAO_REFRESH_GOLD_EXPECTED) {
+                                s.refreshBlocked = true;
+                                sendLog(`⚠️ [Ủy Phái] Lần làm mới này tốn ${cost} Tiên Ngọc, cao hơn mức dự kiến ${MA_DAO_REFRESH_GOLD_EXPECTED}; dừng làm mới để tránh chi lạ (tổng ${s.goldSpent}).`, "warn");
+                            } else {
+                                sendLog(`💎 [Ủy Phái] Làm mới tốn ${cost} Tiên Ngọc (tổng lượt chạy này ${s.goldSpent}).`, "result");
+                            }
+                        }
                         t.refreshPending = null;
                         
                         s.nextAt = now + humanDelay(1500);
@@ -3626,7 +3974,7 @@
                     // Việc Sử Thi chưa giao: làm lần lượt tới khi hết điểm ủy phái hoặc hết tướng rảnh.
                     for (const ev of epics) {
                         if (travelVal < Number(ev.travel_value)) {
-                            sendLog(`ℹ️ [Ủy Phái] Việc Sử Thi "${ev.event_name}" cần ${ev.travel_value} điểm ủy phái, hiện có ${travelVal}; đã dùng hết điểm, dừng.`, "info");
+                            sendLog(`ℹ️ [Ủy Phái] Việc "${ev.event_name}" (${maDaoRareText(ev)}) cần ${ev.travel_value} điểm ủy phái, hiện có ${travelVal}; đã dùng hết điểm, dừng.`, "info");
                             done();
                             return false;
                         }
@@ -3634,23 +3982,23 @@
                         const need = rare ? Number(rare.number) : 0;
                         const heroes = need > 0 ? maDaoPickHeroes(ctx, tc, ev, need) : [];
                         if (heroes.length < need || need === 0) {
-                            sendLog(`ℹ️ [Ủy Phái] Việc Sử Thi "${ev.event_name}" cần ${need || '?'} tướng, chỉ còn ${heroes.length} tướng rảnh; bỏ qua việc này.`, "info");
+                            sendLog(`ℹ️ [Ủy Phái] Việc "${ev.event_name}" (${maDaoRareText(ev)}) cần ${need || '?'} tướng, chỉ còn ${heroes.length} tướng rảnh; bỏ qua việc này.`, "info");
                             t.heroFail[ev.id] = true;
                             t.heroShort = true;
                             continue;
                         }
                         t.dispatchPending = { id: ev.id, at: now };
                         tc.send30202(ev.id, heroes.map((h) => ({ id: h.id })));
-                        sendLog(`📜 [Ủy Phái] Ủy phái "${ev.event_name}" (Sử Thi, ${heroes.length} tướng, ${ev.travel_value} điểm; còn ${travelVal} điểm).`, "action");
+                        sendLog(`📜 [Ủy Phái] Ủy phái "${ev.event_name}" (${maDaoRareText(ev)}, ${heroes.length} tướng, ${ev.travel_value} điểm; còn ${travelVal} điểm).`, "action");
                         return true;
                     }
-                    sendLog("ℹ️ [Ủy Phái] Không còn việc Sử Thi nào đủ tướng để ủy phái; dừng.", "info");
+                    sendLog("ℹ️ [Ủy Phái] Không còn việc Sử Thi trở lên nào đủ tướng để ủy phái; dừng.", "info");
                     done();
                     return false;
                 }
 
                 if (t.heroShort) {
-                    sendLog("ℹ️ [Ủy Phái] Hết tướng rảnh cho việc Sử Thi; dừng, không làm mới (tránh mất việc Sử Thi còn lại).", "info");
+                    sendLog("ℹ️ [Ủy Phái] Hết tướng rảnh cho việc Sử Thi trở lên; dừng, không làm mới (tránh mất việc còn lại).", "info");
                     done();
                     return false;
                 }
@@ -3662,8 +4010,13 @@
                     done();
                     return false;
                 }
+                if (s.refreshBlocked) {
+                    sendLog("ℹ️ [Ủy Phái] Đã dừng làm mới vì giá thực tế cao hơn dự kiến.", "info");
+                    done();
+                    return false;
+                }
                 if (t.cycles >= 60 || s.refreshes >= MA_DAO_MAX_TRAVEL_REFRESH) {
-                    sendLog(`⏸️ [Ủy Phái] Đã làm mới ${s.refreshes}/${MA_DAO_MAX_TRAVEL_REFRESH} lần hôm nay mà chưa có Sử Thi mới; dừng.`, "warn");
+                    sendLog(`⏸️ [Ủy Phái] Đã làm mới ${s.refreshes}/${MA_DAO_MAX_TRAVEL_REFRESH} lần hôm nay mà chưa có việc Sử Thi trở lên mới; dừng.`, "result");
                     done();
                     return false;
                 }
@@ -3673,8 +4026,8 @@
                 s.refreshes++;
                 maDaoSaveCounts(s);
                 const how = freeLeft > 0 ? `lượt free (còn ${freeLeft})` : refreshItem > 0 ? `vật phẩm làm mới (có ${refreshItem})` : 'Tiên Ngọc';
-                sendLog(`🔄 [Ủy Phái] Chưa có việc Sử Thi nào; làm mới bằng ${how} (lần ${s.refreshes}/${MA_DAO_MAX_TRAVEL_REFRESH} hôm nay).`, freeLeft > 0 || refreshItem > 0 ? "action" : "warn");
-                t.refreshPending = { token: tc.travelInfo, at: now };
+                sendLog(`🔄 [Ủy Phái] Chưa có việc Sử Thi trở lên nào; làm mới bằng ${how} (lần ${s.refreshes}/${MA_DAO_MAX_TRAVEL_REFRESH} hôm nay).`, freeLeft > 0 || refreshItem > 0 ? "action" : "result");
+                t.refreshPending = { token: tc.travelInfo, at: now, paid: !(freeLeft > 0 || refreshItem > 0), goldBefore: maDaoGold(ctx) };
                 tc.send30204();
                 return true;
             }
@@ -3708,6 +4061,8 @@
         // 4. TỰ ĐỘNG QUÀ TIÊN DUYÊN TRONG SỰ KIỆN RÚT X1000 (MA ĐẠO)
         // ============================================================================
         let lastXianYuanAction = 0;
+        let xianYuanIdleCycles = 0;      // số lần làm mới dữ liệu liên tiếp mà không còn gì để nhận; >= 2 thì coi là xong
+        runResetHooks.push(() => { xianYuanIdleCycles = 0; });
 
         function handleXianYuan(ctx) {
             if (!ctx.XianYuanCtrl || !ctx.XianYuanCtrl.gInst) return false;
@@ -3717,8 +4072,9 @@
 
             // 1. Nhận rương thưởng Quà Tiên Duyên khi đủ điểm
             if (xy.checkXianYuanHaoLiBoxRed && xy.checkXianYuanHaoLiBoxRed()) {
-                sendLog('🎁 Điểm Tiên Duyên đã đạt mốc! Nhận rương thưởng lớn...', 'success');
+                sendLog('🎁 Điểm Tiên Duyên đã đạt mốc! Nhận rương thưởng lớn...', 'result');
                 xy.send32122();
+                xianYuanIdleCycles = 0;
                 lastXianYuanAction = now;
                 return true;
             }
@@ -3730,9 +4086,10 @@
                     const canGetStatus = (ctx.XianYuanConst && ctx.XianYuanConst.TaskStatus && ctx.XianYuanConst.TaskStatus.canGet !== undefined) 
                         ? ctx.XianYuanConst.TaskStatus.canGet : 1;
                     if (task && (task.status === canGetStatus || task.status === 1)) {
-                        sendLog(`✨ Nhiệm vụ Tiên Duyên [${task.id || tid}] hoàn thành! Nhận quà...`, 'success');
+                        sendLog(`✨ Nhiệm vụ Tiên Duyên [${task.id || tid}] hoàn thành! Nhận quà...`, 'result');
                         xy.send32121(task.id || tid);
                         task.status = 2;
+                        xianYuanIdleCycles = 0;
                         lastXianYuanAction = now;
                         return true;
                     }
@@ -3742,6 +4099,7 @@
             // 3. Định kỳ refresh dữ liệu nhiệm vụ Tiên Duyên
             // Định kỳ ~30-45s (trước đây ~6s).
             xy.send32120();
+            xianYuanIdleCycles++;
             lastXianYuanAction = now + 28000 + Math.floor(Math.random() * 15000);
             return true;
         }
@@ -3853,7 +4211,7 @@
                     t.pending = null;
                     if (pending.kind === 'buy') {
                         t.bought++;
-                        logTowerDaily(state, `tower-buy-${counts.buy}`, `✅ [M1 - Thông Thiên Tháp] Máy chủ xác nhận đã mua và quét thêm 1 lượt (${counts.buy} lượt đã mua).`, "action");
+                        logTowerDaily(state, `tower-buy-${counts.buy}`, `✅ [M1 - Thông Thiên Tháp] Máy chủ xác nhận đã mua và quét thêm 1 lượt (${counts.buy} lượt đã mua).`, "result");
                     } else {
                         t.done++;
                         logTowerDaily(state, `tower-fight-${counts.enter}`, `✅ [M1 - Thông Thiên Tháp] Máy chủ xác nhận đã quét lượt ${counts.enter}/${counts.dayCount + counts.buy}.`, "action");
@@ -3899,7 +4257,7 @@
                     }
                     t.attempts++;
                     t.pending = { kind: 'buy', before: counts.buy, beforeEnter: counts.enter, token: counts.token, startedAt: now, lastRefreshAt: now };
-                    sendLog(`🗼 [M1 - Thông Thiên Tháp] Hết lượt quét miễn phí; mua thêm 1 lượt quét (${cost.gold} Tiên Ngọc)...`, "action");
+                    sendLog(`🗼 [M1 - Thông Thiên Tháp] Hết lượt quét miễn phí; mua thêm 1 lượt quét (${cost.gold} Tiên Ngọc)...`, "result");
                     try {
                         // Giống nút Quét của game: mua rồi máy chủ tự quét ải đã vượt.
                         dd.send11007(lastId, type, ctx.DailyDungeonConst.buyType.saodang);
@@ -3910,7 +4268,7 @@
                     return true;
                 }
                 if (t.done + t.bought > 0) {
-                    logTowerDaily(state, 'tower-finished', `✅ [M1 - Thông Thiên Tháp] Đã quét xong lượt trong ngày (${counts.enter}/${counts.dayCount + counts.buy} lượt, đã mua ${counts.buy}).`, "action");
+                    logTowerDaily(state, 'tower-finished', `✅ [M1 - Thông Thiên Tháp] Đã quét xong lượt trong ngày (${counts.enter}/${counts.dayCount + counts.buy} lượt, đã mua ${counts.buy}).`, "result");
                 } else {
                     logTowerDaily(state, 'tower-already', `ℹ️ [M1 - Thông Thiên Tháp] Hôm nay đã quét đủ (${counts.enter}/${counts.dayCount + counts.buy} lượt, đã mua ${counts.buy}); bỏ qua.`, "info");
                 }
@@ -4086,7 +4444,7 @@
             if (state.failed) {
                 sendLog("⚠️ [M1 - Quét mỗi ngày] Kết thúc nhưng có bước lỗi/chưa xác nhận; sẽ kiểm tra lại khi Auto khởi động lại.", "warn");
             } else {
-                sendLog("✅ [M1 - Quét mỗi ngày] Đã hoàn tất Thông Thiên Tháp & Tứ Linh Tháp hôm nay.", "action");
+                sendLog("✅ [M1 - Quét mỗi ngày] Đã hoàn tất Thông Thiên Tháp & Tứ Linh Tháp hôm nay.", "result");
             }
         }
 
@@ -4132,24 +4490,16 @@
                 return false;
             }
         }
-
         // [Module 2] Phụ Bản Ngày & Bí Cảnh Tứ Quốc
-        // Bản game hiện tại không có hàm quét nhanh / mua lượt / quét Bí Cảnh riêng trong DailyDungeonCtrl,
-        // nên M2 chỉ gửi quét phụ bản đã vượt (1 lần mỗi ngày) và không mua gì.
+        // PB Ngày: chỉ kiểm tra và quét MIỄN PHÍ một lần mỗi ngày (handleSweepDungeons); không mua lượt bằng Tiên Ngọc.
+        // Hết lượt miễn phí/đã quét từ trước là bình thường (log thông tin, không phải lỗi). Bí Cảnh Tứ Quốc: bi-canh-tu-quoc.js.
         function handleDailyAndBiCanh(ctx) {
             try {
                 if (!ctx.DailyDungeonCtrl || !ctx.DailyDungeonCtrl.gInst) return false;
                 const dd = ctx.DailyDungeonCtrl.gInst();
                 if (!dd) return false;
-                const missing = ['oneKeySweepDaily', 'buyDailyCount', 'sweepBiCanhMaxPass']
-                    .filter((name) => typeof dd[name] !== 'function');
-                if (missing.length) {
-                    logUnsupportedOnce('m2-missing', "ℹ️ [M2] Bản game không có hàm mua lượt PB Ngày / quét Bí Cảnh Tứ Quốc; chỉ quét phụ bản đã vượt 1 lần mỗi ngày, không mua thêm.");
-                }
                 if (handleClimbDailyDungeons(ctx) || handleSweepDungeons(ctx)) return true;
-                if (sweptDayKey === new Date().toDateString()) {
-                    logUnsupportedOnce('m2-done', "✅ [M2] Hôm nay đã gửi quét phụ bản; không gửi lại.");
-                }
+                if (handleBiCanhTuQuoc(ctx)) return true;
                 return false;
             } catch(e) { return false; }
         }
@@ -4188,8 +4538,7 @@
                 lastResult: null,         // ctrl.fResult đã xử lý
                 pendingBuff: null,        // { at, eId } đã chọn Buff, chờ máy chủ xác nhận
                 buffSeenAt: 0,
-                embStage: 'arrange',
-                embAt: 0,
+                emb: null,
                 idleSince: Date.now(),
                 lastEntryAt: 0,
                 stageReward: { refreshing: null, pending: null, claimed: 0 },
@@ -4264,26 +4613,27 @@
                 logSect(state, 'emb-other', "ℹ️ [M3 - Thủ Vệ Tứ Phái] Đang mở bảng đội hình của chức năng khác; chờ bạn đóng hoặc hoàn tất.", "info");
                 return false;
             }
-            if (!state.embAt) state.embAt = now;
-            if (now - state.embAt < humanDelay(900)) return false;
-            if (!tryAttemptTarget('sect-embattle', "[M3 - Thủ Vệ Tứ Phái] Bắt đầu khiêu chiến từ bảng đội hình")) return false;
-
-            if (state.embStage === 'arrange') {
-                if (typeof embUi.oneKeyEmbattleLogic === 'function') embUi.oneKeyEmbattleLogic(0);
-                if (typeof embUi.saveEmbattleLogic === 'function') embUi.saveEmbattleLogic();
-                state.embStage = 'challenge';
-                state.embAt = now;
-                clearTargetAttempts('sect-embattle');
-                sendLog("🛡️ [M3 - Thủ Vệ Tứ Phái] Đã xếp đội hình tự động.", "action");
+            // Bấm "Lên trận nhanh", kiểm tra ô đội hình có tướng, mới bấm "Khiêu Chiến" (Bắt đầu).
+            if (!state.emb) state.emb = { at: 0, clicked: 0, starts: 0 };
+            const step = embattleStep(embUi, state.emb, now);
+            if (step === 'wait') return false;
+            if (step === 'arranged') {
+                sendLog(`🛡️ [M3 - Thủ Vệ Tứ Phái] Đã bấm Lên trận nhanh (lần ${state.emb.clicked}); kiểm tra đội hình.`, "action");
                 return true;
+            }
+            if (step === 'failed') {
+                const diag = embattleDiagnose(embUi, state.emb);
+                state.emb = null;
+                try { vm.closeView('embattleUi'); } catch (e) { }
+                failSect(state, 'emb-empty', "Không xếp được đội hình sau " + EMBATTLE_ARRANGE_TRIES + " lần Lên trận nhanh (" + diag + "); không khiêu chiến, dừng.", 'claim');
+                return false;
             }
             if (typeof embUi.cBtnH2 !== 'function') {
                 failSect(state, 'no-challenge', "Bảng đội hình không có nút Khiêu Chiến (bản game đổi); dừng.", 'claim');
                 return false;
             }
+            embattleMarkStarted(state.emb);
             embUi.cBtnH2();
-            state.embStage = 'arrange';
-            state.embAt = 0;
             state.lastEntryAt = now;
             state.idleSince = now;
             sendLog("⚔️ [M3 - Thủ Vệ Tứ Phái] Đã bấm Khiêu Chiến; chờ bảng chọn Buff.", "action");
@@ -4386,7 +4736,7 @@
                     return true;
                 }
                 sr.claimed++;
-                sendLog(`✅ [M3 - Thủ Vệ Tứ Phái] Máy chủ xác nhận đã nhận thưởng mốc #${pending.id}.`, "action");
+                sendLog(`✅ [M3 - Thủ Vệ Tứ Phái] Máy chủ xác nhận đã nhận thưởng mốc #${pending.id}.`, "result");
                 return true;
             }
             const data = ctrl.endLsData;
@@ -4456,7 +4806,7 @@
                     return true;
                 }
                 const left = sectCountFreeZlRewards(rc, zlType);
-                if (left === 0) sendLog(`✅ [M3 - Chiến Lệnh] Máy chủ xác nhận đã nhận ${c.before} phần thưởng.`, "action");
+                if (left === 0) sendLog(`✅ [M3 - Chiến Lệnh] Máy chủ xác nhận đã nhận ${c.before} phần thưởng.`, "result");
                 else failSect(state, 'zl-partial', `Đã gửi nhận nhưng còn ${left} phần thưởng chưa nhận được (có thể cần điều kiện khác).`);
                 state.phase = 'done';
                 sectCloseZl(vm);
@@ -4500,7 +4850,7 @@
                 if (sectViewVisible(vm, 'eTBfUi')) return sectChooseBuff(ctrl, vm, state, now);
                 state.buffSeenAt = 0;
                 if (sectViewVisible(vm, 'embattleUi')) return sectStartFromEmbattle(ctx, vm, state, now);
-                state.embAt = 0;
+                state.emb = null;
                 return sectHandleFight(ctx, ctrl, vm, state, now);
             } catch (e) {
                 const message = `❌ [M3 - Thủ Vệ Tứ Phái] Lỗi: ${e && e.message ? e.message : e}`;
@@ -4520,6 +4870,9 @@
         // Trả về: 'done' (đã xong / không có gì làm) | 'acted' (vừa thao tác) | 'wait' (đang chờ game).
         const UYEN_NHI_TIMEOUT_MS = 20000;
         let uyenNhiState = null;
+        runResetHooks.push(() => {
+            if (uyenNhiState && uyenNhiState.failed && uyenNhiState.phase === 'done') uyenNhiState = null;
+        });
 
         function uyenNhiFinish(state, message, type, failed) {
             state.phase = 'done';
@@ -4586,7 +4939,7 @@
 
             if (state.phase === 'confirm') {
                 if (ctrl.isCAwrd === true) {
-                    uyenNhiFinish(state, "✅ [M4 - Cửu Uyển Nhi] Máy chủ xác nhận Quét nhanh thành công.", "action");
+                    uyenNhiFinish(state, "✅ [M4 - Cửu Uyển Nhi] Máy chủ xác nhận Quét nhanh thành công.", "result");
                     if (vm.viewIsVisible('mzFinish')) vm.closeView('mzFinish');
                     try { ctrl.sd20201(); } catch (e) { }
                     ctrl.clsMz();
@@ -4915,11 +5268,52 @@
             return true;
         }
 
+        // Phản hồi 11079 (dùng vật phẩm đặc biệt): máy chủ trả res/msg; game chỉ hiện msg rồi đóng bảng nên tự ghi lại
+        // để biết vì sao bị từ chối. Đăng ký thêm một listener (NetMgr là EventDispatcher, không ghi đè listener của game).
+        let coThanSpecialReply = null;
+        let coThanSpecialWatched = false;
+        function coThanWatchSpecialReply() {
+            if (coThanSpecialWatched) return;
+            try {
+                const nm = window.NetMgr && window.NetMgr.gInst && window.NetMgr.gInst();
+                if (!nm || typeof nm.addEventListener !== 'function' || !window.NProtoNum) return;
+                nm.addEventListener(String(window.NProtoNum.R11079), (ev) => {
+                    const d = ev && ev.netData;
+                    if (d) coThanSpecialReply = { res: Number(d.res), msg: String(d.msg || ''), grid: d.grid_id, at: Date.now() };
+                }, window);
+                coThanSpecialWatched = true;
+            } catch (e) { }
+        }
+
         function coThanSpecial(ctrl, vm, state, now) {
             const sp = state.special;
             const dt = ctrl.mainUiDt;
+            coThanWatchSpecialReply();
             if (sp.pending) {
                 if (now - sp.pending.at < 2500) return false;
+                const reply = coThanSpecialReply && coThanSpecialReply.at >= sp.pending.at - 50 ? coThanSpecialReply : null;
+                if (reply && reply.res !== 1 && !sp.pending.replyLogged) {
+                    sp.pending.replyLogged = true;
+                    let text = reply.msg;
+                    try {
+                        // Thông báo dạng số là mã ngôn ngữ; game đổi ra chữ bằng GlobalCtrl.getNetErrorMsg.
+                        if (/^[0-9]+$/.test(reply.msg) && window.GlobalCtrl) text = `${reply.msg} = ${window.GlobalCtrl.gInst().getNetErrorMsg(reply.msg) || '?'}`;
+                    } catch (e) { }
+                    // 196050 = "Tầng hiện tại không thể dùng Tuyệt Mệnh Cấm Chế lên Thủ Lĩnh": từ chối bình thường khi chỉ còn ải giữa, không phải lỗi.
+                    const knownRefusal = String(reply.msg) === '196050';
+                    sendLog(`${knownRefusal ? 'ℹ️' : '⚠️'} [M4 - Cổ Thần Địa] Máy chủ trả lời dùng vật phẩm ô #${sp.pending.gridId}: res=${reply.res}, thông báo: "${text || '(trống)'}".`, knownRefusal ? "info" : "warn");
+                }
+                if (reply && reply.res !== 1) {
+                    // Máy chủ từ chối rõ ràng (ví dụ "không thể dùng lên Thủ Lĩnh ở tầng này"): vật phẩm chưa bị trừ, nên
+                    // hoàn lại lượt đếm, bỏ ô này khỏi danh sách mục tiêu và đi tiếp thay vì báo lỗi.
+                    sp.denied = sp.denied || new Set();
+                    sp.denied.add(sp.pending.gridId);
+                    sp.uses = Math.max(0, sp.uses - 1);
+                    saveCoThanSpecialSent(sp.uses);
+                    sp.pending = null;
+                    state.refreshing = null;
+                    return true;
+                }
                 const r = coThanRefresh(ctrl, state, now);
                 if (r === 'wait') return false;
                 const pending = sp.pending;
@@ -4932,7 +5326,7 @@
                 const grid = (after.gridLs || []).find((x) => x.id === pending.gridId);
                 const spent = after.lsPotion < pending.left || after.slPotion < pending.owned;
                 if (spent || (grid && grid.isFsh === 1)) {
-                    sendLog(`✅ [M4 - Cổ Thần Địa] Máy chủ xác nhận đã dùng vật phẩm đặc biệt lên ô #${pending.gridId} (lần ${sp.uses}/${CO_THAN_MAX_SPECIAL_USES}).`, "action");
+                    sendLog(`✅ [M4 - Cổ Thần Địa] Máy chủ xác nhận đã dùng vật phẩm đặc biệt lên ô #${pending.gridId} (lần ${sp.uses}/${CO_THAN_MAX_SPECIAL_USES}).`, "result");
                 } else {
                     failCoThan(state, 'sp-unconfirmed', `Đã dùng vật phẩm lên ô #${pending.gridId} nhưng game chưa ghi nhận; dừng bước này.`, 'reward');
                 }
@@ -4941,7 +5335,7 @@
             if (!dt) { state.phase = 'reward'; return false; }
             const owned = Number(dt.slPotion) || 0;
             const left = Number(dt.lsPotion) || 0;
-            const targets = coThanRemainingBosses(dt);
+            const targets = coThanRemainingBosses(dt).filter((g) => !(sp.denied && sp.denied.has(g.id)));
             if (sp.uses >= CO_THAN_MAX_SPECIAL_USES || owned <= 0 || left <= 0 || !targets.length) {
                 const why = sp.uses >= CO_THAN_MAX_SPECIAL_USES ? 'đã đủ số lần'
                     : (!targets.length ? 'không còn ải' : 'hết vật phẩm/lượt');
@@ -4954,6 +5348,7 @@
             state.idleAt = now;
             const target = targets[0];
             sp.pending = { gridId: target.id, at: now, owned, left };
+            coThanSpecialReply = null;
             state.refreshing = null;
             // Tính ngay lúc gửi (kể cả khi mạng rớt chưa kịp xác nhận) để không bao giờ vượt giới hạn.
             sp.uses++;
@@ -4973,7 +5368,7 @@
                 const entry = (ctrl.mainUiDt && ctrl.mainUiDt.killLs || []).find((k) => k.num === pending.num);
                 if (r === 'ready' && entry && entry.status === 2) {
                     cl.done++;
-                    sendLog(`✅ [M4 - Cổ Thần Địa] Máy chủ xác nhận đã nhận thưởng Diệt Thủ Hộ mốc ${pending.num}.`, "action");
+                    sendLog(`✅ [M4 - Cổ Thần Địa] Máy chủ xác nhận đã nhận thưởng Diệt Thủ Hộ mốc ${pending.num}.`, "result");
                 } else {
                     failCoThan(state, 'claim-unconfirmed', `Đã gửi nhận thưởng mốc ${pending.num} nhưng game chưa ghi nhận; dừng bước này.`);
                 }
@@ -5059,31 +5454,370 @@
             } catch(e) { return false; }
         }
 
-        // [Module 5] Di Tích Tiên Giới
+        // [Module 5] Di Tích Tiên Giới (RainRuinsCtrl, giao diện rainRuinsUi; bệ = "field", cấp bệ = quality 1-5).
+        // Việc duy nhất: phái 1 đội rảnh đi khai thác bệ có cấp cao nhất.
+        //   - Có bệ rảnh cấp >= RELIC_GOOD_LEVEL (3) -> phái đội vào bệ cấp cao nhất đó (send32703).
+        //   - Toàn bệ cấp thấp -> làm mới (send32702) chỉ bằng lượt MIỄN PHÍ (tối đa RELIC_MAX_FREE_REFRESH lần,
+        //     và không quá free_refresh của game), rồi chọn lại. Hết lượt miễn phí thì phái vào bệ tốt nhất hiện có.
+        //   - Không bao giờ làm mới bằng vật phẩm/Tiên Ngọc.
+        // Chỉ ghi "đã" khi dữ liệu máy chủ xác nhận (fieldDic[index].team_id đổi / daily_refresh_times tăng).
+        const RELIC_GOOD_LEVEL = 3;
+        const RELIC_MAX_FREE_REFRESH = 3;
+        const RELIC_TIMEOUT_MS = 15000;
+        let relicState = null;
+        runResetHooks.push(() => {
+            if (relicState && relicState.failed && relicState.phase === 'done') relicState = null;
+        });
+
+        function relicFinish(state, message, type, failed) {
+            state.phase = 'done';
+            if (failed) state.failed = true;
+            sendLog(message, type || "info");
+        }
+
+        // Danh sách bệ rảnh (chưa có đội) kèm cấp bệ, cấp cao nhất đứng đầu.
+        function relicFreeFields(ctrl) {
+            const cfg = ctrl.getCurlModel().getSelfFieldCfg() || {};
+            const out = [];
+            const dic = ctrl.fieldDic || {};
+            for (const key in dic) {
+                const f = dic[key];
+                if (!f || Number(f.team_id) !== 0) continue;
+                const c = cfg[f.field_id];
+                out.push({ index: f.index, fieldId: f.field_id, level: c ? Number(c.quality) || 0 : 0 });
+            }
+            out.sort((a, b) => b.level - a.level || a.index - b.index);
+            return out;
+        }
+
         function handleImmortalRelic(ctx) {
+            if (!ctx.RainRuinsCtrl || !ctx.RainRuinsCtrl.gInst || !ctx.ViewMgr || !ctx.ViewMgr.gInst) {
+                logUnsupportedOnce('m5', "⚠️ [M5 - Di Tích] Game chưa sẵn sàng (RainRuinsCtrl); bỏ qua bước này.");
+                return false;
+            }
+            const dayKey = new Date().toDateString();
+            if (!relicState || relicState.dayKey !== dayKey) {
+                relicState = { dayKey, phase: 'open', failed: false, openedAt: 0, pending: null, refreshes: 0 };
+                sendLog("💎 [M5 - Di Tích] Bắt đầu: mở Di Tích Tiên Giới, phái 1 đội vào bệ cấp cao nhất.", "action");
+            }
+            const state = relicState;
+            if (state.phase === 'done') return false;
+
+            const ctrl = ctx.RainRuinsCtrl.gInst();
+            const vm = ctx.ViewMgr.gInst();
+            const now = Date.now();
+            const visible = vm.viewIsVisible('rainRuinsUi');
+            const closeUi = () => { try { if (vm.viewIsVisible('rainRuinsUi')) vm.closeView('rainRuinsUi'); } catch (e) { } };
+
             try {
-                if (ctx.RelicCtrl && ctx.RelicCtrl.gInst) {
-                    const rc = ctx.RelicCtrl.gInst();
-                    // Kiểm tra nếu có Lv4 -> Không làm mới, phái đội khai thác Lv4
-                    if (typeof rc.hasLevel4Relic === 'function' && rc.hasLevel4Relic()) {
-                        if (typeof rc.dispatchMineLv4 === 'function') {
-                            rc.dispatchMineLv4();
-                            sendLog("💎 [M5 - Di Tích] Phát hiện bệ tài nguyên Lv4! Đã phái đội khai thác an toàn.", "action");
-                            return true;
-                        }
-                    } else {
-                        // Làm mới các bệ Lv1, Lv2, Lv3
-                        if (typeof rc.refreshLowerRelics === 'function') {
-                            rc.refreshLowerRelics();
-                            sendLog("🔄 [M5 - Di Tích] Đã làm mới các bệ tài nguyên Lv1-Lv3 để tìm Lv4.", "info");
-                            return true;
-                        }
+                if (ctx.FunOpenCtrl && ctx.FunOpenType && ctx.FunOpenType.RAIN_RUINS !== undefined &&
+                    !ctx.FunOpenCtrl.gInst().check(ctx.FunOpenType.RAIN_RUINS, false)) {
+                    relicFinish(state, "ℹ️ [M5 - Di Tích] Chức năng chưa mở khóa (chưa đủ cấp độ); bỏ qua.", "info");
+                    return false;
+                }
+            } catch (e) { }
+
+            if (state.phase === 'open') {
+                if (!visible) {
+                    if (!tryAttemptTarget('relic-open', "[M5 - Di Tích] Mở màn Di Tích")) {
+                        relicFinish(state, "❌ [M5 - Di Tích] Không mở được màn Di Tích; bỏ qua.", "error", true);
+                        return false;
+                    }
+                    ctrl.openRainRuinsUi();
+                    state.openedAt = now;
+                    return true;
+                }
+                if (!ctrl.sc32700 || !ctrl.fieldDic || Object.keys(ctrl.fieldDic).length === 0) {
+                    if (now - state.openedAt > RELIC_TIMEOUT_MS) {
+                        relicFinish(state, "❌ [M5 - Di Tích] Máy chủ chưa trả dữ liệu Di Tích; bỏ qua.", "error", true);
+                        closeUi();
+                    }
+                    return false;
+                }
+                state.phase = 'decide';
+                return true;
+            }
+
+            if (state.pending) {
+                const p = state.pending;
+                if (p.kind === 'refresh') {
+                    if (Number(ctrl.sc32700.daily_refresh_times) > p.before) {
+                        state.pending = null;
+                        state.refreshes++;
+                        const lv = relicFreeFields(ctrl).map(f => f.level).join(',');
+                        sendLog(`✅ [M5 - Di Tích] Máy chủ xác nhận đã làm mới lần ${state.refreshes} (cấp các bệ rảnh: ${lv}).`, "action");
+                        return true;
                     }
                 } else {
-                    logUnsupportedOnce('m5', "⚠️ [M5 - Di Tích] Bản game hiện tại không có bộ điều khiển RelicCtrl; tính năng chưa hỗ trợ, không gửi thao tác nào.");
+                    const f = ctrl.fieldDic[p.index];
+                    if (f && Number(f.team_id) === p.teamId) {
+                        state.pending = null;
+                        relicFinish(state, `✅ [M5 - Di Tích] Máy chủ xác nhận đã phái đội ${p.teamId} vào bệ #${p.index} (Lv${p.level}).`, "result");
+                        closeUi();
+                        return true;
+                    }
+                }
+                if (now - p.startedAt > RELIC_TIMEOUT_MS) {
+                    state.pending = null;
+                    relicFinish(state, `❌ [M5 - Di Tích] Máy chủ chưa xác nhận ${p.kind === 'refresh' ? 'lượt làm mới' : 'việc phái đội'}; không gửi lại.`, "error", true);
+                    closeUi();
                 }
                 return false;
-            } catch(e) { return false; }
+            }
+
+            // phase === 'decide'
+            if (!visible) { state.phase = 'open'; return false; }
+            const idle = typeof ctrl.getIdleTeamIdArr === 'function' ? ctrl.getIdleTeamIdArr() : [];
+            if (!idle.length) {
+                relicFinish(state, "ℹ️ [M5 - Di Tích] Không còn đội rảnh (đã phái hết); không có gì để làm.", "info");
+                closeUi();
+                return false;
+            }
+            const fields = relicFreeFields(ctrl);
+            if (!fields.length) {
+                relicFinish(state, "ℹ️ [M5 - Di Tích] Không còn bệ rảnh để phái đội.", "info");
+                closeUi();
+                return false;
+            }
+            const best = fields[0];
+            const base = ctrl.getCurlModel().getBaseCfg() || {};
+            const used = Number(ctrl.sc32700.daily_refresh_times) || 0;
+            const freeLeft = Number(base.free_refresh) - used;
+            const canRefresh = freeLeft > 0 && state.refreshes < RELIC_MAX_FREE_REFRESH;
+
+            if (best.level < RELIC_GOOD_LEVEL && canRefresh) {
+                if (!tryAttemptTarget(`relic-refresh-${state.refreshes}`, "[M5 - Di Tích] Làm mới bệ", 1)) {
+                    relicFinish(state, "❌ [M5 - Di Tích] Không gửi được lượt làm mới; dừng.", "error", true);
+                    return false;
+                }
+                sendLog(`💎 [M5 - Di Tích] Bệ cao nhất chỉ Lv${best.level}; làm mới miễn phí lần ${state.refreshes + 1}/${RELIC_MAX_FREE_REFRESH} (còn ${freeLeft} lượt miễn phí của game).`, "action");
+                state.pending = { kind: 'refresh', before: used, startedAt: now };
+                ctrl.send32702();
+                return true;
+            }
+
+            if (!tryAttemptTarget('relic-dispatch', "[M5 - Di Tích] Phái đội", 1)) {
+                relicFinish(state, "❌ [M5 - Di Tích] Không phái được đội; dừng.", "error", true);
+                return false;
+            }
+            const teamId = idle[0];
+            sendLog(`💎 [M5 - Di Tích] Phái đội ${teamId} vào bệ #${best.index} (Lv${best.level})${best.level < RELIC_GOOD_LEVEL ? '; hết lượt làm mới miễn phí nên dùng bệ tốt nhất hiện có' : ''}.`, "action");
+            state.pending = { kind: 'dispatch', index: best.index, teamId, level: best.level, startedAt: now };
+            ctrl.send32703(best.index, teamId);
+            return true;
+        }
+
+        // [Module 2b] Bí Cảnh Tứ Quốc (DailyDungeonCtrl, loại fairyland; màn faMainUi -> faSelectUi -> embattleUi).
+        // Máy chủ (send11004 loại fairyland) chỉ trả ải của các tháp ĐANG MỞ hôm nay; tháp k (1..4) = round(id/1000)%10.
+        // Quy trình giống người chơi, mỗi nhịp một việc:
+        //   1. Mở Bí Cảnh Tứ Quốc, đọc danh sách tháp đang mở và số lượt miễn phí dùng chung
+        //      (isActive: day+privilege-(enter-buy), ngược lại day-enter).
+        //   2. Lần lượt từng tháp: khiêu chiến các ải CHƯA vượt theo thứ tự (tối đa BICANH_MAX_NEW_FLOORS ải/tháp),
+        //      xếp đội tự động, bỏ qua trận. Đánh một ải tối đa 2 lần rồi bỏ tháp đó (tránh lặp khi thua).
+        //   3. Khi không còn ải mới để đánh: quét ải cuối (ải đã vượt cao nhất của tháp mở cuối cùng) tới hết lượt miễn phí.
+        // Không bao giờ mua lượt: chỉ bấm khi còn lượt miễn phí (hết lượt game sẽ hỏi mua bằng Tiên Ngọc, ở đây không gửi).
+        // Chỉ ghi "đã" khi dữ liệu máy chủ xác nhận (enter_count tăng / ải chuyển sang đã vượt); thiếu phản hồi thì báo lỗi, không gửi lại.
+        const BICANH_MAX_NEW_FLOORS = 10;
+        const BICANH_MAX_SWEEPS = 15;
+        const BICANH_FIGHT_TIMEOUT_MS = 90000;
+        let biCanhState = null;
+        runResetHooks.push(() => {
+            if (biCanhState && biCanhState.failed && biCanhState.phase === 'done') biCanhState = null;
+        });
+
+        function biCanhFinish(state, message, type, failed) {
+            state.phase = 'done';
+            if (failed) state.failed = true;
+            sendLog(message, type || "info");
+        }
+
+        function biCanhFree(dd, data) {
+            const day = Number(data.day_count) || 0, enter = Number(data.enter_count) || 0;
+            const buy = Number(data.buy_count) || 0, priv = Number(data.privilege_count) || 0;
+            return dd.isActive ? day + priv - (enter - buy) : day - enter;
+        }
+
+        // { copyType: [item sắp theo dungeon_id] } chỉ gồm các tháp đang mở.
+        function biCanhTowers(data) {
+            const map = {};
+            (data.dungeon_data_list || []).forEach((it) => {
+                const k = Math.round(it.dungeon_id / 1000) % 10;
+                (map[k] = map[k] || []).push(it);
+            });
+            Object.keys(map).forEach((k) => map[k].sort((a, b) => a.dungeon_id - b.dungeon_id));
+            return map;
+        }
+
+        function handleBiCanhTuQuoc(ctx) {
+            const types = ctx.DailyDungeonConst && ctx.DailyDungeonConst.dailyDungeonType;
+            if (!ctx.DailyDungeonCtrl || !ctx.ViewMgr || !ctx.EmbattleConst || !types || typeof types.fairyland !== 'number') return false;
+            const dayKey = new Date().toDateString();
+            if (!biCanhState || biCanhState.dayKey !== dayKey) {
+                biCanhState = { dayKey, phase: 'open', failed: false, refreshing: null, pending: null,
+                    selected: 0, newFloors: {}, blocked: {}, sweeps: 0, emb: null, listedOpen: false };
+                sendLog("🏯 [M2 - Bí Cảnh Tứ Quốc] Bắt đầu: mở Bí Cảnh, đánh ải mới từng tháp đang mở rồi quét ải cuối bằng lượt miễn phí.", "action");
+            }
+            const state = biCanhState;
+            if (state.phase === 'done') return false;
+
+            const FL = types.fairyland;
+            const dd = ctx.DailyDungeonCtrl.gInst();
+            const vm = ctx.ViewMgr.gInst();
+            const now = Date.now();
+            const data = () => dd.getDungeonData(FL);
+            const tokenOf = () => { const d = data(); return d && d.his_list; };
+            const closeUis = () => {
+                ['faSelectUi', 'faMainUi'].forEach((n) => { try { if (vm.viewIsVisible(n)) vm.closeView(n); } catch (e) { } });
+            };
+            const stop = (ok, msg) => { biCanhFinish(state, msg, ok ? "result" : "error", !ok); closeUis(); return true; };
+
+            try {
+                if (ctx.FunOpenCtrl && ctx.FunOpenType && ctx.FunOpenType.FAIRYLAND !== undefined &&
+                    !ctx.FunOpenCtrl.gInst().check(ctx.FunOpenType.FAIRYLAND, false)) {
+                    biCanhFinish(state, "ℹ️ [M2 - Bí Cảnh Tứ Quốc] Chức năng chưa mở khóa (chưa đủ cấp độ); bỏ qua.", "info");
+                    return false;
+                }
+            } catch (e) { }
+
+            // --- đang chờ kết quả một thao tác ---
+            if (state.pending) {
+                const p = state.pending;
+                const d = data();
+                if (!vm.viewIsVisible('embattleUi')) state.emb = null;
+                if (p.kind === 'fight' && !p.started && vm.viewIsVisible('embattleUi')) {
+                    const embUi = vm.getViewByName('embattleUi');
+                    const et = ctx.EmbattleConst.embattleType;
+                    if (embUi && embUi.embattleType >= et.fairyland_wei && embUi.embattleType <= et.fairyland_qun) {
+                        // Bấm "Lên trận nhanh", kiểm tra ô đội hình có tướng, mới bấm "Khiêu Chiến" (Bắt đầu).
+                        if (!state.emb) state.emb = { at: 0, clicked: 0, starts: 0 };
+                        const step = embattleStep(embUi, state.emb, now);
+                        if (step === 'wait') return false;
+                        if (step === 'arranged') {
+                            sendLog(`🏯 [M2 - Bí Cảnh Tứ Quốc] Đã bấm Lên trận nhanh (lần ${state.emb.clicked}); kiểm tra đội hình.`, "action");
+                            return true;
+                        }
+                        if (step === 'failed') {
+                            const diag = embattleDiagnose(embUi, state.emb);
+                            state.pending = null;
+                            state.emb = null;
+                            try { vm.closeView('embattleUi'); } catch (e) { }
+                            return stop(false, "❌ [M2 - Bí Cảnh Tứ Quốc] Không xếp được đội hình sau " + EMBATTLE_ARRANGE_TRIES + " lần Lên trận nhanh (" + diag + "); không khiêu chiến, dừng.");
+                        }
+                        if (typeof embUi.cBtnH2 !== 'function') {
+                            state.pending = null;
+                            return stop(false, "❌ [M2 - Bí Cảnh Tứ Quốc] Bảng đội hình không có nút Khiêu Chiến (bản game đổi); dừng.");
+                        }
+                        embattleMarkStarted(state.emb);
+                        embUi.cBtnH2();
+                        p.started = true;          // đã bấm: chỉ chờ kết quả, không bấm lại dù bảng còn hiện dưới bảng kết quả
+                        p.startedAt = now;
+                        sendLog("⚔️ [M2 - Bí Cảnh Tứ Quốc] Đã bấm Khiêu Chiến; chờ máy chủ xác nhận.", "action");
+                        return true;
+                    }
+                }
+                if (d && Number(d.enter_count) > p.beforeEnter) {
+                    // Lượt đã bị trừ: tải lại dữ liệu để xem ải đã vượt chưa.
+                    const r = pollTowerDailyRefresh(p, 'refreshing', now, () => dd.send11004(FL), tokenOf);
+                    if (r === 'wait') return false;
+                    if (r === 'timeout' || r === 'error') {
+                        state.pending = null;
+                        return stop(false, "❌ [M2 - Bí Cảnh Tứ Quốc] Không tải lại được dữ liệu Bí Cảnh sau khi đánh/quét; dừng, không gửi lại.");
+                    }
+                    state.pending = null;
+                    const nd = data();
+                    const free = nd ? biCanhFree(dd, nd) : 0;
+                    const item = ((nd && nd.dungeon_data_list) || []).find((it) => it.dungeon_id === p.id);
+                    if (p.kind === 'sweep') {
+                        state.sweeps++;
+                        sendLog(`✅ [M2 - Bí Cảnh Tứ Quốc] Máy chủ xác nhận đã quét ải #${p.id} (lần ${state.sweeps}; còn ${free} lượt miễn phí).`, "result");
+                    } else if (item && item.is_pass) {
+                        state.newFloors[p.k] = (state.newFloors[p.k] || 0) + 1;
+                        sendLog(`✅ [M2 - Bí Cảnh Tứ Quốc] Máy chủ xác nhận đã vượt ải #${p.id} (tháp ${p.k}, ải mới ${state.newFloors[p.k]}/${BICANH_MAX_NEW_FLOORS}; còn ${free} lượt miễn phí).`, "action");
+                    } else {
+                        sendLog(`⚠️ [M2 - Bí Cảnh Tứ Quốc] Đã đánh ải #${p.id} (tháp ${p.k}) nhưng chưa vượt (thua?); còn ${free} lượt miễn phí.`, "warn");
+                    }
+                    return true;
+                }
+                if (now - p.startedAt >= BICANH_FIGHT_TIMEOUT_MS) {
+                    state.pending = null;
+                    if (p.kind === 'fight') state.blocked[p.k] = true;
+                    sendLog(`❌ [M2 - Bí Cảnh Tứ Quốc] Máy chủ chưa xác nhận ${p.kind === 'fight' ? 'trận đánh' : 'lượt quét'} ải #${p.id}; không gửi lại.`, "error");
+                    if (p.kind === 'sweep') return stop(false, "❌ [M2 - Bí Cảnh Tứ Quốc] Dừng quét vì máy chủ không xác nhận.");
+                    return true;
+                }
+                if (now - p.startedAt >= 3000 && now - p.lastPoll >= 2000) {
+                    p.lastPoll = now;
+                    try { dd.send11004(FL); } catch (e) { }
+                }
+                return false;
+            }
+
+            // --- mở màn và tải dữ liệu ---
+            if (state.phase === 'open') {
+                if (!vm.viewIsVisible('faMainUi') && !vm.viewIsVisible('faSelectUi')) {
+                    if (!tryAttemptTarget('bicanh-open', "[M2 - Bí Cảnh Tứ Quốc] Mở màn Bí Cảnh")) {
+                        return stop(false, "❌ [M2 - Bí Cảnh Tứ Quốc] Không mở được màn Bí Cảnh; bỏ qua.");
+                    }
+                    dd.openFaMainUi();
+                    return true;
+                }
+                state.phase = 'load';
+                return true;
+            }
+            if (state.phase === 'load') {
+                const r = pollTowerDailyRefresh(state, 'refreshing', now, () => { dd.send11008(); dd.send11004(FL); }, tokenOf);
+                if (r === 'ready') state.phase = 'run';
+                else if (r === 'timeout' || r === 'error') return stop(false, "❌ [M2 - Bí Cảnh Tứ Quốc] Không tải được dữ liệu Bí Cảnh từ máy chủ; bỏ qua.");
+                return r !== 'wait';
+            }
+
+            // --- phase 'run': chọn việc kế tiếp ---
+            const d = data();
+            if (!d || !Array.isArray(d.dungeon_data_list)) return stop(false, "❌ [M2 - Bí Cảnh Tứ Quốc] Thiếu dữ liệu danh sách ải; dừng.");
+            const towers = biCanhTowers(d);
+            const keys = Object.keys(towers).map(Number).sort((a, b) => a - b);
+            if (!keys.length) return stop(true, "ℹ️ [M2 - Bí Cảnh Tứ Quốc] Hôm nay không có tháp nào đang mở; bỏ qua.");
+            const free = biCanhFree(dd, d);
+            if (!state.listedOpen) {
+                state.listedOpen = true;
+                sendLog(`🏯 [M2 - Bí Cảnh Tứ Quốc] Tháp đang mở: ${keys.map((k) => '#' + k).join(', ')}; lượt miễn phí ${free}.`, "info");
+            }
+            if (free <= 0) return stop(true, "✅ [M2 - Bí Cảnh Tứ Quốc] Đã dùng hết lượt miễn phí hôm nay.");
+
+            const send = (k, item, kind) => {
+                if (state.selected !== k) { dd.openFaSelUi(k); state.selected = k; return true; }
+                // Giống dòng ải trong danh sách của game: cliFaSelItem(nút, cấu hình ải, dòng dữ liệu). Tham số 2 PHẢI là
+                // cấu hình ải (có .id): game lưu ải đang chọn bằng saveFaId(e.id), bảng đội hình và nút "Lên trận nhanh" cần nó.
+                const model = typeof dd.getCurlModel === 'function' ? dd.getCurlModel() : dd.m_curModel;
+                const baseVo = model && typeof model.getDungeonBaseConfigVo === 'function' ? model.getDungeonBaseConfigVo(item.dungeon_id) : null;
+                if (!baseVo || baseVo.id === undefined) {
+                    return stop(false, `❌ [M2 - Bí Cảnh Tứ Quốc] Không đọc được cấu hình ải #${item.dungeon_id}; dừng.`);
+                }
+                const fightCtrl = ctx.FightCtrl && ctx.FightCtrl.gInst && ctx.FightCtrl.gInst();
+                if (fightCtrl && typeof fightCtrl.gCanFight === 'function' && !fightCtrl.gCanFight()) return false;
+                const tries = kind === 'fight' ? 2 : BICANH_MAX_SWEEPS;
+                if (!tryAttemptTarget(`bicanh-${kind}-${item.dungeon_id}`, `[M2 - Bí Cảnh Tứ Quốc] ${kind === 'fight' ? 'Khiêu chiến' : 'Quét'} ải #${item.dungeon_id}`, tries)) {
+                    if (kind === 'fight') { state.blocked[k] = true; return true; }
+                    return stop(false, "❌ [M2 - Bí Cảnh Tứ Quốc] Quét quá số lần thử; dừng.");
+                }
+                state.emb = null;
+                state.pending = { kind, id: item.dungeon_id, k, beforeEnter: Number(d.enter_count) || 0, startedAt: now, lastPoll: now };
+                sendLog(`${kind === 'fight' ? '⚔️' : '🔁'} [M2 - Bí Cảnh Tứ Quốc] ${kind === 'fight' ? 'Khiêu chiến ải mới' : 'Quét ải cuối'} #${item.dungeon_id} (tháp ${k}; còn ${free} lượt miễn phí).`, "action");
+                dd.cliFaSelItem({ label: '' }, baseVo, item);
+                return true;
+            };
+
+            for (const k of keys) {
+                if (state.blocked[k] || (state.newFloors[k] || 0) >= BICANH_MAX_NEW_FLOORS) continue;
+                const next = towers[k].find((it) => !it.is_pass);
+                if (next) return send(k, next, 'fight');
+            }
+            // Không còn ải mới: quét ải đã vượt cao nhất của tháp mở cuối cùng.
+            const lastK = keys[keys.length - 1];
+            const passed = towers[lastK].filter((it) => it.is_pass);
+            if (!passed.length) return stop(true, "ℹ️ [M2 - Bí Cảnh Tứ Quốc] Không có ải đã vượt để quét; kết thúc.");
+            if (state.sweeps >= BICANH_MAX_SWEEPS) return stop(false, "❌ [M2 - Bí Cảnh Tứ Quốc] Quét quá số lần cho phép trong một lượt; dừng.");
+            return send(lastK, passed[passed.length - 1], 'sweep');
         }
         // [Module 6] Ảo Cảnh Pháp Trận (FaZhenMirageCtrl, giao diện faZhenMirageMainUi / FZMirageFlipUi, kết quả fmDazzlingResultUi)
         // Quy trình giống người chơi, mỗi nhịp một việc:
@@ -5142,7 +5876,22 @@
         function memoryFail(state, message) {
             sendLog(`❌ [M6 - Ảo Cảnh] ${message}`, "error");
             state.failed = true;
-            state.phase = 'done';
+            // Ván lỗi không được làm mất thưởng mốc điểm đã đủ: thử nhận thưởng một lần rồi mới dừng.
+            if (!state.claimBlocked && !state.claimDone && !state.claimSent) { state.phase = 'claim'; state.claimReturn = 'done'; }
+            else state.phase = 'done';
+        }
+
+        // Chữ ký trạng thái các mốc điểm (score -> status) từ máy chủ; đổi nghĩa là máy chủ đã phản hồi nhận thưởng.
+        function memoryStatusSig(ctrl) {
+            try { return JSON.stringify(ctrl.statusDic || {}); } catch (e) { return ''; }
+        }
+
+        function memoryMilestoneText(ctrl) {
+            try {
+                const model = ctrl.getCurlModel();
+                const cfg = model && model.getcfg2 ? model.getcfg2() : [];
+                return cfg.map((c) => `${c.num}:${ctrl.getStatusByScore(c.num)}`).join(', ');
+            } catch (e) { return '?'; }
         }
 
         // Hẹn giờ gửi lần lượt 8 cặp, cặp cuối vào khoảng MEMORY_ROUND_TARGET_MS sau lúc bấm Bắt đầu. Gửi nối tiếp,
@@ -5198,7 +5947,7 @@
                 if (s.phase === 'done') return false;
                 const now = Date.now();
                 const tokenOf = () => ctrl.sc32060;
-                const closeResult = () => { try { if (vm.viewIsVisible('fmDazzlingResultUi')) vm.closeView('fmDazzlingResultUi'); } catch (e) { } };
+                const closeResult = () => { for (const name of ['fmDazzlingResultUi', 'backpackGetAwardTipsUi']) { try { if (vm.viewIsVisible(name)) vm.closeView(name); } catch (e) { } } };
                 const openMain = () => { try { if (!vm.viewIsVisible('faZhenMirageMainUi') && typeof ctrl.opFaZhenMirageUi === 'function') ctrl.opFaZhenMirageUi(); } catch (e) { } };
 
                 // Bảng kết quả có thể che màn hình: đóng ngay khi hiện.
@@ -5212,6 +5961,12 @@
                     const d = memoryRead(ctrl);
                     if (!d || !(d.rewardRuns > 0)) { memoryFail(s, "Không đọc được số lượt thưởng Ảo Cảnh (bản game đổi); dừng."); return false; }
                     const left = d.rewardRuns - d.passTaken;
+                    if (d.beginMs === 0 && left <= 0 && !s.claimDone && !s.claimBlocked && memoryClaimable(ctrl)) {
+                        sendLog(`🎁 [M6 - Ảo Cảnh] Đã chơi đủ ${d.passTaken}/${d.rewardRuns} ván (điểm ${d.scores}; mốc ${memoryMilestoneText(ctrl)}); nhận thưởng mốc cuối (một lần nhận hết).`, "action");
+                        s.phase = 'claim';
+                        s.claimReturn = 'open';
+                        return true;
+                    }
                     if (d.beginMs > 0) {
                         sendLog("ℹ️ [M6 - Ảo Cảnh] Đang có ván dở; tiếp tục ghép thẻ.", "info");
                         s.pairs = memoryBuildPairs(ctrl);
@@ -5229,6 +5984,7 @@
                     } else if (left <= 0 || s.rounds >= MEMORY_MAX_ROUNDS) {
                         sendLog(`ℹ️ [M6 - Ảo Cảnh] Hết ván cần chơi (${d.passTaken}/${d.rewardRuns}); chuyển sang nhận thưởng mốc điểm.`, "info");
                         s.phase = 'claim';
+                        s.claimReturn = 'done';
                         return true;
                     }
                     s.passBefore = d.passTaken;
@@ -5296,24 +6052,32 @@
                 }
 
                 if (s.phase === 'claim') {
+                    const back = () => { s.claimDone = true; s.claimSent = 0; s.phase = s.claimReturn || 'done'; s.claimReturn = null; if (s.phase === 'open') { s.refreshing = null; s.nextAt = now + humanDelay(1200); } };
                     if (s.claimSent) {
-                        if (!memoryClaimable(ctrl)) {
+                        if (memoryStatusSig(ctrl) !== s.claimSig) {
                             closeResult();
-                            sendLog("✅ [M6 - Ảo Cảnh] Máy chủ xác nhận đã nhận thưởng mốc điểm.", "action");
-                            s.phase = 'done';
-                        } else if (now - s.claimSent >= MEMORY_REQUEST_TIMEOUT_MS) {
-                            sendLog("⚠️ [M6 - Ảo Cảnh] Đã gửi nhận thưởng mốc điểm nhưng máy chủ chưa xác nhận; không gửi lại.", "warn");
+                            const rest = memoryClaimable(ctrl);
+                            sendLog(rest ? `⚠️ [M6 - Ảo Cảnh] Máy chủ đã phản hồi nhận thưởng nhưng còn mốc chưa nhận (mốc ${memoryMilestoneText(ctrl)}).` : `✅ [M6 - Ảo Cảnh] Máy chủ xác nhận đã nhận thưởng mốc điểm (mốc ${memoryMilestoneText(ctrl)}).`, rest ? "warn" : "result");
+                            back();
+                            return true;
+                        }
+                        if (now - s.claimSent >= MEMORY_REQUEST_TIMEOUT_MS) {
+                            sendLog(`⚠️ [M6 - Ảo Cảnh] Đã gửi nhận thưởng mốc điểm nhưng máy chủ chưa xác nhận (mốc ${memoryMilestoneText(ctrl)}); không gửi lại.`, "warn");
+                            s.claimBlocked = true;
                             s.failed = true;
-                            s.phase = 'done';
+                            back();
                         }
                         return false;
                     }
+                    if (s.claimBlocked || (s.claimDone && s.claimReturn === 'done')) { back(); return false; }   // đã gửi mà máy chủ không xác nhận: không gửi lại
                     if (!memoryClaimable(ctrl)) {
-                        sendLog("ℹ️ [M6 - Ảo Cảnh] Không có thưởng mốc điểm nào để nhận.", "info");
-                        s.phase = 'done';
+                        const d = memoryRead(ctrl);
+                        sendLog(`ℹ️ [M6 - Ảo Cảnh] Không có thưởng mốc điểm nào để nhận (điểm ${d ? d.scores : '?'}; mốc ${memoryMilestoneText(ctrl)}).`, "info");
+                        back();
                         return false;
                     }
                     s.claimSent = now;
+                    s.claimSig = memoryStatusSig(ctrl);
                     ctrl.send32064();
                     sendLog("🎁 [M6 - Ảo Cảnh] Đã gửi nhận thưởng mốc điểm; chờ máy chủ xác nhận.", "action");
                     return true;
@@ -5426,7 +6190,7 @@
                 const b = s.pendingBuy;
                 const cost = dragonDiceCost(ctx, dice, info);
                 if (cost.have >= b.need) {
-                    sendLog(`✅ [M7 - Kiếm Hành] Máy chủ xác nhận đã mua xúc xắc (có ${cost.have}, cần ${b.need}).`, "action");
+                    sendLog(`✅ [M7 - Kiếm Hành] Máy chủ xác nhận đã mua xúc xắc (có ${cost.have}, cần ${b.need}).`, "result");
                     s.pendingBuy = null;
                 } else if (now - b.at >= DRAGON_REQUEST_TIMEOUT_MS) {
                     dragonFail(s, "[Kiếm Hành] Đã gửi mua xúc xắc nhưng số xúc xắc không tăng; dừng, không mua lại.", 'dice-war');
@@ -5473,7 +6237,7 @@
                     if (!ctx.ShopCtrl || typeof ctx.ShopCtrl.gInst().quickBuy !== 'function') { dragonFail(s, "[Kiếm Hành] Không có lệnh mua xúc xắc; dừng.", 'dice-war'); return false; }
                     s.buys++;
                     saveDiceBuys(s.buys);
-                    sendLog(`💎 [M7 - Kiếm Hành] Hết xúc xắc free; mua ${missing} xúc xắc (khoảng ${missing * cost.price} Tiên Ngọc, lần mua ${s.buys}/${DRAGON_DICE_MAX_BUYS}).`, "action");
+                    sendLog(`💎 [M7 - Kiếm Hành] Hết xúc xắc free; mua ${missing} xúc xắc (khoảng ${missing * cost.price} Tiên Ngọc, lần mua ${s.buys}/${DRAGON_DICE_MAX_BUYS}).`, "result");
                     ctx.ShopCtrl.gInst().quickBuy(1501001, missing);
                     s.pendingBuy = { need: cost.need, at: now };
                     return true;
@@ -5634,7 +6398,7 @@
             const claimable = () => ec.checkLongRewardStatRed() === true;
             if (s.stageSent) {
                 if (!claimable()) {
-                    sendLog("✅ [M7 - Điêu Long] Máy chủ xác nhận đã nhận rương mốc điểm.", "action");
+                    sendLog("✅ [M7 - Điêu Long] Máy chủ xác nhận đã nhận rương mốc điểm.", "result");
                     s.stageSent = 0;
                     s.phase = 'long-tasks';
                     return true;
@@ -5673,7 +6437,7 @@
                 const t = list().find((x) => x.id === s.claimPending.id);
                 if (t && t.status === 2) {
                     s.claimedTasks++;
-                    sendLog(`✅ [M7 - Điêu Long] Máy chủ xác nhận đã nhận nhiệm vụ Khiêu chiến #${t.id}.`, "action");
+                    sendLog(`✅ [M7 - Điêu Long] Máy chủ xác nhận đã nhận nhiệm vụ Khiêu chiến #${t.id}.`, "result");
                     s.claimPending = null;
                 } else if (now - s.claimPending.at >= DRAGON_REQUEST_TIMEOUT_MS) {
                     sendLog(`⚠️ [M7 - Điêu Long] Đã gửi nhận nhiệm vụ #${s.claimPending.id} nhưng máy chủ chưa xác nhận; không gửi lại.`, "warn");
@@ -5744,6 +6508,10 @@
         const TAM_TIEN_REQUEST_TIMEOUT_MS = 20000;
         const TIEN_HUU_REQUEST_TIMEOUT_MS = 20000;
         const CUOI_NGAY_REQUEST_TIMEOUT_MS = 20000;
+        // Lượt Cuối Ngày có thật sự mở/gửi/bấm gì không (khác với chỉ chờ máy chủ hoặc chuyển bước): chỉ lượt thật sự thao tác
+        // mới cần nghỉ kiểu người chơi; lượt chờ thì quay lại ngay để bắt phản hồi sớm (xem handleDailyRoutine).
+        let cuoiNgayDidSend = false;
+        let tamTienDidSend = false;      // như cuoiNgayDidSend nhưng cho Tâm Tiên Đài
         const TIEN_MINH_REQUEST_TIMEOUT_MS = 20000;
         const TIEN_MINH_DUNGEON_FIGHT_TIMEOUT_MS = 30000;
         const TIEN_MINH_FIGHT_MAX_WAIT_MS = 90000;
@@ -5818,7 +6586,7 @@
             if (state.failed) {
                 sendLog("⚠️ [M8 - Cuối Ngày] Đã kiểm tra xong nhưng một số thao tác chưa được máy chủ xác nhận; xem các lỗi phía trên.", "err");
             } else if (confirmedClaims > 0) {
-                sendLog(`✅ [M8 - Cuối Ngày] Máy chủ xác nhận ${state.mail.claimed} lượt nhận nhanh Thư, ${state.rank.worshipped} lượt Hành Lễ và ${state.tasks.taskClaims + state.tasks.chestClaims} thưởng Nhiệm Vụ/Rương.`, "action");
+                sendLog(`✅ [M8 - Cuối Ngày] Máy chủ xác nhận ${state.mail.claimed} lượt nhận nhanh Thư, ${state.rank.worshipped} lượt Hành Lễ và ${state.tasks.taskClaims + state.tasks.chestClaims} thưởng Nhiệm Vụ/Rương.`, "result");
             } else {
                 sendLog("ℹ️ [M8 - Cuối Ngày] Đã kiểm tra trạng thái; không còn phần thưởng đang chờ nhận, không gửi lại thao tác đã hoàn tất.", "info");
             }
@@ -5848,6 +6616,7 @@
                     return true;
                 }
                 emailCtrl.reqDataBeforeEnter();
+                cuoiNgayDidSend = true;
                 sendLog("ℹ️ [M8 - Cuối Ngày - Thư] Đã mở Thư; đang tải trạng thái trước khi nhận nhanh.", "info");
                 return true;
             }
@@ -5869,7 +6638,7 @@
             if (state.mail.pending) {
                 if (!emailCtrl.isCanReward(state.mail.pending.type)) {
                     state.mail.claimed++;
-                    sendLog("✅ [M8 - Cuối Ngày - Thư] Máy chủ xác nhận đã nhận nhanh thư có đính kèm.", "action");
+                    sendLog("✅ [M8 - Cuối Ngày - Thư] Máy chủ xác nhận đã nhận nhanh thư có đính kèm.", "result");
                     state.mail.typeIndex++;
                     state.mail.pending = null;
                 } else if (Date.now() - state.mail.pending.startedAt >= CUOI_NGAY_REQUEST_TIMEOUT_MS) {
@@ -5899,6 +6668,7 @@
 
             state.mail.pending = { type, startedAt: Date.now() };
             emailCtrl.send16007(type);
+            cuoiNgayDidSend = true;
             sendLog(`ℹ️ [M8 - Cuối Ngày - Thư] Đã yêu cầu Nhận nhanh loại ${type}; đang chờ máy chủ xác nhận.`, "info");
             return true;
         }
@@ -5966,6 +6736,7 @@
                 state.rank.requestedAt = Date.now();
                 state.rank.opened = true;
                 rankCtrl.send15005();
+                cuoiNgayDidSend = true;
                 state.rank.view.reqRankList();
                 sendLog("ℹ️ [M8 - Cuối Ngày - BXH] Đã mở BXH Sức Mạnh; đang tải trạng thái các biểu tượng Hành Lễ.", "info");
                 return true;
@@ -6043,6 +6814,7 @@
 
             state.rank.pending = { type, startedAt: Date.now() };
             button.dispatchEventWith(ctx.egret.TouchEvent.TOUCH_TAP, true);
+            cuoiNgayDidSend = true;
             sendLog(`ℹ️ [M8 - Cuối Ngày - BXH] Đã bấm biểu tượng Hành Lễ loại ${type}; đang chờ máy chủ xác nhận.`, "info");
             return true;
         }
@@ -6068,6 +6840,7 @@
                 acvCtrl.openAcvAct(0);
                 acvCtrl.send30501();
                 acvCtrl.send12501();
+                cuoiNgayDidSend = true;
                 sendLog("ℹ️ [M8 - Cuối Ngày - Nhiệm Vụ] Đã mở Nhiệm Vụ; đang tải trạng thái nhiệm vụ và rương.", "info");
                 return true;
             }
@@ -6097,7 +6870,7 @@
                     }
                 } else if (acvCtrl.tskStateLs[pending.index] === taskState.gain) {
                     state.tasks.chestClaims++;
-                    sendLog(`✅ [M8 - Cuối Ngày - Rương] Máy chủ xác nhận đã nhận rương năng động #${pending.index + 1}.`, "action");
+                    sendLog(`✅ [M8 - Cuối Ngày - Rương] Máy chủ xác nhận đã nhận rương năng động #${pending.index + 1}.`, "result");
                     state.tasks.pending = null;
                 }
 
@@ -6119,6 +6892,7 @@
                     startedAt: Date.now()
                 };
                 acvCtrl.send30503(task.task_id);
+                cuoiNgayDidSend = true;
                 sendLog(`ℹ️ [M8 - Cuối Ngày - Nhiệm Vụ] Đã yêu cầu nhận nhiệm vụ #${task.task_id}; đang chờ máy chủ xác nhận.`, "info");
                 return true;
             }
@@ -6133,6 +6907,7 @@
                     startedAt: Date.now()
                 };
                 acvCtrl.send30504(chestIndex);
+                cuoiNgayDidSend = true;
                 sendLog(`ℹ️ [M8 - Cuối Ngày - Rương] Đã yêu cầu nhận rương năng động #${chestIndex + 1}; đang chờ máy chủ xác nhận.`, "info");
                 return true;
             }
@@ -6270,9 +7045,9 @@
                     const category = TAM_TIEN_GIFT_CATEGORIES[state.giftCategoryIndex];
                     if (pending.confirmed) {
                         if (Number(pending.gift.gold) > 0) {
-                            sendLog(`✅ [M8 - Tâm Tiên Đài - ${category.label}] Đã mua quà #${pending.gift.gift_id} bằng ${Number(pending.gift.gold)} Tiên Ngọc.`, "action");
+                            sendLog(`✅ [M8 - Tâm Tiên Đài - ${category.label}] Đã mua quà #${pending.gift.gift_id} bằng ${Number(pending.gift.gold)} Tiên Ngọc.`, "result");
                         } else {
-                            sendLog(`✅ [M8 - Tâm Tiên Đài - ${category.label}] Đã nhận quà miễn phí #${pending.gift.gift_id}.`, "action");
+                            sendLog(`✅ [M8 - Tâm Tiên Đài - ${category.label}] Đã nhận quà miễn phí #${pending.gift.gift_id}.`, "result");
                         }
                         state.pendingGiftClaim = null;
                         state.giftRowIndex++;
@@ -6331,6 +7106,7 @@
                     state.waitingGiftList = { type: giftType, startedAt: now, ready: false };
                     try {
                         welfareController.send30120(giftType);
+                        tamTienDidSend = true;
                     } catch (error) {
                         state.waitingGiftList = null;
                         sendLog(`⚠️ [M8 - Tâm Tiên Đài - ${category.label}] Không thể kiểm tra quà: ${error.message || error}`, "err");
@@ -6374,6 +7150,7 @@
                 };
                 try {
                     welfareController.send30121(gift.gift_id);
+                    tamTienDidSend = true;
                 } catch (error) {
                     state.pendingGiftClaim = null;
                     const action = tienNgocCost > 0 ? 'mua quà Tiên Ngọc' : 'nhận quà miễn phí';
@@ -6399,6 +7176,7 @@
                         state.recruitInfoRequestedAt = now;
                         try {
                             recruitController.reqRecruitInfo();
+                            tamTienDidSend = true;
                         } catch (error) {
                             sendLog(`⚠️ [M8 - Tâm Tiên Đài - Chiêu Mộ] Không thể kiểm tra lượt miễn phí: ${error.message || error}`, "err");
                             state.phase = 'done';
@@ -6419,7 +7197,7 @@
                     const pending = state.pendingRecruit;
                     const remaining = Number(recruitController.m_recruitBaseInfo[pending.key]) || 0;
                     if (remaining < pending.previousCount) {
-                        sendLog(`✅ [M8 - Tâm Tiên Đài - Chiêu Mộ] Đã nhận lượt miễn phí: ${pending.label}.`, "action");
+                        sendLog(`✅ [M8 - Tâm Tiên Đài - Chiêu Mộ] Đã nhận lượt miễn phí: ${pending.label}.`, "result");
                         state.pendingRecruit = null;
                         state.recruitIndex++;
                     } else if (!recruitController.m_isRecruiting &&
@@ -6464,6 +7242,7 @@
                 };
                 try {
                     recruitController.freeRecruit(recruitType.type);
+                    tamTienDidSend = true;
                 } catch (error) {
                     state.pendingRecruit = null;
                     sendLog(`⚠️ [M8 - Tâm Tiên Đài - Chiêu Mộ] Không thể nhận lượt miễn phí ${recruitType.label}: ${error.message || error}`, "err");
@@ -6553,7 +7332,7 @@
                     const results = [];
                     if (confirmedGifts > 0) results.push(`đã tặng ${confirmedGifts} bạn bè`);
                     if (confirmedAccepts > 0) results.push(`đã nhận thể lực từ ${confirmedAccepts} bạn bè`);
-                    sendLog(`✅ [M8 - Tiên Hữu] Máy chủ xác nhận Tặng nhanh: ${results.join(', ')}.`, "success");
+                    sendLog(`✅ [M8 - Tiên Hữu] Máy chủ xác nhận Tặng nhanh: ${results.join(', ')}.`, "result");
                     state.phase = 'done';
                 } else if (now - state.startedAt >= TIEN_HUU_REQUEST_TIMEOUT_MS) {
                     sendLog("⚠️ [M8 - Tiên Hữu] Máy chủ chưa xác nhận thao tác Tặng nhanh.", "err");
@@ -6648,6 +7427,7 @@
                     targetType: null
                 },
                 asked: { checked: false, loading: null, count: 0, pending: null },
+                askedClaim: { loaded: false, loading: null, pending: null, sends: 0 },
                 help: {
                     opened: false,
                     pending: null,
@@ -6657,7 +7437,7 @@
                     assisted: 0,
                     assistRejected: 0
                 },
-                fete: { opened: false, pending: null, closeAttempted: false }
+                fete: { opened: false, pending: null, closeAttempted: false, claiming: false, claimPending: null }
             };
         }
 
@@ -6726,11 +7506,11 @@
                         bargain.step = 'check';
                     } else if (pending.kind === 'offer') {
                         state.confirmedActions++;
-                        logTienMinh(state, 'bargain-offer-confirmed', "✅ [M8 - Tiên Minh - Shop Tiên Giới] Máy chủ xác nhận đã Trả Giá.", "action");
+                        logTienMinh(state, 'bargain-offer-confirmed', "✅ [M8 - Tiên Minh - Shop Tiên Giới] Máy chủ xác nhận đã Trả Giá.", "result");
                         bargain.step = 'check-buy';
                     } else {
                         state.confirmedActions++;
-                        logTienMinh(state, 'bargain-buy-confirmed', "✅ [M8 - Tiên Minh - Shop Tiên Giới] Máy chủ xác nhận đã Mua vật phẩm sau khi Trả Giá.", "action");
+                        logTienMinh(state, 'bargain-buy-confirmed', "✅ [M8 - Tiên Minh - Shop Tiên Giới] Máy chủ xác nhận đã Mua vật phẩm sau khi Trả Giá.", "result");
                         state.phase = 'dungeon';
                     }
                 } else if (pending.kind === 'load' && now - pending.startedAt >= 1500) {
@@ -6892,7 +7672,7 @@
                     if (Number.isFinite(buyCount) && buyCount > pending.beforeBuyCount) {
                         dungeon.pending = null;
                         state.confirmedActions++;
-                        logTienMinh(state, `dungeon-buy-${buyCount}`, `✅ [M8 - Tiên Minh - Bí Cảnh Tông Môn] Máy chủ xác nhận đã mua thêm 1 lượt với giá 20 Tiên Ngọc (${buyCount} lượt đã mua).`, "action");
+                        logTienMinh(state, `dungeon-buy-${buyCount}`, `✅ [M8 - Tiên Minh - Bí Cảnh Tông Môn] Máy chủ xác nhận đã mua thêm 1 lượt với giá 20 Tiên Ngọc (${buyCount} lượt đã mua).`, "result");
                         dungeon.stage = 'decide';
                     } else if (now - pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
                         dungeon.pending = null;
@@ -7294,7 +8074,7 @@
 
             if (asked.count >= TIEN_MINH_ASKED_FIGHTS) {
                 logTienMinh(state, 'asked-done', `ℹ️ [M8 - Tiên Minh - Tông Môn Vấn Đạo] Đã hoàn thành ${asked.count}/${TIEN_MINH_ASKED_FIGHTS} lượt Khiêu Chiến.`, "info");
-                state.phase = 'help';
+                state.phase = 'askedClaim';
                 return true;
             }
 
@@ -7306,7 +8086,7 @@
                 return true;
             }
             if (!canJoin) {
-                skipTienMinhStep(state, 'asked-inactive', 'Tông Môn Vấn Đạo hôm nay chưa có đối thủ hoặc không hoạt động; bỏ qua.', 'help');
+                skipTienMinhStep(state, 'asked-inactive', 'Tông Môn Vấn Đạo hôm nay chưa có đối thủ hoặc không hoạt động; bỏ qua Khiêu Chiến, kiểm tra thưởng.', 'askedClaim');
                 return true;
             }
 
@@ -7331,6 +8111,82 @@
             } catch (error) {
                 asked.pending = null;
                 failTienMinhStep(state, 'asked-challenge-error', `Không thể Khiêu Chiến Tông Môn Vấn Đạo: ${error.message || error}`, 'help');
+            }
+            return true;
+        }
+
+        // Mốc thưởng sát thương Tông Môn Vấn Đạo đã đạt nhưng chưa nhận (giống điều kiện ô thưởng của game: state 1).
+        function getTienMinhAskedClaimable(model, data) {
+            if (!data || !data.damage) return [];
+            const damage = Number(data.damage.dataNum) || 0;
+            const list = model.getAskedHarmRewardCfg(data.damage_award_group) || [];
+            return list.filter((cfg) => !model.getHarmRewardById(cfg.id) && damage >= Number(cfg.val));
+        }
+
+        // Nhận thưởng mốc sát thương Tông Môn Vấn Đạo (GuildCtrl.send18145, không tham số; game đánh dấu đã nhận qua harmRewardDic).
+        function handleTienMinhAskedClaim(ctx, state, now) {
+            const gc = state.guildCtrl;
+            const claim = state.askedClaim;
+            const model = gc.m_curModel;
+            if (!model || typeof gc.send18140 !== 'function' || typeof gc.send18145 !== 'function' ||
+                typeof model.getAskedHarmRewardCfg !== 'function' || typeof model.getHarmRewardById !== 'function') {
+                failTienMinhStep(state, 'asked-claim-api', 'API nhận thưởng Tông Môn Vấn Đạo chưa sẵn sàng.', 'help');
+                return true;
+            }
+            // 1) Tải lại dữ liệu mới nhất (sau các trận vừa đánh).
+            if (!claim.loaded) {
+                if (!claim.loading) {
+                    claim.loading = { dataRef: model.scmd18140Data, startedAt: now };
+                    try {
+                        gc.send18140(1);
+                    } catch (error) {
+                        claim.loading = null;
+                        failTienMinhStep(state, 'asked-claim-load-error', `Không thể tải thưởng Tông Môn Vấn Đạo: ${error.message || error}`, 'help');
+                    }
+                    return true;
+                }
+                if (model.scmd18140Data === claim.loading.dataRef) {
+                    if (now - claim.loading.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
+                        claim.loading = null;
+                        failTienMinhStep(state, 'asked-claim-state-timeout', 'Không tải được dữ liệu thưởng Tông Môn Vấn Đạo từ máy chủ.', 'help');
+                    }
+                    return true;
+                }
+                claim.loaded = true;
+                claim.loading = null;
+            }
+
+            const claimable = getTienMinhAskedClaimable(model, model.scmd18140Data);
+            if (claim.pending) {
+                if (claimable.length < claim.pending.before) {
+                    const got = claim.pending.before - claimable.length;
+                    claim.pending = null;
+                    state.confirmedActions++;
+                    logTienMinh(state, `asked-claim-confirmed-${claim.sends}`, `✅ [M8 - Tiên Minh - Tông Môn Vấn Đạo] Máy chủ xác nhận đã nhận thưởng ${got} mốc sát thương.`, "result");
+                } else if (now - claim.pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
+                    claim.pending = null;
+                    failTienMinhStep(state, 'asked-claim-timeout', 'Máy chủ chưa xác nhận nhận thưởng Tông Môn Vấn Đạo; không gửi lại.', 'help');
+                    return true;
+                } else {
+                    return true;
+                }
+            }
+            if (!claimable.length) {
+                logTienMinh(state, 'asked-claim-none', "ℹ️ [M8 - Tiên Minh - Tông Môn Vấn Đạo] Không có mốc thưởng sát thương nào để nhận.", "info");
+                state.phase = 'help';
+                return true;
+            }
+            if (claim.sends >= 4) {
+                failTienMinhStep(state, 'asked-claim-limit', 'Đã gửi nhận thưởng nhiều lần mà vẫn còn mốc chưa nhận; dừng.', 'help');
+                return true;
+            }
+            claim.sends++;
+            claim.pending = { before: claimable.length, startedAt: now };
+            try {
+                gc.send18145();
+            } catch (error) {
+                claim.pending = null;
+                failTienMinhStep(state, 'asked-claim-error', `Không thể nhận thưởng Tông Môn Vấn Đạo: ${error.message || error}`, 'help');
             }
             return true;
         }
@@ -7533,13 +8389,15 @@
                     (button && button.visible === false)) {
                     fete.pending = null;
                     state.confirmedActions++;
-                    logTienMinh(state, 'fete-confirmed', "✅ [M8 - Tiên Minh - Tổ Sư Đường] Máy chủ xác nhận đã Cung phụng Dâng Tôn Sư.", "action");
-                    state.phase = 'done';
+                    logTienMinh(state, 'fete-confirmed', "✅ [M8 - Tiên Minh - Tổ Sư Đường] Máy chủ xác nhận đã Cung phụng Dâng Tôn Sư.", "result");
+                    fete.claiming = true;
                 } else if (now - pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
                     failTienMinhStep(state, 'fete-timeout', 'Máy chủ chưa xác nhận Cung phụng Dâng Tôn Sư.', 'done');
                 }
                 return true;
             }
+
+            if (fete.claiming) return handleTienMinhFeteClaim(state, now);
 
             if (!fete.opened) {
                 if (typeof gc.openGuildFeteUi !== 'function' ||
@@ -7564,7 +8422,9 @@
                 return true;
             }
             if (button.visible !== true || button.enabled === false || button.touchEnabled === false) {
-                skipTienMinhStep(state, 'fete-already-done', 'Cung phụng Dâng Tôn Sư không còn khả dụng hoặc đã hoàn tất.', 'done');
+                state.skippedSteps++;
+                logTienMinh(state, 'fete-already-done', "ℹ️ [M8 - Tiên Minh] Cung phụng Dâng Tôn Sư không còn khả dụng hoặc đã hoàn tất; kiểm tra thưởng tiến độ.", "info");
+                fete.claiming = true;
                 return true;
             }
             if (typeof gc.send18036Msg !== 'function') {
@@ -7584,6 +8444,64 @@
             return true;
         }
 
+        // Nhận thưởng mốc "Tiến độ cung phụng" (GuildCtrl.send18037Msg(count)): mốc đã đạt (fate_num >= count) và chưa có trong raward_list.
+        function handleTienMinhFeteClaim(state, now) {
+            const gc = state.guildCtrl;
+            const fete = state.fete;
+            const model = gc.m_curModel;
+            if (!model || typeof gc.send18037Msg !== 'function' || typeof model.getGuildAwardConfig !== 'function' || !model.scmd18035Data) {
+                skipTienMinhStep(state, 'fete-claim-api', 'Không đọc được mốc thưởng Cung Phụng; bỏ qua.', 'done');
+                return true;
+            }
+            const claimedNums = () => ((model.scmd18035Data && model.scmd18035Data.raward_list) || []).map((item) => Number(item && item.num));
+            if (fete.claimPending) {
+                const pending = fete.claimPending;
+                if (claimedNums().includes(pending.count)) {
+                    fete.claimPending = null;
+                    state.confirmedActions++;
+                    logTienMinh(state, `fete-claim-${pending.count}`, `✅ [M8 - Tiên Minh - Tổ Sư Đường] Máy chủ xác nhận đã nhận thưởng mốc Cung Phụng ${pending.count}.`, "result");
+                } else if (now - pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
+                    fete.claimPending = null;
+                    failTienMinhStep(state, 'fete-claim-timeout', `Máy chủ chưa xác nhận nhận thưởng mốc Cung Phụng ${pending.count}; không gửi lại.`, 'done');
+                    return true;
+                } else {
+                    return true;
+                }
+            }
+            const fateNum = Number(model.scmd18035Data.fate_num) || 0;
+            const done = claimedNums();
+            const next = [1, 2, 3].map((t) => model.getGuildAwardConfig(t))
+                .filter((cfg) => cfg && Number(cfg.count) > 0)
+                .sort((a, b) => Number(a.count) - Number(b.count))
+                .find((cfg) => !done.includes(Number(cfg.count)) && fateNum >= Number(cfg.count));
+            if (!next) {
+                logTienMinh(state, 'fete-claim-none', `ℹ️ [M8 - Tiên Minh - Tổ Sư Đường] Tiến độ cung phụng ${fateNum}; không có mốc thưởng nào để nhận.`, "info");
+                state.phase = 'done';
+                return true;
+            }
+            fete.claimPending = { count: Number(next.count), startedAt: now };
+            try {
+                gc.send18037Msg(Number(next.count));
+            } catch (error) {
+                fete.claimPending = null;
+                failTienMinhStep(state, 'fete-claim-error', `Không thể nhận thưởng mốc Cung Phụng: ${error.message || error}`, 'done');
+            }
+            return true;
+        }
+
+        // Về lại màn hình chính khi làm xong: đóng mọi bảng Tông Môn còn mở (bảng con trước, bảng chính sau cùng).
+        function closeTienMinhGuildViews() {
+            try {
+                const vmCtl = window.ViewMgr && window.ViewMgr.gInst && window.ViewMgr.gInst();
+                const cache = window.ViewMgr && window.ViewMgr.gViewMgr && window.ViewMgr.gViewMgr.m_viewCacheGroup;
+                if (!vmCtl || typeof vmCtl.viewIsVisible !== 'function' || typeof vmCtl.closeView !== 'function' || !cache) return 0;
+                const names = Object.keys(cache).filter((name) => /^guild/i.test(name) && vmCtl.viewIsVisible(name));
+                names.sort((a, b) => (a === 'guildMainUi') - (b === 'guildMainUi'));
+                names.forEach((name) => { try { vmCtl.closeView(name); } catch (e) { } });
+                return names.length;
+            } catch (e) { return 0; }
+        }
+
         function finishTienMinh(state) {
             if (state.finalized) return;
             if (state.fete.opened && !state.fete.closeAttempted) {
@@ -7600,12 +8518,13 @@
                     }
                 }
             }
+            closeTienMinhGuildViews();
             state.phase = 'done';
             state.finalized = true;
             if (state.failed) {
                 sendLog(`⚠️ [M8 - Tiên Minh] Đã kiểm tra xong; ${state.confirmedActions} thao tác được xác nhận, ${state.skippedSteps} bước đã bỏ qua. Có bước chưa được máy chủ xác nhận.`, "err");
             } else if (state.confirmedActions > 0) {
-                sendLog(`✅ [M8 - Tiên Minh] Đã kiểm tra xong; máy chủ xác nhận ${state.confirmedActions} thao tác, ${state.skippedSteps} bước đã hoàn tất/không khả dụng.`, "action");
+                sendLog(`✅ [M8 - Tiên Minh] Đã kiểm tra xong; máy chủ xác nhận ${state.confirmedActions} thao tác, ${state.skippedSteps} bước đã hoàn tất/không khả dụng.`, "result");
             } else {
                 sendLog(`ℹ️ [M8 - Tiên Minh] Đã kiểm tra trạng thái; không có thao tác nào cần thực hiện (${state.skippedSteps} bước đã hoàn tất/không khả dụng).`, "info");
             }
@@ -7661,18 +8580,32 @@
                 const embattleUi = typeof vm.getViewByName === 'function' ? vm.getViewByName('embattleUi') : null;
                 if (embattleUi && typeof embattleUi.cBtnH2 === 'function') {
                     try {
-                        if (typeof embattleUi.oneKeyEmbattleLogic === 'function') embattleUi.oneKeyEmbattleLogic(0);
-                        if (typeof embattleUi.saveEmbattleLogic === 'function') embattleUi.saveEmbattleLogic();
-                        embattleUi.cBtnH2();
-                        state.lastEmbattleAt = now;
-                        state.embattleClicks = (state.embattleClicks || 0) + 1;
-                        logTienMinh(state, `battle-embattle-${state.embattleClicks}`, "ℹ️ [M8 - Tiên Minh] Đã tự chọn đội hình và bấm Bắt Đầu.", "info");
-                        acted = true;
+                        // Bấm "Lên trận nhanh", kiểm tra ô đội hình có tướng, mới bấm "Bắt Đầu".
+                        if (!state.emb) state.emb = { at: 0, clicked: 0, starts: 0 };
+                        const step = embattleStep(embattleUi, state.emb, now);
+                        if (step === 'arranged') {
+                            acted = true;
+                        } else if (step === 'ready') {
+                            embattleMarkStarted(state.emb);
+                            embattleUi.cBtnH2();
+                            state.lastEmbattleAt = now;
+                            state.embattleClicks = (state.embattleClicks || 0) + 1;
+                            logTienMinh(state, `battle-embattle-${state.embattleClicks}`, "ℹ️ [M8 - Tiên Minh] Đã tự chọn đội hình và bấm Bắt Đầu.", "info");
+                            acted = true;
+                        } else if (step === 'failed') {
+                            const diag = embattleDiagnose(embattleUi, state.emb);
+                            state.emb = null;
+                            state.lastEmbattleAt = now;
+                            try { vm.closeView('embattleUi'); } catch (e) { }
+                            logTienMinh(state, 'battle-embattle-empty', `❌ [M8 - Tiên Minh] Không xếp được đội hình (${diag}); bỏ qua lượt Khiêu Chiến này.`, "error");
+                            acted = true;
+                        }
                     } catch (error) {
                         logTienMinh(state, 'battle-embattle-error', `⚠️ [M8 - Tiên Minh] Không thể bấm Bắt Đầu ở bảng đội hình: ${error.message || error}`, "err");
                     }
                 }
             }
+            if (!vm.viewIsVisible('embattleUi')) state.emb = null;
             ['fightSuccessUi', 'fightFailUi', 'winUi', 'fightWinUi', 'fightResultUi',
                 'adventureResultUi', 'guildAskedFightResultUi'].forEach((name) => {
                 if (vm.viewIsVisible(name)) {
@@ -7726,6 +8659,7 @@
             if (state.phase === 'dungeon') return handleTienMinhDungeon(ctx, state, Date.now());
             if (state.phase === 'war') return handleTienMinhWar(state, Date.now(), ctx);
             if (state.phase === 'asked') return handleTienMinhAsked(ctx, state, Date.now());
+            if (state.phase === 'askedClaim') return handleTienMinhAskedClaim(ctx, state, Date.now());
             if (state.phase === 'help') return handleTienMinhHelp(ctx, state, Date.now());
             if (state.phase === 'fete') return handleTienMinhFete(ctx, state, Date.now());
             if (state.phase === 'done') {
@@ -7829,7 +8763,7 @@
             if (state.phase === 'confirm') {
                 const now = Date.now();
                 if (!ctrl.isCanGetHomeTypeProduceReward()) {
-                    sendLog("✅ [M8 - Trợ Chiến] Máy chủ xác nhận đã nhận nhanh tài nguyên Hoan Thú Viên.", "action");
+                    sendLog("✅ [M8 - Trợ Chiến] Máy chủ xác nhận đã nhận nhanh tài nguyên Hoan Thú Viên.", "result");
                     state.phase = 'done';
                     closeTroChienView(ctx);
                 } else if (now - state.claimedAt >= TRO_CHIEN_REQUEST_TIMEOUT_MS) {
@@ -7853,7 +8787,9 @@
                 }
                 // 2. Tâm Tiên Đài
                 if (CONFIG.activeFeature === 'autoTamTienDai') {
-                    return handleTamTienDai(ctx);
+                    tamTienDidSend = false;
+                    const acted = handleTamTienDai(ctx);
+                    return acted && !tamTienDidSend ? 'wait' : acted;
                 }
                 // 3. Tiên Hữu (Bạn bè)
                 if (CONFIG.activeFeature === 'autoTienHuu') {
@@ -7865,7 +8801,9 @@
                 }
                 // 5. Cuối Ngày (Thư, Like BXH, Sôi Nổi)
                 if (CONFIG.activeFeature === 'autoCuoiNgay') {
-                    return handleCuoiNgay(ctx);
+                    cuoiNgayDidSend = false;
+                    const acted = handleCuoiNgay(ctx);
+                    return acted && !cuoiNgayDidSend ? 'wait' : acted;
                 }
                 return false;
             } catch (error) {
@@ -8084,9 +9022,24 @@
         ];
 
         let bannerGiftBusy = false;
+        let bannerAbortRequested = false;
+
+        // Người dùng bấm dừng giữa lượt Banner: mọi lần chờ (bannerSleep) sẽ ném lỗi dừng để luồng thoát và đóng các bảng đã mở.
+        function bannerRequestAbort() {
+            if (bannerGiftBusy) bannerAbortRequested = true;
+        }
+
+        function bannerAbortError() {
+            const error = new Error('Banner: đã dừng giữa chừng');
+            error.bannerAbort = true;
+            return error;
+        }
 
         function bannerSleep(ms) {
-            return new Promise((resolve) => setTimeout(resolve, ms));
+            return new Promise((resolve, reject) => {
+                if (bannerAbortRequested) { reject(bannerAbortError()); return; }
+                setTimeout(() => (bannerAbortRequested ? reject(bannerAbortError()) : resolve()), ms);
+            });
         }
 
         // CHỈ ĐỌC, KHÔNG KÍCH HOẠT: không gọi gInst() (sẽ tạo controller sớm) và không gọi các getter
@@ -8123,11 +9076,17 @@
                 const dat = deseno.getActDat(cfg.activity);
                 if (!dat || dat.status !== openStatus || !(dat.close_time > now)) continue;
                 const match = /Chiến Lệnh\s+([^,]+)/.exec(String(cfg.tabName || ''));
+                let heroName = '';
+                try {
+                    const heroBase = window.HeroCtrl && window.HeroCtrl.gInst().getHeroBaseByBaseId(cfg.hero_id);
+                    heroName = heroBase && heroBase.name ? String(heroBase.name) : '';
+                } catch (e) { }
                 list.push({
                     uniqueId: cfg.activity_id,
                     activityId: cfg.activity,
                     series: match ? match[1].trim() : 'Hero ' + cfg.hero_id,
                     heroId: cfg.hero_id,
+                    heroName,
                     giftSystemId: cfg.gift_system_id,
                     closeTime: dat.close_time,
                     remainSec: dat.close_time - now
@@ -8138,8 +9097,8 @@
 
         // Quyết định cho một dòng quà. Không bao giờ chọn quà có price (tiền thật).
         function bannerGiftDecision(gift, remaining) {
-            if (Number(gift.price) > 0) return { action: 'skip', silent: true };
-            if (remaining <= 0) return { action: 'skip', silent: true };
+            if (Number(gift.price) > 0) return { action: 'skip', reason: 'quà nạp tiền thật (không mua)' };
+            if (remaining <= 0) return { action: 'skip', reason: 'đã nhận/mua đủ hôm nay' };
             const gold = Number(gift.gold) || 0;
             if (gold === 0) return { action: 'claim', reason: 'miễn phí' };
             // Quà Tiên Ngọc mua mặc định, nhưng chỉ đúng giá đã định (300); giá khác thì bỏ qua.
@@ -8187,10 +9146,20 @@
                 }
 
                 const list = view.giftList;
+                // Danh sách của game chỉ dựng ô hiển thị cho các dòng đang thấy; lấy đủ các dòng từ dữ liệu để không
+                // bỏ sót quà nằm dưới (ví dụ Lệnh Chiêu Mộ mua bằng Tiên Ngọc).
+                const rendered = [];
                 for (let i = 0; i < list.numElements; i++) {
-                    const item = list.getElementAt(i);
-                    const gift = item && item.data;
-                    if (!gift || typeof item.onBuy !== 'function') continue;
+                    const el = list.getElementAt(i);
+                    if (el && el.data) rendered.push(el);
+                }
+                const source = view.giftListCol && Array.isArray(view.giftListCol.source) && view.giftListCol.source.length
+                    ? view.giftListCol.source.slice() : rendered.map((el) => el.data);
+                sendLog(`ℹ️ ${tag} Bảng Quà có ${source.length} dòng (đang hiển thị ${rendered.length}).`, 'info');
+                for (const gift of source) {
+                    if (!gift) continue;
+                    const item = rendered.find((el) => el.data && el.data.charge_id === gift.charge_id) || null;
+                    if (item && typeof item.onBuy !== 'function') continue;
                     if (!ctrl.isActivityOpen(uid)) {
                         sendLog(`ℹ️ ${tag} Banner đã đóng; dừng.`, 'info');
                         break;
@@ -8205,11 +9174,23 @@
                         continue;
                     }
 
-                    // Nút của dòng quà phải đang hiển thị đúng như giao diện cung cấp.
-                    const button = decision.action === 'claim' ? item.buyBtn : item.moneyBtn;
-                    const offered = button && button.visible !== false && (!button.parent || button.parent.visible !== false);
-                    if (!offered) {
-                        sendLog(`ℹ️ ${tag} "${name}" không có nút ${decision.action === 'claim' ? 'Nhận' : 'mua Tiên Ngọc'} trên giao diện; bỏ qua.`, 'info');
+                    // Dòng đang hiển thị: nút phải đang hiện đúng như giao diện cung cấp. Dòng chưa dựng ô: dùng đúng điều kiện
+                    // dữ liệu mà ô của game dùng (không có giá nạp tiền; miễn phí hoặc có giá Tiên Ngọc).
+                    if (item) {
+                        const button = decision.action === 'claim' ? item.buyBtn : item.moneyBtn;
+                        const offered = button && button.visible !== false && (!button.parent || button.parent.visible !== false);
+                        if (!offered) {
+                            sendLog(`ℹ️ ${tag} "${name}" không có nút ${decision.action === 'claim' ? 'Nhận' : 'mua Tiên Ngọc'} trên giao diện; bỏ qua.`, 'info');
+                            continue;
+                        }
+                    } else if (!window.RechargeCtrl || typeof window.RechargeCtrl.gInst !== 'function' ||
+                        typeof window.RechargeCtrl.gInst().send12323 !== 'function') {
+                        sendLog(`⚠️ ${tag} "${name}" chưa hiển thị và không tìm thấy lệnh mua của game; bỏ qua.`, 'err');
+                        continue;
+                    }
+                    if (decision.action === 'buy' && window.CommonUtils && typeof window.CommonUtils.getRoleAsset === 'function' &&
+                        (Number(window.CommonUtils.getRoleAsset('gold')) || 0) < (Number(gift.gold) || 0)) {
+                        sendLog(`ℹ️ ${tag} Không đủ Tiên Ngọc để mua "${name}" (${gift.gold}); bỏ qua.`, 'info');
                         continue;
                     }
 
@@ -8218,7 +9199,9 @@
                     if (clicks[gift.charge_id] > Math.max(limit, 1)) continue;
 
                     sendLog(`🎁 ${tag} ${decision.action === 'buy' ? 'Mua' : 'Nhận'} "${name}" (${decision.reason}).`, 'action');
-                    item.onBuy();
+                    // Cùng đường gửi với nút của ô quà (không có giá nạp tiền): send12323(charge_id).
+                    if (item) item.onBuy();
+                    else window.RechargeCtrl.gInst().send12323(gift.charge_id);
 
                     let confirmed = false;
                     const clickedAt = Date.now();
@@ -8229,7 +9212,7 @@
                         await bannerSleep(300);
                     }
                     if (confirmed) {
-                        sendLog(`✅ ${tag} Đã ${decision.action === 'buy' ? 'mua' : 'nhận'} "${name}".`, 'action');
+                        sendLog(`✅ ${tag} Đã ${decision.action === 'buy' ? 'mua' : 'nhận'} "${name}".`, 'result');
                     } else {
                         unconfirmed = true;
                         sendLog(`⚠️ ${tag} Máy chủ chưa xác nhận "${name}".`, 'err');
@@ -8241,14 +9224,15 @@
             return { ok: !unconfirmed };
         }
 
-        // Một lượt duy nhất khi bấm BẮT ĐẦU: nhận quà cho các banner đã tick. Đặt cờ bận ngay (đồng bộ)
-        // để vòng chạy chính nhường chỗ cho tới khi xong.
+        // Một lượt duy nhất khi bấm BẮT ĐẦU: làm việc ngày cho TẤT CẢ banner đang mở (khi đã tick "Tướng Thần Lâm /
+        // Đạp Thiên"). Đặt cờ bận ngay (đồng bộ) để vòng chạy chính nhường chỗ cho tới khi xong.
         async function bannerRunOnce() {
-            const auto = CONFIG.bannerAuto || {};
-            const selected = Object.keys(auto).filter((k) => auto[k]);
-            if (!selected.length || bannerGiftBusy) return;
+            if (CONFIG.activeFeature !== 'autoBanner' || bannerGiftBusy) return;
 
             bannerGiftBusy = true;
+            bannerAbortRequested = false;
+            let aborted = false;
+            let ranCount = 0;
             try {
                 const vm = window.ViewMgr && window.ViewMgr.gInst ? window.ViewMgr.gInst() : null;
                 const banners = bannerGetOpenList();
@@ -8260,30 +9244,20 @@
                     sendLog('⚠️ [Banner Hero] Đang ở màn hình trận đấu/đội hình; bấm BẮT ĐẦU lại sau.', 'err');
                     return;
                 }
-                for (const id of selected) {
-                    if (!banners.some((b) => String(b.uniqueId) === id)) {
-                        sendLog(`ℹ️ [Banner Hero] Banner #${id} không còn mở; bỏ qua.`, 'info');
-                    }
+                if (!banners.length) {
+                    sendLog('ℹ️ [Banner Hero] Hiện không có banner nào đang mở; không có gì để làm.', 'info');
+                } else {
+                    sendLog(`🎴 [Banner Hero] Làm việc ngày cho ${banners.length} banner đang mở: ${banners.map((b) => b.series).join(', ')}.`, 'action');
                 }
-                for (const banner of banners) {
-                    if (auto[banner.uniqueId]) await bannerRunHero(banner);
-                }
-                sendLog('✅ [Banner Hero] Đã xong lượt Banner Hero.', 'info');
+                for (const banner of banners) { await bannerRunHero(banner); ranCount++; }
             } catch (error) {
-                sendLog(`⚠️ [Banner Hero] Lỗi: ${error && error.message || error}`, 'err');
+                if (error && error.bannerAbort) aborted = true;
+                else sendLog(`⚠️ [Banner Hero] Lỗi: ${error && error.message || error}`, 'err');
             } finally {
                 bannerGiftBusy = false;
-                // Không có tính năng chính nào đang chạy: lượt này là tất cả, tự dừng.
-                if (!CONFIG.activeFeature) {
-                    CONFIG.running = false;
-                    try {
-                        window.top.postMessage({
-                            source: 'TIEN_NGHICH_AUTO_GAME',
-                            action: 'AUTO_FINISHED',
-                            message: '✅ [Banner Hero] Đã xong; Auto tự dừng.'
-                        }, '*');
-                    } catch (e) { }
-                }
+                bannerAbortRequested = false;
+                // Bị dừng giữa chừng: runAbort đã ghi log; xong lượt: ghi kết quả và tự dừng Auto.
+                if (!aborted && CONFIG.activeFeature === 'autoBanner') runFinish(`${ranCount} banner`);
             }
         }
 
@@ -8433,7 +9407,7 @@
                 quiet = bannerCloseViews(ctx, BANNER_POPUP_VIEWS) ? 0 : quiet + 1;
             }
             sendLog(confirmed ? `✅ ${tag} Đã chiêu mộ 1 lần.` : `⚠️ ${tag} Máy chủ chưa xác nhận lượt chiêu mộ.`,
-                confirmed ? 'action' : 'err');
+                confirmed ? 'result' : 'err');
         }
 
         // ---- Bước 3: Khiêu Chiến 1 lần ---------------------------------------------------------------
@@ -8487,8 +9461,18 @@
                 return;
             }
             await bannerSleep(500);
-            if (typeof embattle.oneKeyEmbattleLogic === 'function') embattle.oneKeyEmbattleLogic(0);
-            if (typeof embattle.saveEmbattleLogic === 'function') embattle.saveEmbattleLogic();
+            // Bấm "Lên trận nhanh", đợi bảng cập nhật, chỉ bấm "Bắt đầu" khi ô đội hình đã có tướng.
+            let arranged = false;
+            for (let attempt = 0; attempt < EMBATTLE_ARRANGE_TRIES && !arranged; attempt++) {
+                if (typeof embattle.oneKeyEmbattleLogic === 'function') embattle.oneKeyEmbattleLogic(0);
+                await bannerSleep(900);
+                arranged = embattleTeamReady(embattle);
+            }
+            if (!arranged) {
+                bannerCloseViews(ctx, ['embattleUi']);
+                sendLog(`❌ ${tag} Không xếp được đội hình sau ${EMBATTLE_ARRANGE_TRIES} lần Lên trận nhanh (${embattleDiagnose(embattle, null)}); bỏ qua Khiêu Chiến.`, 'err');
+                return;
+            }
             embattle.cBtnH2();
 
             if (!await bannerWaitFor(() => bannerIsFighting(), BANNER_FIGHT_START_MS)) {
@@ -8545,7 +9529,7 @@
                 quiet = bannerCloseViews(ctx, BANNER_POPUP_VIEWS) ? 0 : quiet + 1;
             }
             sendLog(done ? `✅ ${tag} Đã nhận thưởng Thí Luyện.` : `⚠️ ${tag} Máy chủ chưa xác nhận thưởng Thí Luyện.`,
-                done ? 'action' : 'err');
+                done ? 'result' : 'err');
         }
 
         // ---- Bước 5: Chiến Lệnh: nhận điểm nhiệm vụ rồi "Nhận nhanh" -----------------------------------
@@ -8582,20 +9566,112 @@
                 } finally {
                     try { ctx.vm.closeView(BANNER_TRIAL_VIEW); } catch (e) { }
                 }
-                sendLog(claimed ? `✅ ${tag} Đã nhận ${claimed} nhiệm vụ Thí Luyện.` : `ℹ️ ${tag} Không có nhiệm vụ Thí Luyện nào để nhận.`, 'info');
+                sendLog(claimed ? `✅ ${tag} Đã nhận ${claimed} nhiệm vụ Thí Luyện.` : `ℹ️ ${tag} Không có nhiệm vụ Thí Luyện nào để nhận.`, claimed ? 'result' : 'info');
             }
 
             // 2) "Nhận nhanh" ở màn hình Chiến Lệnh.
             await bannerSleep(800);
+            await bannerZhanlingQuickClaim(ctx, zl);
+
+            // 3) Mua điểm Chiến Lệnh bằng Tiên Ngọc (nếu bật), rồi "Nhận nhanh" lại phần thưởng vừa đủ điểm.
+            if (await bannerZhanlingBuyScore(ctx, zl)) {
+                await bannerSleep(800);
+                await bannerZhanlingQuickClaim(ctx, zl);
+            }
+        }
+
+        async function bannerZhanlingQuickClaim(ctx, zl) {
             const ready = await bannerWaitFor(() => bannerOffered(zl.onekeyBtn), 3500);
             if (!ready) {
-                sendLog(`ℹ️ ${tag} Chiến Lệnh chưa có phần thưởng để Nhận nhanh.`, 'info');
-                return;
+                sendLog(`ℹ️ ${ctx.tag} Chiến Lệnh chưa có phần thưởng để Nhận nhanh.`, 'info');
+                return false;
             }
-            sendLog(`🎁 ${tag} Chiến Lệnh: Nhận nhanh.`, 'action');
+            sendLog(`🎁 ${ctx.tag} Chiến Lệnh: Nhận nhanh.`, 'action');
             zl.onClick({ target: zl.onekeyBtn });
             await bannerSleep(1500);
             bannerCloseViews(ctx, BANNER_POPUP_VIEWS);
+            return true;
+        }
+
+        // Mua điểm Chiến Lệnh bằng Tiên Ngọc (nút "+" cạnh điểm; game gửi send12326). Chỉ mua khi game cho phép
+        // (24 giờ cuối của banner), tối đa CONFIG.bannerZlBuyGold Tiên Ngọc mỗi banner, không bao giờ gọi gói nạp tiền thật.
+        // Số đã chi được ghi vào sessionStorage ngay lúc gửi để không vượt trần dù tải lại trang.
+        function bannerZlSpentKey(uid, type, term) { return `tnBannerZlBuy:${uid}:${type}:${term}`; }
+        function bannerZlSpentRead(key) { try { return Number(sessionStorage.getItem(key)) || 0; } catch (e) { return 0; } }
+        function bannerZlSpentWrite(key, value) { try { sessionStorage.setItem(key, String(value)); } catch (e) { } }
+
+        // Hàm thuần: quyết định số lượng mua từ số liệu game (cùng điều kiện với nút "+" của game).
+        function bannerZlBuyPlan(info) {
+            const { unit, perBuy, label, secondsLeft, need, limitLeft, asset, maxGold, spent } = info;
+            if (label !== 'gold') return { qty: 0, reason: `đơn vị tiền "${label}" không phải Tiên Ngọc` };
+            if (!(unit > 0) || !(perBuy > 0)) return { qty: 0, reason: 'cấu hình giá không hợp lệ' };
+            if (!(secondsLeft > 0)) return { qty: 0, reason: 'banner đã hết hạn' };
+            if (secondsLeft > 86400) return { qty: 0, reason: 'game chỉ cho mua điểm trong 24 giờ cuối của banner' };
+            if (!(need > 0)) return { qty: 0, reason: 'điểm đã đủ nhận phần thưởng cuối' };
+            if (!(limitLeft >= perBuy)) return { qty: 0, reason: 'đã hết giới hạn mua điểm' };
+            const budget = Math.min(asset, maxGold - spent);
+            const qty = Math.min(Math.ceil(need / perBuy), Math.floor(limitLeft / perBuy), Math.floor(budget / unit));
+            if (qty <= 0) {
+                return { qty: 0, reason: maxGold - spent < unit ? `đã chi ${spent}/${maxGold} Tiên Ngọc (trần)` : `không đủ Tiên Ngọc (có ${asset}, cần ${unit})` };
+            }
+            return { qty, cost: qty * unit };
+        }
+
+        async function bannerZhanlingBuyScore(ctx, zl) {
+            const { tag, uid } = ctx;
+            const maxGold = Number(CONFIG.bannerZlBuyGold) || 0;
+            if (maxGold <= 0) return false;
+            const recharge = window.RechargeCtrl && window.RechargeCtrl.gInst && window.RechargeCtrl.gInst();
+            const trans = window.TransGodCtrl && window.TransGodCtrl.gInst && window.TransGodCtrl.gInst();
+            const model = recharge && recharge.getCurlModel && recharge.getCurlModel();
+            const type = zl.type;
+            const term = zl.term_id;
+            if (!recharge || !trans || !model || typeof recharge.send12326 !== 'function' ||
+                typeof model.getZlScoreBuyConfig !== 'function' || typeof trans.getZlBuyVal !== 'function' ||
+                typeof trans.getZlNetVoByType !== 'function' || !window.CommonUtils || !window.NetMgr ||
+                type === undefined || term === undefined) {
+                logUnsupportedOnce('banner-zl-buy', `${tag} Không tìm thấy bộ điều khiển mua điểm Chiến Lệnh (bản game đổi); bỏ qua.`);
+                return false;
+            }
+            const cfg = model.getZlScoreBuyConfig(type, term);
+            if (!cfg || !cfg.loss || !cfg.loss[0]) {
+                sendLog(`ℹ️ ${tag} Chiến Lệnh này không có mục mua điểm bằng Tiên Ngọc; bỏ qua.`, 'info');
+                return false;
+            }
+            const last = typeof model.getZlLastRewardTerm === 'function' ? model.getZlLastRewardTerm(type, term) : null;
+            const netVo = trans.getZlNetVoByType(type, term);
+            const val = netVo ? Number(netVo.val) || 0 : 0;
+            const endAt = Number(zl._endTime) || (ctx.ctrl.getEndTime ? Number(ctx.ctrl.getEndTime()) : 0);
+            const boughtBefore = Number(trans.getZlBuyVal(type, term)) || 0;
+            const key = bannerZlSpentKey(uid, type, term);
+            const spent = bannerZlSpentRead(key);
+            const label = cfg.loss[0].label;
+            const plan = bannerZlBuyPlan({
+                unit: Number(cfg.loss[0].num), perBuy: Number(cfg.val), label,
+                secondsLeft: endAt - window.NetMgr.gInst().getTime(),
+                need: last ? Number(last.val) - val : 0,
+                limitLeft: Number(cfg.limit) - boughtBefore,
+                asset: Number(window.CommonUtils.getRoleAsset(label)) || 0,
+                maxGold, spent
+            });
+            if (plan.qty <= 0) {
+                sendLog(`ℹ️ ${tag} Không mua điểm Chiến Lệnh: ${plan.reason}.`, 'info');
+                return false;
+            }
+            if (!ctx.ctrl.isActivityOpen(uid)) return false;
+
+            // Ghi chi phí ngay lúc gửi (kể cả khi mạng rớt chưa kịp xác nhận) rồi gửi đúng một lần.
+            bannerZlSpentWrite(key, spent + plan.cost);
+            sendLog(`💎 ${tag} Mua điểm Chiến Lệnh: ${plan.qty} lần (${plan.cost} Tiên Ngọc; trần ${maxGold}).`, 'result');
+            recharge.send12326(type, term, plan.qty);
+            const confirmed = await bannerWaitFor(() => Number(trans.getZlBuyVal(type, term)) > boughtBefore, 5000, 300);
+            if (confirmed) {
+                const nv = trans.getZlNetVoByType(type, term);
+                sendLog(`✅ ${tag} Máy chủ xác nhận đã mua điểm Chiến Lệnh (điểm ${val} → ${nv ? nv.val : '?'}).`, 'result');
+                return true;
+            }
+            sendLog(`⚠️ ${tag} Máy chủ chưa xác nhận mua điểm Chiến Lệnh; không gửi lại.`, 'err');
+            return false;
         }
 
         // ---- Quy trình đầy đủ cho một banner -----------------------------------------------------------
@@ -8636,6 +9712,7 @@
                     try {
                         await step(ctx);
                     } catch (error) {
+                        if (error && error.bannerAbort) throw error;
                         sendLog(`⚠️ ${tag} Lỗi ở bước ${label}: ${error && error.message || error}`, 'err');
                     }
                 }
@@ -8649,7 +9726,10 @@
 
 
         let wasAutoRunning = false;
-        const CUOI_NGAY_ACTION_INTERVAL_MS = 800;
+        const CUOI_NGAY_ACTION_INTERVAL_MS = 450;
+        const TAM_TIEN_ACTION_INTERVAL_MS = 450;
+        // Các tính năng là chuỗi nhiều bước nhỏ, mỗi bước chờ máy chủ: nhịp nhanh, không nghỉ dài ngẫu nhiên.
+        const FAST_ROUTINE_FEATURES = ['autoCuoiNgay', 'autoTamTienDai'];
         const OTHER_TRIALS_ACTION_INTERVAL_MS = 600;
 
         let disconnectPauseLogged = false;
@@ -8662,8 +9742,90 @@
             } catch (e) { return false; }
         }
 
-        function markActed(baseMs) {
-            nextActionAt = Date.now() + humanDelay(baseMs);
+        function markActed(baseMs, noLongPause) {
+            nextActionAt = Date.now() + humanDelay(baseMs, noLongPause);
+            runNoteActed();
+        }
+
+        // ---- HOÀN TẤT TỰ ĐỘNG -------------------------------------------------------------------------
+        // Thông Thiên Tháp là treo máy liên tục (chạy tới khi người dùng dừng); Banner tự gọi runFinish khi xong lượt.
+        // Các tính năng khác: xong khi tính năng báo trạng thái "done" (runFinishProbe) hoặc không còn thao tác nào
+        // trong RUN_IDLE_FINISH_MS (hết lượt, không qua được ải, chỉ còn chờ giờ...).
+        const RUN_IDLE_FINISH_MS = 90000;
+        const RUN_NO_IDLE_FEATURES = ['autoTongTian', 'autoBanner', 'autoMinigameMemory', 'autoMinigameDragon'];
+
+        function extremeYinSettled() {
+            const st = extremeYinState;
+            // Pha 'wait' của Cực Âm Địa = đã vào địa/đang tu luyện (hoặc chưa có việc), chỉ còn chờ tới lần đồng bộ sau.
+            return st && st.phase === 'wait' && Date.now() < st.nextSyncAt ? { failed: false } : null;
+        }
+
+        function runFinishProbe(key) {
+            const today = new Date().toDateString();
+            const done = (st) => (st && st.phase === 'done' ? { failed: Boolean(st.failed) } : null);
+            switch (key) {
+                case 'autoTroChien': return done(troChienState);
+                case 'autoTamTienDai': return done(tamTienDaiState);
+                case 'autoTienHuu': return done(tienHuuState);
+                case 'autoTienMinh': return done(tienMinhState);
+                case 'autoCuoiNgay': return done(cuoiNgayState);
+                case 'autoSectDefense': return done(sectDefenseState);
+                case 'autoImmortalRelic': return done(relicState);
+                case 'autoMinigameMemory': return done(memoryState);
+                case 'autoMinigameDragon': return done(dragonState);
+                case 'autoMaDao': return done(maDaoState);
+                case 'autoSweepDungeons': return sweptDayKey === today && !sweepPending ? { failed: false } : null;
+                case 'autoExtremeYin': return extremeYinSettled();
+                case 'autoOtherTrials': return done(uyenNhiState) && done(coThanState) ? extremeYinSettled() : null;
+                case 'autoDailyDungeon': return sweptDayKey === today && !sweepPending && done(biCanhState) ? { failed: false } : null;
+                case 'autoXianYuan': return xianYuanIdleCycles >= 2 ? { failed: false } : null;
+                case 'autoClimbYMAbyss': return abyssGaveUp ? { failed: true, reason: `không qua được tầng #${abyssGaveUp} sau nhiều lần thử` } : null;
+                case 'autoArena': return arenaRunState.limitReachedLogged || arenaRunState.noAttemptsLogged ? { failed: false } : null;
+                default: return null;
+            }
+        }
+
+        function checkRunFinished() {
+            const info = runInfo;
+            if (!CONFIG.running || !info || bannerGiftBusy) return false;
+            if (info.key === 'autoTongTian' || info.key === 'autoBanner') return false;
+            let probe = null;
+            try { probe = runFinishProbe(info.key); } catch (e) { }
+            if (probe) {
+                // Cho tính năng chạy thêm một nhịp ở trạng thái "done" để nó tự dọn (đóng bảng, ghi tổng kết) rồi mới kết thúc.
+                if (!info.finishing) { info.finishing = true; info.finishingAt = Date.now(); return false; }
+                if (!info.drained && Date.now() - info.finishingAt < 8000) return false;
+                runFinish(probe.reason || (info.acts === 0 ? 'hôm nay đã xong từ trước, không làm lại' : ''), probe.failed);
+                return true;
+            }
+            if (!RUN_NO_IDLE_FEATURES.includes(info.key) && Date.now() - info.lastActAt >= RUN_IDLE_FINISH_MS) {
+                runFinish('không còn thao tác nào để làm');
+                return true;
+            }
+            return false;
+        }
+
+        // Dừng giữa chừng: bỏ trạng thái dở dang của mọi tính năng. Trạng thái "done" của hôm nay được giữ (chống làm lại/mua lại).
+        function resetUnfinishedRunStates() {
+            if (tamTienDaiState && tamTienDaiState.phase !== 'done') tamTienDaiState = null;
+            if (tienHuuState && tienHuuState.phase !== 'done') tienHuuState = null;
+            if (cuoiNgayState && cuoiNgayState.phase !== 'done') cuoiNgayState = null;
+            if (tienMinhState && tienMinhState.phase !== 'done') tienMinhState = null;
+            if (troChienState && troChienState.phase !== 'done') troChienState = null;
+            if (towerDailyState && towerDailyState.phase !== 'done') towerDailyState = null;
+            if (biCanhState && biCanhState.phase !== 'done') biCanhState = null;
+            if (relicState && relicState.phase !== 'done') relicState = null;
+            if (uyenNhiState && uyenNhiState.phase !== 'done') uyenNhiState = null;
+            if (coThanState && coThanState.phase !== 'done') coThanState = null;
+            if (sectDefenseState && sectDefenseState.phase !== 'done') sectDefenseState = null;
+            extremeYinState = null;
+            memoryState = null;
+            dragonState = null;
+            maDaoState = null;
+            xianYuanIdleCycles = 0;
+            arenaRunState.pendingBattle = false;
+            arenaRunState.resultRecorded = false;
+            arenaRunState.returnRequestedAt = 0;
         }
 
         function executeCycle(isManualOnce = false) {
@@ -8731,12 +9893,15 @@
                 }
             }
 
+            if (CONFIG.running && checkRunFinished()) return;
+
             const now = Date.now();
             const active = CONFIG.activeFeature;
             // Chuỗi thao tác dài, mỗi bước chờ xác nhận từ máy chủ: nhịp ngắn hơn (vẫn ngẫu nhiên).
             const actionInterval = active === 'autoCuoiNgay'
                 ? CUOI_NGAY_ACTION_INTERVAL_MS
-                : (active === 'autoOtherTrials' ? OTHER_TRIALS_ACTION_INTERVAL_MS : (CONFIG.intervalMs || 1200));
+                : (active === 'autoTamTienDai' ? TAM_TIEN_ACTION_INTERVAL_MS
+                    : (active === 'autoOtherTrials' ? OTHER_TRIALS_ACTION_INTERVAL_MS : (CONFIG.intervalMs || 1200)));
             if (now < nextActionAt) return;
 
             isExecuting = true;
@@ -8746,7 +9911,7 @@
                     !ctx.GodWeaponCtrl && !ctx.HangupCtrl && !ctx.WelfareCtrl && !ctx.RecruitCtrl &&
                     !ctx.FriendCtrl && !ctx.EmailCtrl && !ctx.RankCtrl && !ctx.AcvCtrl &&
                     !ctx.GuildCtrl && !ctx.GldWrCtrl && !ctx.SpiritAnimalCtrl &&
-                    CONFIG.activeFeature !== 'autoTienMinh') return;
+                    CONFIG.activeFeature !== 'autoTienMinh') { runNoteActed(true); return; }
 
                 sendRoleInfo(false);
                 hookGameEvents(ctx);
@@ -8757,6 +9922,7 @@
                         disconnectPauseLogged = true;
                         sendLog("⚠️ [Kết nối] Game đang báo mất kết nối; tạm dừng mọi thao tác, chờ tự vào lại game (nếu bật).", "warn");
                     }
+                    runNoteActed(true);
                     return;
                 }
                 disconnectPauseLogged = false;
@@ -8778,6 +9944,8 @@
                 if (CONFIG.maxSpeed && ctx.FightCtrl && ctx.FightCtrl.gInst) {
                     try { const fc = ctx.FightCtrl.gInst(); if (fc.speed < 3) fc.speed = 3; } catch(e) {}
                 }
+
+                if (runInfo && runInfo.finishing) runInfo.drained = true;
 
                 // 🎯 ĐỘC QUYỀN 1 CHỨC NĂNG CHÍNH (MUTEX): CHỐNG XUNG ĐỘT
                 // 1. ĐẠO THÀNH: Đấu Tiên Đài
@@ -8809,6 +9977,7 @@
                 else if (active === 'autoMinigameMemory' || (CONFIG.autoMinigameMemory && !active)) {
                     // Ván ghép thẻ tính giờ: nhịp ngắn cố định; máy trạng thái trong memory-minigame.js tự điều tốc từng cặp.
                     handleMinigameMemory(ctx);
+                    runNoteActed();
                     nextActionAt = Date.now() + 150;
                     return;
                 }
@@ -8816,12 +9985,16 @@
                 else if (active === 'autoMinigameDragon' || (CONFIG.autoMinigameDragon && !active)) {
                     // Gieo xúc xắc / bấm nhịp có hẹn giờ riêng trong dragon-minigame.js: nhịp ngắn cố định thay vì nhịp chậm chung.
                     handleMinigameDragon(ctx);
+                    runNoteActed();
                     nextActionAt = Date.now() + 150;
                     return;
                 }
                 // [Module 8] Hoạt Động Ngày, Tiên Minh & Nhận Cuối Ngày
                 else if (['autoTroChien', 'autoTamTienDai', 'autoTienHuu', 'autoTienMinh', 'autoCuoiNgay'].includes(active)) {
-                    if (handleDailyRoutine(ctx)) { markActed(actionInterval); return; }
+                    const routine = handleDailyRoutine(ctx);
+                    // 'wait' = chỉ chờ máy chủ/chuyển bước (chưa gửi gì): không nghỉ kiểu người chơi, kiểm tra lại ngay nhịp sau.
+                    if (routine === 'wait') { nextActionAt = Date.now() + 40; runNoteActed(true); return; }
+                    if (routine) { markActed(actionInterval, FAST_ROUTINE_FEATURES.includes(active)); return; }
                 }
                 // 4. LỊCH LUYỆN: Leo Phụ Bản Ngày
                 else if (active === 'autoClimbDailyDungeons' || (CONFIG.autoClimbDailyDungeons && !active)) {
@@ -8862,10 +10035,12 @@
 
         // Nhịp kiểm tra lệch ngẫu nhiên 450-750ms thay vì đúng một nhịp cố định.
         (function scheduleTick() {
+            // Nhịp kiểm tra nhanh hơn khi chạy Nhận Cuối Ngày (chuỗi nhiều bước nhỏ, mỗi bước chờ máy chủ xác nhận).
+            const fast = CONFIG.running && FAST_ROUTINE_FEATURES.includes(CONFIG.activeFeature);
             setTimeout(() => {
                 try { executeCycle(false); } catch (e) { }
                 scheduleTick();
-            }, 450 + Math.floor(Math.random() * 300));
+            }, fast ? 120 + Math.floor(Math.random() * 120) : 450 + Math.floor(Math.random() * 300));
         })();
     }
 })();

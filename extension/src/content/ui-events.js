@@ -82,7 +82,7 @@
             const mainFeatures = [
                 'autoTongTian', 'autoClimbDailyDungeons', 'autoClimbYMAbyss', 'autoClimbCamp',
                 'autoSweepDungeons', 'autoExtremeYin', 'autoArena',
-                'autoMaDao', 'autoXianYuan'
+                'autoMaDao', 'autoXianYuan', 'autoBanner'
             ];
 
             const mutexCheckboxes = document.querySelectorAll('.tn-mutex-feature');
@@ -145,8 +145,10 @@
                         });
                         CONFIG.activeFeature = key;
                         sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
-                        const title = cb.closest('label').querySelector('div div') ? cb.closest('label').querySelector('div div').innerText : key;
-                        addLogToUI("🎯 Chế độ Auto đã kích hoạt: " + title, "info");
+                        // Chỉ lấy tên tính năng (div tiêu đề), không lấy cả phần mô tả.
+                        const titleEl = cb.closest('label').querySelector('div > div');
+                        const title = titleEl ? titleEl.innerText : key;
+                        addLogToUI("🎯 Đã chọn: " + title, "run");
                     } else {
                         CONFIG[key] = false;
                         if (key === 'autoTamTienDai') {
@@ -170,6 +172,16 @@
                     CONFIG.autoSkipFight = e.target.checked;
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                     addLogToUI(CONFIG.autoSkipFight ? "⏩ Bật bỏ qua trận đấu thần tốc!" : "⏸️ Tắt bỏ qua trận đấu", "info");
+                });
+            }
+
+            const verboseEl = document.getElementById('tn-opt-verbose');
+            if (verboseEl) {
+                verboseEl.checked = Boolean(CONFIG.verboseLog);
+                verboseEl.addEventListener('change', (e) => {
+                    CONFIG.verboseLog = e.target.checked;
+                    sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
+                    addLogToUI(CONFIG.verboseLog ? "📜 Đã bật log chi tiết (gỡ lỗi)." : "📜 Đã tắt log chi tiết; chỉ hiện thông tin quan trọng.", "run");
                 });
             }
 
@@ -238,13 +250,13 @@
             if (btnMain) {
                 btnMain.addEventListener('click', () => {
                     if (!CONFIG.running && !hasRunnableSelection()) {
-                        addLogToUI("⚠️ Hãy chọn ít nhất 1 tính năng (hoặc tick 1 banner ở tab Banner) trước khi bắt đầu.", "warn");
+                        addLogToUI("⚠️ Hãy chọn 1 tính năng (mỗi lần chỉ chạy một tính năng) trước khi bắt đầu.", "warn");
                         return;
                     }
                     CONFIG.running = !CONFIG.running;
                     updateBadge(CONFIG.running);
                     sendCommandToGame('TOGGLE_AUTO', { running: CONFIG.running, config: CONFIG });
-                    addLogToUI(CONFIG.running ? "🚀 Đã bắt đầu treo leo ải Auto!" : "⏸ Đã tạm dừng Auto.", CONFIG.running ? "action" : "warn");
+                    addLogToUI(CONFIG.running ? "🚀 Đã bắt đầu Auto." : "⏸ Đã dừng Auto.", CONFIG.running ? "run" : "warn");
                 });
             }
 

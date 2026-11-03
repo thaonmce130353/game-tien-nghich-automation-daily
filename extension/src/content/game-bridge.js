@@ -7,13 +7,16 @@
         let waitingForFloorUpdate = false;
         let lastPassedFloor = 0;
         let sweptDayKey = '';
+        let sweepPending = null;          // quét miễn phí PB Ngày đã gửi, đang chờ xác nhận (xem sweepConfirmTick)
+        let runInfo = null;               // lượt chạy hiện tại: { key, label, startedAt, lastActAt, problems }
 
         // Nhịp thao tác giống người chơi: nghỉ ngẫu nhiên quanh nhịp gốc, thỉnh thoảng (~5%) dừng lâu hơn
         // (thay cho nhịp cố định đều đặn dễ bị nhận ra).
-        function humanDelay(baseMs) {
+        // noLongPause: bỏ cú nghỉ dài ngẫu nhiên (5%) cho chuỗi nhiều bước nhỏ liên tiếp như Nhận Cuối Ngày.
+        function humanDelay(baseMs, noLongPause) {
             const base = baseMs > 0 ? baseMs : 1200;
             let delay = base * (0.85 + Math.random() * 0.75);
-            if (Math.random() < 0.05) delay += 2000 + Math.random() * 3500;
+            if (!noLongPause && Math.random() < 0.05) delay += 2000 + Math.random() * 3500;
             return Math.round(delay);
         }
 
@@ -48,11 +51,134 @@
             sendLog(message, "warn");
         }
 
+        // Ghi log một lần mỗi lượt Auto với mức tùy chọn (khác logUnsupportedOnce luôn là cảnh báo).
+        function logOnce(key, message, type) {
+            if (unsupportedLogged[key]) return;
+            unsupportedLogged[key] = true;
+            sendLog(message, type || "info");
+        }
+
         function resetRunGuards() {
             for (const k of Object.keys(targetAttempts)) delete targetAttempts[k];
             for (const k of Object.keys(unsupportedLogged)) delete unsupportedLogged[k];
             for (const k of Object.keys(failCounts)) delete failCounts[k];
             runResetHooks.forEach((reset) => { try { reset(); } catch (e) { } });
+        }
+
+        // =====================================================================
+        // BẢNG ĐỘI HÌNH (embattleUi): bấm "Lên trận nhanh" -> KIỂM TRA ô đội hình đã có tướng -> mới bấm "Bắt đầu".
+        // Không gọi saveEmbattleLogic ngay sau khi xếp: nếu bảng chưa kịp cập nhật thì lưu lên máy chủ một đội hình trống.
+        // Nút "Bắt đầu" (cBtnH2) tự lưu đội hình hiện tại và tự kiểm tra điều kiện của từng loại bảng.
+        // st = { at, clicked, starts } do bên gọi giữ (đặt lại về null khi bảng đóng).
+        // =====================================================================
+        const EMBATTLE_ARRANGE_TRIES = 3;     // số lần bấm "Lên trận nhanh" mà ô đội hình vẫn trống thì bỏ cuộc
+        const EMBATTLE_START_TRIES = 3;       // số lần bấm "Bắt đầu" mà bảng vẫn còn mở thì bỏ cuộc
+
+        function embattleFilledCount(ui) {
+            try {
+                return (ui.modelItemList || []).filter((it) => {
+                    const d = it && typeof it.getItemData === 'function' ? it.getItemData() : null;
+                    return Boolean(d && (d.hero_data || d.heroId));
+                }).length;
+            } catch (e) { return 0; }
+        }
+
+        function embattleTeamReady(ui) {
+            if (embattleFilledCount(ui) <= 0) return false;
+            // Bảng Bí Cảnh Tứ Quốc có điều kiện riêng (ví dụ cần 1 Tu Sĩ Nghịch Tu): dùng chính hàm kiểm tra của game.
+            try {
+                const et = window.EmbattleConst && window.EmbattleConst.embattleType;
+                if (et && typeof ui.checkSiGuoCond === 'function' && ui.embattleType >= et.fairyland_wei && ui.embattleType <= et.fairyland_qun) {
+                    return Boolean(ui.checkSiGuoCond());
+                }
+            } catch (e) { return false; }
+            return true;
+        }
+
+        // 'wait' | 'arranged' (vừa bấm Lên trận nhanh) | 'ready' (đội hình hợp lệ: bên gọi bấm Bắt đầu rồi gọi embattleMarkStarted) | 'failed'
+        function embattleStep(ui, st, now) {
+            if (!st.at) st.at = now;
+            if (now - st.at < humanDelay(900)) return 'wait';
+            if ((st.starts || 0) >= EMBATTLE_START_TRIES) return 'failed';
+            if ((st.clicked || 0) > 0 && embattleTeamReady(ui)) return 'ready';
+            if ((st.clicked || 0) >= EMBATTLE_ARRANGE_TRIES || typeof ui.oneKeyEmbattleLogic !== 'function') return 'failed';
+            st.clicked = (st.clicked || 0) + 1;
+            st.at = now;
+            // Hàm của game có thể ném lỗi (ví dụ thiếu ải đang chọn); giữ lỗi lại để báo rõ thay vì im lặng.
+            try { ui.oneKeyEmbattleLogic(0); st.lastError = ''; } catch (e) { st.lastError = String((e && e.message) || e); }
+            return 'arranged';
+        }
+
+        // Mô tả ngắn tình trạng bảng đội hình khi xếp thất bại (đưa vào log lỗi).
+        function embattleDiagnose(ui, st) {
+            const total = ui && ui.modelItemList ? ui.modelItemList.length : 0;
+            return `ô có tướng ${embattleFilledCount(ui)}/${total}${st && st.lastError ? '; lỗi từ game: ' + st.lastError : ''}`;
+        }
+
+        function embattleMarkStarted(st) {
+            st.starts = (st.starts || 0) + 1;
+            st.clicked = 0;
+            st.at = 0;
+        }
+
+        // =====================================================================
+        // VÒNG ĐỜI MỘT LƯỢT CHẠY (chuẩn hóa cho mọi tính năng)
+        //   - Mỗi lần chỉ chạy MỘT tính năng (CONFIG.activeFeature).
+        //   - Xong việc: ghi dòng kết quả rồi tự dừng nút Auto (runFinish), trừ tính năng treo máy liên tục.
+        //   - Dừng giữa chừng: đặt lại trạng thái dở dang để tính năng khác/lần sau chạy sạch (runAbort).
+        // =====================================================================
+        const RUN_LABELS = {
+            autoArena: 'Đấu Tiên Đài', autoTongTian: 'M1 - Thông Thiên Tháp', autoDailyDungeon: 'M2 - Phụ Bản Ngày & Bí Cảnh',
+            autoSectDefense: 'M3 - Thủ Vệ Tứ Phái', autoOtherTrials: 'M4 - Cửu Uyển Nhi, Cổ Thần, Cực Âm',
+            autoImmortalRelic: 'M5 - Di Tích Tiên Giới', autoMinigameMemory: 'M6 - Ảo Cảnh', autoMinigameDragon: 'M7 - Kiếm Hành & Điêu Long',
+            autoTroChien: 'Trợ Chiến', autoTamTienDai: 'Tâm Tiên Đài', autoTienHuu: 'Tiên Hữu', autoTienMinh: 'Tiên Minh',
+            autoCuoiNgay: 'Nhận Cuối Ngày', autoClimbDailyDungeons: 'Leo Phụ Bản Ngày', autoClimbYMAbyss: 'Leo Vực U Minh',
+            autoExtremeYin: 'Cực Âm Địa', autoClimbCamp: 'Leo Tứ Linh Trận', autoSweepDungeons: 'Quét Phụ Bản',
+            autoMaDao: 'Ma Đạo', autoXianYuan: 'Quà Tiên Duyên', autoBanner: 'Tướng Thần Lâm / Đạp Thiên'
+        };
+
+        function runBegin(key) {
+            runInfo = { key, label: RUN_LABELS[key] || key || 'Auto', startedAt: Date.now(), lastActAt: Date.now(), acts: 0, problems: 0 };
+        }
+
+        // touch=true: chỉ báo còn sống (game chưa sẵn sàng/đang mất kết nối), không tính là đã làm việc.
+        function runNoteActed(touchOnly) {
+            if (!runInfo) return;
+            runInfo.lastActAt = Date.now();
+            if (!touchOnly) runInfo.acts++;
+        }
+
+        function runFormatDuration(ms) {
+            const sec = Math.max(0, Math.round(ms / 1000));
+            return sec >= 60 ? `${Math.floor(sec / 60)}p${sec % 60}s` : `${sec}s`;
+        }
+
+        // Tính năng đã xong việc: ghi một dòng kết quả, dừng Auto (nút về trạng thái dừng).
+        function runFinish(reason, failed) {
+            const info = runInfo;
+            if (!info) return;
+            runInfo = null;
+            const bad = Boolean(failed) || info.problems > 0;
+            sendLog(`${bad ? '⚠️' : '✅'} [${info.label}] Hoàn tất${reason ? ': ' + reason : ''} (${runFormatDuration(Date.now() - info.startedAt)})` +
+                `${bad ? '; có bước chưa hoàn tất/lỗi, xem các dòng ⚠️/❌ phía trên' : ''}.`, 'run');
+            CONFIG.running = false;
+            try {
+                window.top.postMessage({ source: 'TIEN_NGHICH_AUTO_GAME', action: 'AUTO_FINISHED' }, '*');
+            } catch (e) { }
+        }
+
+        // Người dùng dừng giữa chừng: bỏ trạng thái dở dang (giữ bản ghi "hôm nay đã xong" chống làm lại/mua lại).
+        function runAbort() {
+            const info = runInfo;
+            runInfo = null;
+            isTowerChallenging = false;
+            waitingForFloorUpdate = false;
+            nextActionAt = 0;
+            if (typeof bannerRequestAbort === 'function') bannerRequestAbort();
+            for (const k of Object.keys(failCounts)) delete failCounts[k];
+            for (const k of Object.keys(targetAttempts)) delete targetAttempts[k];
+            if (typeof resetUnfinishedRunStates === 'function') resetUnfinishedRunStates();
+            if (info) sendLog(`⏸ [${info.label}] Đã dừng giữa chừng; đã đặt lại trạng thái dở dang để chạy lại cho sạch.`, 'run');
         }
 
         let lastDailyClimbIndex = 0;
@@ -64,6 +190,7 @@
         let lastArenaFetchTime = 0;
         function sendLog(message, logType = 'info') {
             try {
+                if (runInfo && (logType === 'warn' || logType === 'err' || logType === 'error')) runInfo.problems++;
                 if (typeof addLogToUI === 'function') { try { addLogToUI(message, logType); } catch(e){} }
                 window.top.postMessage({
                     source: 'TIEN_NGHICH_AUTO_GAME',
@@ -259,10 +386,11 @@
                         resetRunGuards();
                         nextActionAt = 0;
                         if (typeof resetArenaRun === 'function') resetArenaRun(resumed);
-                        if (!resumed) {
-                            bannerRunOnce();
-                        } else if (Object.keys(CONFIG.bannerAuto || {}).some((k) => CONFIG.bannerAuto[k])) {
-                            sendLog("ℹ️ [Vào lại game] Không chạy lại lượt Banner Hero sau khi vào lại game (chỉ chạy 1 lượt mỗi lần bấm BẮT ĐẦU).", "info");
+                        runBegin(CONFIG.activeFeature);
+                        if (!resumed && CONFIG.activeFeature === 'autoBanner') bannerRunOnce();
+                        if (resumed && CONFIG.activeFeature === 'autoBanner') {
+                            runFinish('không chạy lại lượt này sau khi vào lại game (chỉ chạy 1 lượt mỗi lần bấm BẮT ĐẦU)');
+                            return;
                         }
                         if (resumed && !CONFIG.activeFeature) {
                             CONFIG.running = false;
@@ -281,6 +409,7 @@
                     executeCycle(false);
                 } else {
                     wasAutoRunning = false;
+                    runAbort();
                 }
             } else if (data.action === 'RUN_SWEEP') {
                 handleSweepDungeons(window, true);

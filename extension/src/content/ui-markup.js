@@ -30,9 +30,13 @@
                                 <span style="font-weight:bold; color:#cdd6f4;">⚡ Tối đa tốc độ x3</span>
                                 <input type="checkbox" id="tn-opt-speed" ${CONFIG.maxSpeed ? 'checked' : ''}>
                             </label>
-                            <label class="tn-opt-item" style="padding:4px 8px;">
+                            <label class="tn-opt-item" style="padding:4px 8px; margin-bottom:3px;">
                                 <span style="font-weight:bold; color:#cdd6f4;">🔌 Tự vào lại game khi bị ngắt kết nối</span>
                                 <input type="checkbox" id="tn-opt-reconnect" ${CONFIG.autoReconnect ? 'checked' : ''}>
+                            </label>
+                            <label class="tn-opt-item" style="padding:4px 8px;">
+                                <span style="font-weight:bold; color:#cdd6f4;">📜 Log chi tiết (gỡ lỗi)</span>
+                                <input type="checkbox" id="tn-opt-verbose" ${CONFIG.verboseLog ? 'checked' : ''}>
                             </label>
                         </div>
 
@@ -55,7 +59,7 @@
                             <button class="tn-tab-btn" data-tab="troChien" title="Khu vực Trợ Chiến">⚔️ Trợ Chiến</button>
                             <button class="tn-tab-btn" data-tab="lichLuyen" title="Khu vực Lịch Luyện">🗺️ Lịch Luyện</button>
                             <button class="tn-tab-btn" data-tab="maDao" title="Khu vực Ma Đạo">🔥 Ma Đạo</button>
-                            <button class="tn-tab-btn" data-tab="banner" title="Banner hero đang mở">🎴 Banner</button>
+                            <button class="tn-tab-btn" data-tab="banner" title="Sự kiện đang mở (banner tướng Thần Lâm / Đạp Thiên)" style="flex:1.7;">🎴 Sự kiện đang mở</button>
                         </div>
 
                         <!-- DANH SÁCH TÍNH NĂNG TRONG 5 TAB -->
@@ -162,7 +166,7 @@
                                     <label class="tn-opt-item" style="border-left: 3px solid #fab387;">
                                         <div>
                                             <div style="font-weight:bold; color:#fab387;">⚔️ [M2] Phụ Bản Ngày & Bí Cảnh Tứ Quốc</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Quét nhanh PB Ngày (Free & 250 Tiên Ngọc). Quét Bí Cảnh tầng Đủ Vượt 10 lần.</div>
+                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Quét PB Ngày chỉ bằng lượt MIỄN PHÍ (1 lần/ngày, không mua lượt bằng Tiên Ngọc). Bí Cảnh Tứ Quốc: đánh ải mới từng tháp đang mở (bỏ qua trận), hết ải thì quét ải cuối tới hết lượt miễn phí.</div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoDailyDungeon" ${CONFIG.activeFeature === 'autoDailyDungeon' ? 'checked' : ''}>
                                     </label>
@@ -194,7 +198,7 @@
                                     <label class="tn-opt-item" style="border-left: 3px solid #f9e2af;">
                                         <div>
                                             <div style="font-weight:bold; color:#f9e2af;">💎 [M5] Di Tích Tiên Giới (Bảo Vệ Lv4)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Quét 6 bệ Lv1-4, làm mới Lv1-3. Gặp cảnh báo Lv4 lập tức HỦY để khai thác bệ Lv4.</div>
+                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Phái 1 đội vào bệ cấp cao nhất. Toàn bệ cấp thấp thì làm mới miễn phí (tối đa 3 lần) tới khi gặp Lv3-5.</div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoImmortalRelic" ${CONFIG.activeFeature === 'autoImmortalRelic' ? 'checked' : ''}>
                                     </label>
@@ -226,7 +230,18 @@
                             </div>
 
                             <!-- TAB 5: MA ĐẠO (Treo máy, Ủy phái, Quà Tiên, Nhiệm vụ) -->
-                            <div id="tn-tab-panel-banner" class="tn-tab-panel"></div>
+                            <div id="tn-tab-panel-banner" class="tn-tab-panel">
+                                <div class="tn-opt-list">
+                                    <label class="tn-opt-item" style="border-left: 3px solid #cba6f7;">
+                                        <div>
+                                            <div style="font-weight:bold; color:#cba6f7;">🎴 Tướng Thần Lâm / Đạp Thiên</div>
+                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Làm việc ngày cho TẤT CẢ banner đang mở: nhận Quà (miễn phí + quà Tiên Ngọc ${CONFIG.bannerGoldPrice || 300}) → Chiêu mộ 1 lần → Khiêu Chiến Thí Luyện 1 lần → nhận điểm nhiệm vụ → Chiến Lệnh Nhận nhanh. Chạy một lượt rồi tự dừng. Không mua quà tiền thật.</div>
+                                        </div>
+                                        <input type="checkbox" class="tn-mutex-feature" data-key="autoBanner" ${CONFIG.activeFeature === 'autoBanner' ? 'checked' : ''}>
+                                    </label>
+                                    <div id="tn-banner-extra"></div>
+                                </div>
+                            </div>
 
                             <div id="tn-tab-panel-ma-dao" class="tn-tab-panel">
                                 <div class="tn-opt-list">

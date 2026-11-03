@@ -1,6 +1,2 @@
-# Local-only Probe feature (exposure scanner + Banner status panel) and its exports.
-# Keep these on this machine only; build-content.js skips the sources when they are absent.
-extension/src/content/features/exposure-probe.js
-extension/src/content/features/exposure-probe-ui.js
-docs/data/tn-exposure-probe.json
-docs/data/tn-banner-status.json
+# Dev hot-reload signal written by local builds (see extension/background.js).
+extension/dev-reload.json

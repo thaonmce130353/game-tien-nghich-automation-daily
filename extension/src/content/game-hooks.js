@@ -1,3 +1,5 @@
+        let embattleHookState = null;      // trạng thái xếp đội hình của bộ xử lý trận đánh chung (xem embattleStep)
+
         function hookRecharge(ctx) {
             if (!ctx.RechargeCtrl) return;
             try {
@@ -24,6 +26,8 @@
             }
         }
 
+        const skipUnlistedLogged = {};     // loại trận chưa bỏ qua đã được ghi chẩn đoán (mỗi loại một lần)
+
         // Hook FightCtrl: TỰ ĐỘNG SKIP KHIÊU CHIẾN CHO MỌI PHỤ BẢN & ĐẤU TRƯỜNG
         function hookFightCtrl(ctx) {
             if (!ctx.FightCtrl) return;
@@ -44,12 +48,20 @@
                             t.type === n.adventure ||
                             t.type === n.jyzd ||
                             t.type === n.hangup ||
+                            // Bí Cảnh Tứ Quốc (M2) và Thí Luyện banner (superHeroEncore) do tính năng của extension tự khiêu chiến.
+                            (n.fairyland_wei !== undefined && t.type >= n.fairyland_wei && t.type <= n.fairyland_qun) ||
+                            t.type === n.superHeroEncore ||
                             (t.type >= n.singCamp_wei && t.type <= n.singCamp_qun)
                         )) || (tienMinhActive && (
                             t.type === n.guild ||
                             t.type === n.gldWr ||
                             t.type === n.guildAsked
                         ));
+                        if (!isSkippable && CONFIG.running && CONFIG.autoSkipFight && !skipUnlistedLogged[t.type]) {
+                            // Chẩn đoán: trận thuộc loại chưa nằm trong danh sách bỏ qua sẽ chạy đủ hoạt ảnh (chậm). Ghi tên loại một lần.
+                            skipUnlistedLogged[t.type] = true;
+                            sendLog(`ℹ️ [Bỏ qua trận] Loại trận ${t.type} (${n[t.type] || '?'}) chưa có trong danh sách bỏ qua nên chạy đủ hoạt ảnh.`, "info");
+                        }
                         if (isSkippable) {
                             const showed = this.executeShowRoundFight(t, true);
                             if (showed) {
@@ -159,18 +171,30 @@
 
                     // Tiên Minh tự xử lý bảng đội hình trong daily-routines.js (có giới hạn và log riêng).
                     // Thủ Vệ Tứ Phái, Cực Âm Địa (M4) tự xử lý bảng đội hình của chúng (sect-defense.js, extreme-yin.js).
-                    if (!['autoTienMinh', 'autoSectDefense', 'autoOtherTrials', 'autoExtremeYin'].includes(CONFIG.activeFeature) &&
+                    if (!['autoTienMinh', 'autoSectDefense', 'autoOtherTrials', 'autoExtremeYin', 'autoDailyDungeon'].includes(CONFIG.activeFeature) &&
                         vm.viewIsVisible && vm.viewIsVisible('embattleUi')) {
                         const embUi = vm.getViewByName('embattleUi');
                         if (embUi) {
-                            if (typeof embUi.oneKeyEmbattleLogic === 'function') embUi.oneKeyEmbattleLogic(0);
-                            if (typeof embUi.saveEmbattleLogic === 'function') embUi.saveEmbattleLogic();
-                            if (typeof embUi.cBtnH2 === 'function') {
+                            // Bấm "Lên trận nhanh", kiểm tra ô đội hình có tướng, mới bấm "Bắt đầu".
+                            if (!embattleHookState) embattleHookState = { at: 0, clicked: 0, starts: 0 };
+                            const step = embattleStep(embUi, embattleHookState, Date.now());
+                            if (step === 'arranged') {
+                                acted = true;
+                            } else if (step === 'ready' && typeof embUi.cBtnH2 === 'function') {
+                                embattleMarkStarted(embattleHookState);
                                 embUi.cBtnH2();
-                                sendLog("🌌 [Vực U Minh] Đã tự động chọn đội hình & bấm BẮT ĐẦU!", "action");
+                                sendLog("🌌 [Vực U Minh] Đã xếp đội hình & bấm BẮT ĐẦU!", "action");
+                                acted = true;
+                            } else if (step === 'failed') {
+                                const diag = embattleDiagnose(embUi, embattleHookState);
+                                embattleHookState = null;
+                                try { vm.closeView('embattleUi'); } catch (e) { }
+                                sendLog(`❌ [Đội hình] Không xếp được đội hình (${diag}); không bắt đầu trận.`, "error");
                                 acted = true;
                             }
                         }
+                    } else if (!(vm.viewIsVisible && vm.viewIsVisible('embattleUi'))) {
+                        embattleHookState = null;
                     }
 
                     const resultViewNames = [

@@ -34,6 +34,7 @@ const allSourceFiles = [
     'features/co-than-dia.js',
     'features/other-trials.js',
     'features/immortal-relic.js',
+    'features/bi-canh-tu-quoc.js',
     'features/memory-minigame.js',
     'features/dragon-minigame.js',
     'features/daily-routines.js',
@@ -43,13 +44,8 @@ const allSourceFiles = [
     'features/scheduler.js'
 ];
 
-// Local-only files (git-ignored, see .gitignore): built in when they exist on this machine, skipped when
-// they are missing (fresh clone) or when building with --no-local (use this before committing content.js
-// so the generated file never carries local-only code).
-const localOnlyFiles = new Set(['features/exposure-probe-ui.js', 'features/exposure-probe.js']);
-const includeLocal = !process.argv.includes('--no-local');
-const sourceFiles = allSourceFiles.filter((fileName) =>
-    !localOnlyFiles.has(fileName) || (includeLocal && fs.existsSync(path.join(sourceRoot, fileName))));
+// Every build includes ALL listed files, the Probe too; a missing file is a hard error (see createContentBundle).
+const sourceFiles = allSourceFiles;
 
 function createContentBundle() {
     const fragments = sourceFiles.map((fileName) => {
@@ -88,6 +84,9 @@ function buildContent() {
     const bundle = validateContent(createContentBundle());
     fs.writeFileSync(outputPath, bundle);
     const builtAt = new Date().toLocaleString();
+    // Every build also signals the dev hot-reload worker (extension/background.js).
+    const hash = require('node:crypto').createHash('sha1').update(bundle).digest('hex');
+    fs.writeFileSync(path.join(extensionRoot, 'dev-reload.json'), JSON.stringify({ hash, builtAt }) + '\n');
     console.log(`[${builtAt}] Built ${path.relative(root, outputPath)} from ${sourceFiles.length} ordered source files.`);
 }
 

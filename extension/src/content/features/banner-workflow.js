@@ -131,7 +131,7 @@
                 quiet = bannerCloseViews(ctx, BANNER_POPUP_VIEWS) ? 0 : quiet + 1;
             }
             sendLog(confirmed ? `✅ ${tag} Đã chiêu mộ 1 lần.` : `⚠️ ${tag} Máy chủ chưa xác nhận lượt chiêu mộ.`,
-                confirmed ? 'action' : 'err');
+                confirmed ? 'result' : 'err');
         }
 
         // ---- Bước 3: Khiêu Chiến 1 lần ---------------------------------------------------------------
@@ -185,8 +185,18 @@
                 return;
             }
             await bannerSleep(500);
-            if (typeof embattle.oneKeyEmbattleLogic === 'function') embattle.oneKeyEmbattleLogic(0);
-            if (typeof embattle.saveEmbattleLogic === 'function') embattle.saveEmbattleLogic();
+            // Bấm "Lên trận nhanh", đợi bảng cập nhật, chỉ bấm "Bắt đầu" khi ô đội hình đã có tướng.
+            let arranged = false;
+            for (let attempt = 0; attempt < EMBATTLE_ARRANGE_TRIES && !arranged; attempt++) {
+                if (typeof embattle.oneKeyEmbattleLogic === 'function') embattle.oneKeyEmbattleLogic(0);
+                await bannerSleep(900);
+                arranged = embattleTeamReady(embattle);
+            }
+            if (!arranged) {
+                bannerCloseViews(ctx, ['embattleUi']);
+                sendLog(`❌ ${tag} Không xếp được đội hình sau ${EMBATTLE_ARRANGE_TRIES} lần Lên trận nhanh (${embattleDiagnose(embattle, null)}); bỏ qua Khiêu Chiến.`, 'err');
+                return;
+            }
             embattle.cBtnH2();
 
             if (!await bannerWaitFor(() => bannerIsFighting(), BANNER_FIGHT_START_MS)) {
@@ -243,7 +253,7 @@
                 quiet = bannerCloseViews(ctx, BANNER_POPUP_VIEWS) ? 0 : quiet + 1;
             }
             sendLog(done ? `✅ ${tag} Đã nhận thưởng Thí Luyện.` : `⚠️ ${tag} Máy chủ chưa xác nhận thưởng Thí Luyện.`,
-                done ? 'action' : 'err');
+                done ? 'result' : 'err');
         }
 
         // ---- Bước 5: Chiến Lệnh: nhận điểm nhiệm vụ rồi "Nhận nhanh" -----------------------------------
@@ -280,20 +290,112 @@
                 } finally {
                     try { ctx.vm.closeView(BANNER_TRIAL_VIEW); } catch (e) { }
                 }
-                sendLog(claimed ? `✅ ${tag} Đã nhận ${claimed} nhiệm vụ Thí Luyện.` : `ℹ️ ${tag} Không có nhiệm vụ Thí Luyện nào để nhận.`, 'info');
+                sendLog(claimed ? `✅ ${tag} Đã nhận ${claimed} nhiệm vụ Thí Luyện.` : `ℹ️ ${tag} Không có nhiệm vụ Thí Luyện nào để nhận.`, claimed ? 'result' : 'info');
             }
 
             // 2) "Nhận nhanh" ở màn hình Chiến Lệnh.
             await bannerSleep(800);
+            await bannerZhanlingQuickClaim(ctx, zl);
+
+            // 3) Mua điểm Chiến Lệnh bằng Tiên Ngọc (nếu bật), rồi "Nhận nhanh" lại phần thưởng vừa đủ điểm.
+            if (await bannerZhanlingBuyScore(ctx, zl)) {
+                await bannerSleep(800);
+                await bannerZhanlingQuickClaim(ctx, zl);
+            }
+        }
+
+        async function bannerZhanlingQuickClaim(ctx, zl) {
             const ready = await bannerWaitFor(() => bannerOffered(zl.onekeyBtn), 3500);
             if (!ready) {
-                sendLog(`ℹ️ ${tag} Chiến Lệnh chưa có phần thưởng để Nhận nhanh.`, 'info');
-                return;
+                sendLog(`ℹ️ ${ctx.tag} Chiến Lệnh chưa có phần thưởng để Nhận nhanh.`, 'info');
+                return false;
             }
-            sendLog(`🎁 ${tag} Chiến Lệnh: Nhận nhanh.`, 'action');
+            sendLog(`🎁 ${ctx.tag} Chiến Lệnh: Nhận nhanh.`, 'action');
             zl.onClick({ target: zl.onekeyBtn });
             await bannerSleep(1500);
             bannerCloseViews(ctx, BANNER_POPUP_VIEWS);
+            return true;
+        }
+
+        // Mua điểm Chiến Lệnh bằng Tiên Ngọc (nút "+" cạnh điểm; game gửi send12326). Chỉ mua khi game cho phép
+        // (24 giờ cuối của banner), tối đa CONFIG.bannerZlBuyGold Tiên Ngọc mỗi banner, không bao giờ gọi gói nạp tiền thật.
+        // Số đã chi được ghi vào sessionStorage ngay lúc gửi để không vượt trần dù tải lại trang.
+        function bannerZlSpentKey(uid, type, term) { return `tnBannerZlBuy:${uid}:${type}:${term}`; }
+        function bannerZlSpentRead(key) { try { return Number(sessionStorage.getItem(key)) || 0; } catch (e) { return 0; } }
+        function bannerZlSpentWrite(key, value) { try { sessionStorage.setItem(key, String(value)); } catch (e) { } }
+
+        // Hàm thuần: quyết định số lượng mua từ số liệu game (cùng điều kiện với nút "+" của game).
+        function bannerZlBuyPlan(info) {
+            const { unit, perBuy, label, secondsLeft, need, limitLeft, asset, maxGold, spent } = info;
+            if (label !== 'gold') return { qty: 0, reason: `đơn vị tiền "${label}" không phải Tiên Ngọc` };
+            if (!(unit > 0) || !(perBuy > 0)) return { qty: 0, reason: 'cấu hình giá không hợp lệ' };
+            if (!(secondsLeft > 0)) return { qty: 0, reason: 'banner đã hết hạn' };
+            if (secondsLeft > 86400) return { qty: 0, reason: 'game chỉ cho mua điểm trong 24 giờ cuối của banner' };
+            if (!(need > 0)) return { qty: 0, reason: 'điểm đã đủ nhận phần thưởng cuối' };
+            if (!(limitLeft >= perBuy)) return { qty: 0, reason: 'đã hết giới hạn mua điểm' };
+            const budget = Math.min(asset, maxGold - spent);
+            const qty = Math.min(Math.ceil(need / perBuy), Math.floor(limitLeft / perBuy), Math.floor(budget / unit));
+            if (qty <= 0) {
+                return { qty: 0, reason: maxGold - spent < unit ? `đã chi ${spent}/${maxGold} Tiên Ngọc (trần)` : `không đủ Tiên Ngọc (có ${asset}, cần ${unit})` };
+            }
+            return { qty, cost: qty * unit };
+        }
+
+        async function bannerZhanlingBuyScore(ctx, zl) {
+            const { tag, uid } = ctx;
+            const maxGold = Number(CONFIG.bannerZlBuyGold) || 0;
+            if (maxGold <= 0) return false;
+            const recharge = window.RechargeCtrl && window.RechargeCtrl.gInst && window.RechargeCtrl.gInst();
+            const trans = window.TransGodCtrl && window.TransGodCtrl.gInst && window.TransGodCtrl.gInst();
+            const model = recharge && recharge.getCurlModel && recharge.getCurlModel();
+            const type = zl.type;
+            const term = zl.term_id;
+            if (!recharge || !trans || !model || typeof recharge.send12326 !== 'function' ||
+                typeof model.getZlScoreBuyConfig !== 'function' || typeof trans.getZlBuyVal !== 'function' ||
+                typeof trans.getZlNetVoByType !== 'function' || !window.CommonUtils || !window.NetMgr ||
+                type === undefined || term === undefined) {
+                logUnsupportedOnce('banner-zl-buy', `${tag} Không tìm thấy bộ điều khiển mua điểm Chiến Lệnh (bản game đổi); bỏ qua.`);
+                return false;
+            }
+            const cfg = model.getZlScoreBuyConfig(type, term);
+            if (!cfg || !cfg.loss || !cfg.loss[0]) {
+                sendLog(`ℹ️ ${tag} Chiến Lệnh này không có mục mua điểm bằng Tiên Ngọc; bỏ qua.`, 'info');
+                return false;
+            }
+            const last = typeof model.getZlLastRewardTerm === 'function' ? model.getZlLastRewardTerm(type, term) : null;
+            const netVo = trans.getZlNetVoByType(type, term);
+            const val = netVo ? Number(netVo.val) || 0 : 0;
+            const endAt = Number(zl._endTime) || (ctx.ctrl.getEndTime ? Number(ctx.ctrl.getEndTime()) : 0);
+            const boughtBefore = Number(trans.getZlBuyVal(type, term)) || 0;
+            const key = bannerZlSpentKey(uid, type, term);
+            const spent = bannerZlSpentRead(key);
+            const label = cfg.loss[0].label;
+            const plan = bannerZlBuyPlan({
+                unit: Number(cfg.loss[0].num), perBuy: Number(cfg.val), label,
+                secondsLeft: endAt - window.NetMgr.gInst().getTime(),
+                need: last ? Number(last.val) - val : 0,
+                limitLeft: Number(cfg.limit) - boughtBefore,
+                asset: Number(window.CommonUtils.getRoleAsset(label)) || 0,
+                maxGold, spent
+            });
+            if (plan.qty <= 0) {
+                sendLog(`ℹ️ ${tag} Không mua điểm Chiến Lệnh: ${plan.reason}.`, 'info');
+                return false;
+            }
+            if (!ctx.ctrl.isActivityOpen(uid)) return false;
+
+            // Ghi chi phí ngay lúc gửi (kể cả khi mạng rớt chưa kịp xác nhận) rồi gửi đúng một lần.
+            bannerZlSpentWrite(key, spent + plan.cost);
+            sendLog(`💎 ${tag} Mua điểm Chiến Lệnh: ${plan.qty} lần (${plan.cost} Tiên Ngọc; trần ${maxGold}).`, 'result');
+            recharge.send12326(type, term, plan.qty);
+            const confirmed = await bannerWaitFor(() => Number(trans.getZlBuyVal(type, term)) > boughtBefore, 5000, 300);
+            if (confirmed) {
+                const nv = trans.getZlNetVoByType(type, term);
+                sendLog(`✅ ${tag} Máy chủ xác nhận đã mua điểm Chiến Lệnh (điểm ${val} → ${nv ? nv.val : '?'}).`, 'result');
+                return true;
+            }
+            sendLog(`⚠️ ${tag} Máy chủ chưa xác nhận mua điểm Chiến Lệnh; không gửi lại.`, 'err');
+            return false;
         }
 
         // ---- Quy trình đầy đủ cho một banner -----------------------------------------------------------
@@ -334,6 +436,7 @@
                     try {
                         await step(ctx);
                     } catch (error) {
+                        if (error && error.bannerAbort) throw error;
                         sendLog(`⚠️ ${tag} Lỗi ở bước ${label}: ${error && error.message || error}`, 'err');
                     }
                 }

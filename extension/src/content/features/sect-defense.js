@@ -33,8 +33,7 @@
                 lastResult: null,         // ctrl.fResult đã xử lý
                 pendingBuff: null,        // { at, eId } đã chọn Buff, chờ máy chủ xác nhận
                 buffSeenAt: 0,
-                embStage: 'arrange',
-                embAt: 0,
+                emb: null,
                 idleSince: Date.now(),
                 lastEntryAt: 0,
                 stageReward: { refreshing: null, pending: null, claimed: 0 },
@@ -109,26 +108,27 @@
                 logSect(state, 'emb-other', "ℹ️ [M3 - Thủ Vệ Tứ Phái] Đang mở bảng đội hình của chức năng khác; chờ bạn đóng hoặc hoàn tất.", "info");
                 return false;
             }
-            if (!state.embAt) state.embAt = now;
-            if (now - state.embAt < humanDelay(900)) return false;
-            if (!tryAttemptTarget('sect-embattle', "[M3 - Thủ Vệ Tứ Phái] Bắt đầu khiêu chiến từ bảng đội hình")) return false;
-
-            if (state.embStage === 'arrange') {
-                if (typeof embUi.oneKeyEmbattleLogic === 'function') embUi.oneKeyEmbattleLogic(0);
-                if (typeof embUi.saveEmbattleLogic === 'function') embUi.saveEmbattleLogic();
-                state.embStage = 'challenge';
-                state.embAt = now;
-                clearTargetAttempts('sect-embattle');
-                sendLog("🛡️ [M3 - Thủ Vệ Tứ Phái] Đã xếp đội hình tự động.", "action");
+            // Bấm "Lên trận nhanh", kiểm tra ô đội hình có tướng, mới bấm "Khiêu Chiến" (Bắt đầu).
+            if (!state.emb) state.emb = { at: 0, clicked: 0, starts: 0 };
+            const step = embattleStep(embUi, state.emb, now);
+            if (step === 'wait') return false;
+            if (step === 'arranged') {
+                sendLog(`🛡️ [M3 - Thủ Vệ Tứ Phái] Đã bấm Lên trận nhanh (lần ${state.emb.clicked}); kiểm tra đội hình.`, "action");
                 return true;
+            }
+            if (step === 'failed') {
+                const diag = embattleDiagnose(embUi, state.emb);
+                state.emb = null;
+                try { vm.closeView('embattleUi'); } catch (e) { }
+                failSect(state, 'emb-empty', "Không xếp được đội hình sau " + EMBATTLE_ARRANGE_TRIES + " lần Lên trận nhanh (" + diag + "); không khiêu chiến, dừng.", 'claim');
+                return false;
             }
             if (typeof embUi.cBtnH2 !== 'function') {
                 failSect(state, 'no-challenge', "Bảng đội hình không có nút Khiêu Chiến (bản game đổi); dừng.", 'claim');
                 return false;
             }
+            embattleMarkStarted(state.emb);
             embUi.cBtnH2();
-            state.embStage = 'arrange';
-            state.embAt = 0;
             state.lastEntryAt = now;
             state.idleSince = now;
             sendLog("⚔️ [M3 - Thủ Vệ Tứ Phái] Đã bấm Khiêu Chiến; chờ bảng chọn Buff.", "action");
@@ -231,7 +231,7 @@
                     return true;
                 }
                 sr.claimed++;
-                sendLog(`✅ [M3 - Thủ Vệ Tứ Phái] Máy chủ xác nhận đã nhận thưởng mốc #${pending.id}.`, "action");
+                sendLog(`✅ [M3 - Thủ Vệ Tứ Phái] Máy chủ xác nhận đã nhận thưởng mốc #${pending.id}.`, "result");
                 return true;
             }
             const data = ctrl.endLsData;
@@ -301,7 +301,7 @@
                     return true;
                 }
                 const left = sectCountFreeZlRewards(rc, zlType);
-                if (left === 0) sendLog(`✅ [M3 - Chiến Lệnh] Máy chủ xác nhận đã nhận ${c.before} phần thưởng.`, "action");
+                if (left === 0) sendLog(`✅ [M3 - Chiến Lệnh] Máy chủ xác nhận đã nhận ${c.before} phần thưởng.`, "result");
                 else failSect(state, 'zl-partial', `Đã gửi nhận nhưng còn ${left} phần thưởng chưa nhận được (có thể cần điều kiện khác).`);
                 state.phase = 'done';
                 sectCloseZl(vm);
@@ -345,7 +345,7 @@
                 if (sectViewVisible(vm, 'eTBfUi')) return sectChooseBuff(ctrl, vm, state, now);
                 state.buffSeenAt = 0;
                 if (sectViewVisible(vm, 'embattleUi')) return sectStartFromEmbattle(ctx, vm, state, now);
-                state.embAt = 0;
+                state.emb = null;
                 return sectHandleFight(ctx, ctrl, vm, state, now);
             } catch (e) {
                 const message = `❌ [M3 - Thủ Vệ Tứ Phái] Lỗi: ${e && e.message ? e.message : e}`;

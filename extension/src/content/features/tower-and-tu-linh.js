@@ -106,7 +106,7 @@
                     t.pending = null;
                     if (pending.kind === 'buy') {
                         t.bought++;
-                        logTowerDaily(state, `tower-buy-${counts.buy}`, `✅ [M1 - Thông Thiên Tháp] Máy chủ xác nhận đã mua và quét thêm 1 lượt (${counts.buy} lượt đã mua).`, "action");
+                        logTowerDaily(state, `tower-buy-${counts.buy}`, `✅ [M1 - Thông Thiên Tháp] Máy chủ xác nhận đã mua và quét thêm 1 lượt (${counts.buy} lượt đã mua).`, "result");
                     } else {
                         t.done++;
                         logTowerDaily(state, `tower-fight-${counts.enter}`, `✅ [M1 - Thông Thiên Tháp] Máy chủ xác nhận đã quét lượt ${counts.enter}/${counts.dayCount + counts.buy}.`, "action");
@@ -152,7 +152,7 @@
                     }
                     t.attempts++;
                     t.pending = { kind: 'buy', before: counts.buy, beforeEnter: counts.enter, token: counts.token, startedAt: now, lastRefreshAt: now };
-                    sendLog(`🗼 [M1 - Thông Thiên Tháp] Hết lượt quét miễn phí; mua thêm 1 lượt quét (${cost.gold} Tiên Ngọc)...`, "action");
+                    sendLog(`🗼 [M1 - Thông Thiên Tháp] Hết lượt quét miễn phí; mua thêm 1 lượt quét (${cost.gold} Tiên Ngọc)...`, "result");
                     try {
                         // Giống nút Quét của game: mua rồi máy chủ tự quét ải đã vượt.
                         dd.send11007(lastId, type, ctx.DailyDungeonConst.buyType.saodang);
@@ -163,7 +163,7 @@
                     return true;
                 }
                 if (t.done + t.bought > 0) {
-                    logTowerDaily(state, 'tower-finished', `✅ [M1 - Thông Thiên Tháp] Đã quét xong lượt trong ngày (${counts.enter}/${counts.dayCount + counts.buy} lượt, đã mua ${counts.buy}).`, "action");
+                    logTowerDaily(state, 'tower-finished', `✅ [M1 - Thông Thiên Tháp] Đã quét xong lượt trong ngày (${counts.enter}/${counts.dayCount + counts.buy} lượt, đã mua ${counts.buy}).`, "result");
                 } else {
                     logTowerDaily(state, 'tower-already', `ℹ️ [M1 - Thông Thiên Tháp] Hôm nay đã quét đủ (${counts.enter}/${counts.dayCount + counts.buy} lượt, đã mua ${counts.buy}); bỏ qua.`, "info");
                 }
@@ -339,7 +339,7 @@
             if (state.failed) {
                 sendLog("⚠️ [M1 - Quét mỗi ngày] Kết thúc nhưng có bước lỗi/chưa xác nhận; sẽ kiểm tra lại khi Auto khởi động lại.", "warn");
             } else {
-                sendLog("✅ [M1 - Quét mỗi ngày] Đã hoàn tất Thông Thiên Tháp & Tứ Linh Tháp hôm nay.", "action");
+                sendLog("✅ [M1 - Quét mỗi ngày] Đã hoàn tất Thông Thiên Tháp & Tứ Linh Tháp hôm nay.", "result");
             }
         }
 

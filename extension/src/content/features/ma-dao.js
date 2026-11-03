@@ -12,8 +12,28 @@
         const MA_DAO_FIGHT_TIMEOUT_MS = 90000;
         const MA_DAO_MAX_QUICK_BUYS = 20;
         const MA_DAO_MAX_TRAVEL_REFRESH = 30;
+        // Ủy Phái chỉ làm MỘT việc: dùng điểm ủy phái để ủy phái việc MỚI. Không bao giờ gửi send30203 (tăng tốc/hoàn thành sớm: tốn
+        // Tiên Ngọc theo thời gian còn lại): việc đã ủy phái cứ để đồng hồ chạy. send30205 chỉ nhận các việc ĐÃ hết giờ (miễn phí).
+        // Tiên Ngọc chỉ dùng để làm mới danh sách khi chưa có việc Sử Thi trở lên; mỗi lần dự kiến MA_DAO_REFRESH_GOLD_EXPECTED.
+        const MA_DAO_REFRESH_GOLD_EXPECTED = 30;
+        function maDaoGold(ctx) {
+            try { return Number(ctx.CommonUtils.getRoleAsset('gold')) || 0; } catch (e) { return 0; }
+        }
         const MA_DAO_MAX_STAGE_FIGHTS = 200;
-        const MA_DAO_SHISHI_RARE = 4;              // TravelCtrl.isShiShiUp: rare_id >= 4 là Sử Thi
+        const MA_DAO_SHISHI_RARE = 4;              // TravelCtrl.isShiShiUp: rare_id >= 4 là Sử Thi trở lên
+        // Tên bậc việc ủy phái theo rare_id (game chỉ hiện ảnh yl_pic_pinzhi<rare_id>, không có tên chữ trong dữ liệu).
+        // Thời gian hoàn thành tăng theo bậc (8h / 12h / 16h) khớp với 3 bậc này; log luôn kèm số giờ để đối chiếu.
+        const MA_DAO_RARE_NAMES = { 4: 'Sử Thi', 5: 'Truyền Thuyết', 6: 'Bất Hủ' };
+
+        function maDaoRareName(rareId) {
+            return MA_DAO_RARE_NAMES[rareId] || `bậc ${rareId}`;
+        }
+
+        // "Bất Hủ, 16h" từ việc ủy phái đã xử lý của game (rare_id, rare_time tính bằng phút).
+        function maDaoRareText(ev) {
+            const hours = Number(ev.rare_time) > 0 ? `, ${Math.round(Number(ev.rare_time) / 6) / 10}h` : '';
+            return `${maDaoRareName(ev.rare_id)}${hours}`;
+        }
         const MA_DAO_STORAGE_KEY = 'TN_AUTO_MADAO_V1';
 
         function maDaoLoadCounts() {
@@ -84,7 +104,7 @@
             // confirm: recvHangupAwards đặt last_time mới và m_hgTime = 0
             const info = hg.m_stageBaseInfo;
             if (info && info.last_time !== a.lastTime) {
-                sendLog(`✅ [Treo Máy] Máy chủ xác nhận đã nhận thưởng treo máy (${a.minutes} phút).`, "action");
+                sendLog(`✅ [Treo Máy] Máy chủ xác nhận đã nhận thưởng treo máy (${a.minutes} phút).`, "result");
                 s.phase = 'quick';
                 return true;
             }
@@ -110,7 +130,7 @@
                 const p = q.pending;
                 if (info.left_free_count < p.free || info.left_buy_count < p.buy) {
                     q.used++;
-                    sendLog(`✅ [Tác Chiến Nhanh] Máy chủ xác nhận đã tác chiến nhanh (${p.paid ? 'mua bằng Tiên Ngọc' : 'lượt free'}); còn ${info.left_free_count} free, ${info.left_buy_count} lượt mua.`, "action");
+                    sendLog(`✅ [Tác Chiến Nhanh] Máy chủ xác nhận đã tác chiến nhanh (${p.paid ? 'mua bằng Tiên Ngọc' : 'lượt free'}); còn ${info.left_free_count} free, ${info.left_buy_count} lượt mua.`, "result");
                     q.pending = null;
                     s.nextAt = now + humanDelay(1500);
                 } else if (now - p.at >= MA_DAO_REQUEST_TIMEOUT_MS) {
@@ -135,7 +155,7 @@
             if (paid) {
                 s.quickBuys++;
                 maDaoSaveCounts(s);
-                sendLog(`💎 [Tác Chiến Nhanh] Hết lượt free; mua lượt tác chiến nhanh (${info.next_cost} Tiên Ngọc, còn ${buy} lượt mua, lần mua ${s.quickBuys}/${MA_DAO_MAX_QUICK_BUYS}).`, "action");
+                sendLog(`💎 [Tác Chiến Nhanh] Hết lượt free; mua lượt tác chiến nhanh (${info.next_cost} Tiên Ngọc, còn ${buy} lượt mua, lần mua ${s.quickBuys}/${MA_DAO_MAX_QUICK_BUYS}).`, "result");
             } else {
                 sendLog(`⚡ [Tác Chiến Nhanh] Dùng lượt free (còn ${free}).`, "action");
             }
@@ -180,7 +200,7 @@
             if (st.claiming) {
                 const c = st.claiming;
                 if (hg.m_gainStageIdGroup && hg.m_gainStageIdGroup[c.id]) {
-                    sendLog(`✅ [Ải Chính Tuyến] Máy chủ xác nhận đã nhận thưởng vượt ải ${c.id}.`, "action");
+                    sendLog(`✅ [Ải Chính Tuyến] Máy chủ xác nhận đã nhận thưởng vượt ải ${c.id}.`, "result");
                     st.claiming = null;
                 } else if (now - c.at >= MA_DAO_REQUEST_TIMEOUT_MS) {
                     sendLog(`⚠️ [Ải Chính Tuyến] Đã gửi nhận thưởng ải ${c.id} nhưng máy chủ chưa xác nhận; không gửi lại.`, "warn");
@@ -314,7 +334,7 @@
                 if (t.claimPending) {
                     const p = t.claimPending;
                     if (tc.travelInfo !== p.token) {
-                        sendLog(`✅ [Ủy Phái] Máy chủ xác nhận đã nhận nhanh các việc đã xong (${p.count} việc).`, "action");
+                        sendLog(`✅ [Ủy Phái] Máy chủ xác nhận đã nhận nhanh các việc đã xong (${p.count} việc).`, "result");
                         t.claimPending = null;
                         t.stage = 'plan';
                         return true;
@@ -339,7 +359,7 @@
                     const p = t.dispatchPending;
                     const ev = maDaoTravelEvents(tc).find((e) => e.id === p.id);
                     if (ev && ev.finish_time > 0) {
-                        sendLog(`✅ [Ủy Phái] Máy chủ xác nhận đã ủy phái "${ev.event_name}" (Sử Thi), hoàn thành lúc ${new Date(ev.finish_time * 1000).toLocaleTimeString()}.`, "action");
+                        sendLog(`✅ [Ủy Phái] Máy chủ xác nhận đã ủy phái "${ev.event_name}" (${maDaoRareText(ev)}), hoàn thành lúc ${new Date(ev.finish_time * 1000).toLocaleTimeString()}.`, "result");
                         t.dispatchPending = null;
                         s.nextAt = now + humanDelay(1500);
                         return true;
@@ -352,7 +372,22 @@
                 }
                 if (t.refreshPending) {
                     const p = t.refreshPending;
+                    if (tc.travelInfo !== p.token && p.paid && !p.settledAt) {
+                        p.settledAt = now;      // chờ số dư Tiên Ngọc cập nhật rồi mới đo chi phí thật của lần làm mới
+                        return false;
+                    }
+                    if (tc.travelInfo !== p.token && p.paid && now - p.settledAt < 1500) return false;
                     if (tc.travelInfo !== p.token) {
+                        if (p.paid && p.goldBefore > 0) {
+                            const cost = Math.max(0, p.goldBefore - maDaoGold(ctx));
+                            s.goldSpent = (s.goldSpent || 0) + cost;
+                            if (cost > MA_DAO_REFRESH_GOLD_EXPECTED) {
+                                s.refreshBlocked = true;
+                                sendLog(`⚠️ [Ủy Phái] Lần làm mới này tốn ${cost} Tiên Ngọc, cao hơn mức dự kiến ${MA_DAO_REFRESH_GOLD_EXPECTED}; dừng làm mới để tránh chi lạ (tổng ${s.goldSpent}).`, "warn");
+                            } else {
+                                sendLog(`💎 [Ủy Phái] Làm mới tốn ${cost} Tiên Ngọc (tổng lượt chạy này ${s.goldSpent}).`, "result");
+                            }
+                        }
                         t.refreshPending = null;
                         
                         s.nextAt = now + humanDelay(1500);
@@ -371,7 +406,7 @@
                     // Việc Sử Thi chưa giao: làm lần lượt tới khi hết điểm ủy phái hoặc hết tướng rảnh.
                     for (const ev of epics) {
                         if (travelVal < Number(ev.travel_value)) {
-                            sendLog(`ℹ️ [Ủy Phái] Việc Sử Thi "${ev.event_name}" cần ${ev.travel_value} điểm ủy phái, hiện có ${travelVal}; đã dùng hết điểm, dừng.`, "info");
+                            sendLog(`ℹ️ [Ủy Phái] Việc "${ev.event_name}" (${maDaoRareText(ev)}) cần ${ev.travel_value} điểm ủy phái, hiện có ${travelVal}; đã dùng hết điểm, dừng.`, "info");
                             done();
                             return false;
                         }
@@ -379,23 +414,23 @@
                         const need = rare ? Number(rare.number) : 0;
                         const heroes = need > 0 ? maDaoPickHeroes(ctx, tc, ev, need) : [];
                         if (heroes.length < need || need === 0) {
-                            sendLog(`ℹ️ [Ủy Phái] Việc Sử Thi "${ev.event_name}" cần ${need || '?'} tướng, chỉ còn ${heroes.length} tướng rảnh; bỏ qua việc này.`, "info");
+                            sendLog(`ℹ️ [Ủy Phái] Việc "${ev.event_name}" (${maDaoRareText(ev)}) cần ${need || '?'} tướng, chỉ còn ${heroes.length} tướng rảnh; bỏ qua việc này.`, "info");
                             t.heroFail[ev.id] = true;
                             t.heroShort = true;
                             continue;
                         }
                         t.dispatchPending = { id: ev.id, at: now };
                         tc.send30202(ev.id, heroes.map((h) => ({ id: h.id })));
-                        sendLog(`📜 [Ủy Phái] Ủy phái "${ev.event_name}" (Sử Thi, ${heroes.length} tướng, ${ev.travel_value} điểm; còn ${travelVal} điểm).`, "action");
+                        sendLog(`📜 [Ủy Phái] Ủy phái "${ev.event_name}" (${maDaoRareText(ev)}, ${heroes.length} tướng, ${ev.travel_value} điểm; còn ${travelVal} điểm).`, "action");
                         return true;
                     }
-                    sendLog("ℹ️ [Ủy Phái] Không còn việc Sử Thi nào đủ tướng để ủy phái; dừng.", "info");
+                    sendLog("ℹ️ [Ủy Phái] Không còn việc Sử Thi trở lên nào đủ tướng để ủy phái; dừng.", "info");
                     done();
                     return false;
                 }
 
                 if (t.heroShort) {
-                    sendLog("ℹ️ [Ủy Phái] Hết tướng rảnh cho việc Sử Thi; dừng, không làm mới (tránh mất việc Sử Thi còn lại).", "info");
+                    sendLog("ℹ️ [Ủy Phái] Hết tướng rảnh cho việc Sử Thi trở lên; dừng, không làm mới (tránh mất việc còn lại).", "info");
                     done();
                     return false;
                 }
@@ -407,8 +442,13 @@
                     done();
                     return false;
                 }
+                if (s.refreshBlocked) {
+                    sendLog("ℹ️ [Ủy Phái] Đã dừng làm mới vì giá thực tế cao hơn dự kiến.", "info");
+                    done();
+                    return false;
+                }
                 if (t.cycles >= 60 || s.refreshes >= MA_DAO_MAX_TRAVEL_REFRESH) {
-                    sendLog(`⏸️ [Ủy Phái] Đã làm mới ${s.refreshes}/${MA_DAO_MAX_TRAVEL_REFRESH} lần hôm nay mà chưa có Sử Thi mới; dừng.`, "warn");
+                    sendLog(`⏸️ [Ủy Phái] Đã làm mới ${s.refreshes}/${MA_DAO_MAX_TRAVEL_REFRESH} lần hôm nay mà chưa có việc Sử Thi trở lên mới; dừng.`, "result");
                     done();
                     return false;
                 }
@@ -418,8 +458,8 @@
                 s.refreshes++;
                 maDaoSaveCounts(s);
                 const how = freeLeft > 0 ? `lượt free (còn ${freeLeft})` : refreshItem > 0 ? `vật phẩm làm mới (có ${refreshItem})` : 'Tiên Ngọc';
-                sendLog(`🔄 [Ủy Phái] Chưa có việc Sử Thi nào; làm mới bằng ${how} (lần ${s.refreshes}/${MA_DAO_MAX_TRAVEL_REFRESH} hôm nay).`, freeLeft > 0 || refreshItem > 0 ? "action" : "warn");
-                t.refreshPending = { token: tc.travelInfo, at: now };
+                sendLog(`🔄 [Ủy Phái] Chưa có việc Sử Thi trở lên nào; làm mới bằng ${how} (lần ${s.refreshes}/${MA_DAO_MAX_TRAVEL_REFRESH} hôm nay).`, freeLeft > 0 || refreshItem > 0 ? "action" : "result");
+                t.refreshPending = { token: tc.travelInfo, at: now, paid: !(freeLeft > 0 || refreshItem > 0), goldBefore: maDaoGold(ctx) };
                 tc.send30204();
                 return true;
             }

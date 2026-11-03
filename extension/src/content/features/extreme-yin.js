@@ -29,7 +29,7 @@
                 plan: null,               // { landId, name, mode: 'occupy' | 'rob' }
                 pick: null,               // { cands, idx, results }
                 read: null,               // { landId, mode, at }
-                emb: { stage: 'arrange', at: 0 },
+                emb: { at: 0, clicked: 0, starts: 0 },
                 fight: null,              // { kind, at, target, robBefore }
                 claim: null,
                 warOrder: { stage: '', refreshing: null, before: 0 },
@@ -115,22 +115,27 @@
 
         // Bảng đội hình jyzd: xếp tự động rồi bấm xác nhận (giống người chơi). 'acted' | 'wait' | 'none'.
         function eyEmbattleStep(ctx, vm, state, now) {
-            if (!vm.viewIsVisible('embattleUi')) { state.emb = { stage: 'arrange', at: 0 }; return 'none'; }
+            if (!vm.viewIsVisible('embattleUi')) { state.emb = { at: 0, clicked: 0, starts: 0 }; return 'none'; }
             const ui = vm.getViewByName('embattleUi');
             const type = ctx.EmbattleConst && ctx.EmbattleConst.embattleType && ctx.EmbattleConst.embattleType.jyzd;
             if (!ui || type === undefined || ui.embattleType !== type) return 'none';
-            if (!state.emb.at) state.emb.at = now;
-            if (now - state.emb.at < humanDelay(900)) return 'wait';
-            state.emb.at = now;
-            if (state.emb.stage === 'arrange') {
-                if (typeof ui.oneKeyEmbattleLogic === 'function') ui.oneKeyEmbattleLogic(0);
-                if (typeof ui.saveEmbattleLogic === 'function') ui.saveEmbattleLogic();
-                state.emb.stage = 'confirm';
+            // Bấm "Lên trận nhanh", kiểm tra ô đội hình có tướng, mới bấm "Bắt đầu".
+            const step = embattleStep(ui, state.emb, now);
+            if (step === 'wait') return 'wait';
+            if (step === 'arranged') return 'acted';
+            if (step === 'failed') {
+                const diag = embattleDiagnose(ui, state.emb);
+                try { vm.closeView('embattleUi'); } catch (e) { }
+                sendLog(`❌ [Cực Âm Địa] Không xếp được đội hình sau ${EMBATTLE_ARRANGE_TRIES} lần Lên trận nhanh (${diag}); không khiêu chiến, sẽ kiểm tra lại sau.`, "error");
+                state.emb = { at: 0, clicked: 0, starts: 0 };
+                state.fight = null;
+                state.nextSyncAt = now + 120000;
+                state.phase = 'wait';
                 return 'acted';
             }
             if (typeof ui.cBtnH2 !== 'function') return 'none';
+            embattleMarkStarted(state.emb);
             ui.cBtnH2();
-            state.emb = { stage: 'arrange', at: 0 };
             return 'acted';
         }
 
@@ -244,7 +249,7 @@
                     state.fight = null;
                     clearTargetAttempts('ey-enter-' + plan.landId);
                     if (ctrl.bHaveSeat()) {
-                        sendLog(`✅ [Cực Âm Địa] Máy chủ xác nhận đã có chỗ tu luyện ở ${plan.name}.`, "action");
+                        sendLog(`✅ [Cực Âm Địa] Máy chủ xác nhận đã có chỗ tu luyện ở ${plan.name}.`, "result");
                         state.phase = 'sync'; state.refreshing = null; state.nextSyncAt = 0;
                     } else {
                         sendLog(`✅ [Cực Âm Địa] Đã vào ${plan.name} nhưng đầy chỗ; chuyển sang giành vị trí.`, "action");
@@ -354,7 +359,7 @@
                 const used = pd ? Number(pd.rob_times) || 0 : 0;
                 if (r.ready && used > r.fight.robBefore) {
                     state.plunders++;
-                    sendLog(`✅ [Cực Âm Địa] Máy chủ xác nhận đã Đoạt ${r.fight.target.name} (lượt Đoạt đã dùng ${used}).`, "action");
+                    sendLog(`✅ [Cực Âm Địa] Máy chủ xác nhận đã Đoạt ${r.fight.target.name} (lượt Đoạt đã dùng ${used}).`, "result");
                 } else {
                     state.plunderBlocked = true;
                     sendLog("⚠️ [Cực Âm Địa] Đã đánh nhưng máy chủ chưa ghi nhận lượt Đoạt; dừng Đoạt lần này.", "warn");
@@ -391,7 +396,7 @@
             const c = state.claim;
             state.claim = null;
             if (r === 'ready' && !ctrl.bHaveSeat()) {
-                sendLog("✅ [Cực Âm Địa] Máy chủ xác nhận đã nhận thưởng; sẽ chọn địa mới.", "action");
+                sendLog("✅ [Cực Âm Địa] Máy chủ xác nhận đã nhận thưởng; sẽ chọn địa mới.", "result");
             } else {
                 sendLog("⚠️ [Cực Âm Địa] Đã gửi nhận thưởng nhưng dữ liệu chưa đổi; kiểm tra lại sau, không gửi lại ngay.", "warn");
                 state.nextSyncAt = now + 60000; state.phase = 'wait'; return true;

@@ -312,11 +312,52 @@
             return true;
         }
 
+        // Phản hồi 11079 (dùng vật phẩm đặc biệt): máy chủ trả res/msg; game chỉ hiện msg rồi đóng bảng nên tự ghi lại
+        // để biết vì sao bị từ chối. Đăng ký thêm một listener (NetMgr là EventDispatcher, không ghi đè listener của game).
+        let coThanSpecialReply = null;
+        let coThanSpecialWatched = false;
+        function coThanWatchSpecialReply() {
+            if (coThanSpecialWatched) return;
+            try {
+                const nm = window.NetMgr && window.NetMgr.gInst && window.NetMgr.gInst();
+                if (!nm || typeof nm.addEventListener !== 'function' || !window.NProtoNum) return;
+                nm.addEventListener(String(window.NProtoNum.R11079), (ev) => {
+                    const d = ev && ev.netData;
+                    if (d) coThanSpecialReply = { res: Number(d.res), msg: String(d.msg || ''), grid: d.grid_id, at: Date.now() };
+                }, window);
+                coThanSpecialWatched = true;
+            } catch (e) { }
+        }
+
         function coThanSpecial(ctrl, vm, state, now) {
             const sp = state.special;
             const dt = ctrl.mainUiDt;
+            coThanWatchSpecialReply();
             if (sp.pending) {
                 if (now - sp.pending.at < 2500) return false;
+                const reply = coThanSpecialReply && coThanSpecialReply.at >= sp.pending.at - 50 ? coThanSpecialReply : null;
+                if (reply && reply.res !== 1 && !sp.pending.replyLogged) {
+                    sp.pending.replyLogged = true;
+                    let text = reply.msg;
+                    try {
+                        // Thông báo dạng số là mã ngôn ngữ; game đổi ra chữ bằng GlobalCtrl.getNetErrorMsg.
+                        if (/^[0-9]+$/.test(reply.msg) && window.GlobalCtrl) text = `${reply.msg} = ${window.GlobalCtrl.gInst().getNetErrorMsg(reply.msg) || '?'}`;
+                    } catch (e) { }
+                    // 196050 = "Tầng hiện tại không thể dùng Tuyệt Mệnh Cấm Chế lên Thủ Lĩnh": từ chối bình thường khi chỉ còn ải giữa, không phải lỗi.
+                    const knownRefusal = String(reply.msg) === '196050';
+                    sendLog(`${knownRefusal ? 'ℹ️' : '⚠️'} [M4 - Cổ Thần Địa] Máy chủ trả lời dùng vật phẩm ô #${sp.pending.gridId}: res=${reply.res}, thông báo: "${text || '(trống)'}".`, knownRefusal ? "info" : "warn");
+                }
+                if (reply && reply.res !== 1) {
+                    // Máy chủ từ chối rõ ràng (ví dụ "không thể dùng lên Thủ Lĩnh ở tầng này"): vật phẩm chưa bị trừ, nên
+                    // hoàn lại lượt đếm, bỏ ô này khỏi danh sách mục tiêu và đi tiếp thay vì báo lỗi.
+                    sp.denied = sp.denied || new Set();
+                    sp.denied.add(sp.pending.gridId);
+                    sp.uses = Math.max(0, sp.uses - 1);
+                    saveCoThanSpecialSent(sp.uses);
+                    sp.pending = null;
+                    state.refreshing = null;
+                    return true;
+                }
                 const r = coThanRefresh(ctrl, state, now);
                 if (r === 'wait') return false;
                 const pending = sp.pending;
@@ -329,7 +370,7 @@
                 const grid = (after.gridLs || []).find((x) => x.id === pending.gridId);
                 const spent = after.lsPotion < pending.left || after.slPotion < pending.owned;
                 if (spent || (grid && grid.isFsh === 1)) {
-                    sendLog(`✅ [M4 - Cổ Thần Địa] Máy chủ xác nhận đã dùng vật phẩm đặc biệt lên ô #${pending.gridId} (lần ${sp.uses}/${CO_THAN_MAX_SPECIAL_USES}).`, "action");
+                    sendLog(`✅ [M4 - Cổ Thần Địa] Máy chủ xác nhận đã dùng vật phẩm đặc biệt lên ô #${pending.gridId} (lần ${sp.uses}/${CO_THAN_MAX_SPECIAL_USES}).`, "result");
                 } else {
                     failCoThan(state, 'sp-unconfirmed', `Đã dùng vật phẩm lên ô #${pending.gridId} nhưng game chưa ghi nhận; dừng bước này.`, 'reward');
                 }
@@ -338,7 +379,7 @@
             if (!dt) { state.phase = 'reward'; return false; }
             const owned = Number(dt.slPotion) || 0;
             const left = Number(dt.lsPotion) || 0;
-            const targets = coThanRemainingBosses(dt);
+            const targets = coThanRemainingBosses(dt).filter((g) => !(sp.denied && sp.denied.has(g.id)));
             if (sp.uses >= CO_THAN_MAX_SPECIAL_USES || owned <= 0 || left <= 0 || !targets.length) {
                 const why = sp.uses >= CO_THAN_MAX_SPECIAL_USES ? 'đã đủ số lần'
                     : (!targets.length ? 'không còn ải' : 'hết vật phẩm/lượt');
@@ -351,6 +392,7 @@
             state.idleAt = now;
             const target = targets[0];
             sp.pending = { gridId: target.id, at: now, owned, left };
+            coThanSpecialReply = null;
             state.refreshing = null;
             // Tính ngay lúc gửi (kể cả khi mạng rớt chưa kịp xác nhận) để không bao giờ vượt giới hạn.
             sp.uses++;
@@ -370,7 +412,7 @@
                 const entry = (ctrl.mainUiDt && ctrl.mainUiDt.killLs || []).find((k) => k.num === pending.num);
                 if (r === 'ready' && entry && entry.status === 2) {
                     cl.done++;
-                    sendLog(`✅ [M4 - Cổ Thần Địa] Máy chủ xác nhận đã nhận thưởng Diệt Thủ Hộ mốc ${pending.num}.`, "action");
+                    sendLog(`✅ [M4 - Cổ Thần Địa] Máy chủ xác nhận đã nhận thưởng Diệt Thủ Hộ mốc ${pending.num}.`, "result");
                 } else {
                     failCoThan(state, 'claim-unconfirmed', `Đã gửi nhận thưởng mốc ${pending.num} nhưng game chưa ghi nhận; dừng bước này.`);
                 }

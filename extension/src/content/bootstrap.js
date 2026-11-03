@@ -36,7 +36,7 @@
         autoTuLinhThap: true,           // Cử tướng Trợ Trận & Leo + Quét 4 Tháp Tứ Linh (Ma/Thiên/Nghịch/Dị)
         
         // Module 2: Phụ Bản Ngày & Bí Cảnh Tứ Quốc
-        autoClimbDailyDungeons: false,  // Quét nhanh PB Ngày (Free & Mua 250 Tiên Ngọc)
+        autoClimbDailyDungeons: false,  // Leo PB Ngày (không dùng trong M2; M2 chỉ quét miễn phí)
         buyDailyDungeon: true,          // Tự mua thêm quét PB Ngày
         autoBiCanhTuQuoc: false,        // Quét Bí Cảnh Tứ Quốc tầng Đủ Vượt 10 lần
         
@@ -75,9 +75,10 @@
         autoSweepDungeons: false,       // Quét sạch phụ bản đã vượt
         autoXianYuan: false,            // Quà Tiên Duyên
         
-        // Banner hero: tự nhận quà khi banner đang mở (tab Banner)
-        bannerAuto: {},                 // { [unique_id]: true } banner được bật tự nhận quà
+        // Sự kiện đang mở (banner tướng Thần Lâm / Đạp Thiên): tính năng chính 'autoBanner' (làm việc ngày cho TẤT CẢ banner đang mở)
+        verboseLog: false,              // true = hiện cả các dòng log chi tiết từng bước (gỡ lỗi); mặc định chỉ hiện thông tin quan trọng
         bannerGoldPrice: 300,           // Quà Tiên Ngọc trong bảng Quà banner: mua mặc định, chỉ khi đúng giá này
+        bannerZlBuyGold: 300,           // Trần Tiên Ngọc mua điểm Chiến Lệnh mỗi banner (0 = tắt); chỉ mua trong 24 giờ cuối
 
         activeTab: 'daoThanh',
         intervalMs: 1200,

@@ -1,5 +1,9 @@
     if (isTopWindow || isStandaloneGame) {
+        // Chỉ hiện thông tin quan trọng: 'result' (mua/nhận thưởng/kết quả), 'run' (bắt đầu/hoàn tất/dừng), 'warn', 'err'.
+        // Các dòng chi tiết từng bước ('info', 'action', ...) chỉ hiện khi bật "Log chi tiết" (CONFIG.verboseLog).
+        const LOG_ALWAYS_SHOWN = ['result', 'run', 'warn', 'err', 'error'];
         function addLogToUI(msg, type = "info") {
+            if (!CONFIG.verboseLog && !LOG_ALWAYS_SHOWN.includes(type)) return;
             const logBox = document.getElementById('tn-log-content');
             if (!logBox) return;
             const time = new Date().toLocaleTimeString();
@@ -12,8 +16,9 @@
             
             let color = '#a6e3a1';
             if (type === 'warn') color = '#fab387';
-            if (type === 'err') color = '#f38ba8';
+            if (type === 'err' || type === 'error') color = '#f38ba8';
             if (type === 'action') color = '#89b4fa';
+            if (type === 'run') color = '#89dceb';
 
             p.innerHTML = `<span style="color:#888;">[${time}]</span> <span style="color:${color};">${msg}</span>`;
             logBox.appendChild(p);
@@ -67,10 +72,9 @@
             }
         }
 
-        // Có gì để chạy: một tính năng chính đã chọn, hoặc ít nhất 1 banner đã tick ở tab Banner.
+        // Có gì để chạy: đã chọn một tính năng chính (chỉ một tính năng mỗi lần, kể cả "Tướng Thần Lâm / Đạp Thiên").
         function hasRunnableSelection() {
-            return Boolean(CONFIG.activeFeature) ||
-                Object.keys(CONFIG.bannerAuto || {}).some((k) => CONFIG.bannerAuto[k]);
+            return Boolean(CONFIG.activeFeature);
         }
 
         function sendCommandToGame(action, data = {}) {
@@ -113,13 +117,13 @@
             } else if (data.action === 'LOG') {
                 addLogToUI(data.message, data.logType);
             } else if (data.action === 'AUTO_FINISHED') {
-                // Lượt chạy một lần (vd: chỉ nhận quà banner) đã xong: trả nút về trạng thái dừng.
+                // Tính năng đã hoàn tất: trả nút về trạng thái dừng (dòng kết quả đã được game ghi log).
                 CONFIG.running = false;
                 updateBadge(false);
-                addLogToUI(data.message || 'Đã xong, Auto tự dừng.', 'info');
+                if (data.message) addLogToUI(data.message, 'run');
             } else if (data.action === 'AUTO_RECONNECT_RELOAD') {
                 if (!reconnectTopPrepare(data.reason, data.resume)) return;
-                addLogToUI('🔄 [Vào lại game] Đang làm mới trang game để vào lại...', 'action');
+                addLogToUI('🔄 [Vào lại game] Đang làm mới trang game để vào lại...', 'run');
                 setTimeout(() => location.reload(), 800);
             } else if (data.action === 'AUTO_RECONNECT_GAME_READY') {
                 reconnectTopDone();
@@ -129,7 +133,7 @@
                     updateBadge(true);
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                     sendCommandToGame('TOGGLE_AUTO', { running: true, resumed: true, config: CONFIG });
-                    addLogToUI('▶️ [Vào lại game] Auto đã được khởi động lại sau khi vào lại game.', 'action');
+                    addLogToUI('▶️ [Vào lại game] Auto đã được khởi động lại sau khi vào lại game.', 'run');
                 } else {
                     sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                     addLogToUI('ℹ️ [Vào lại game] Đã vào lại game; Auto vẫn đang tạm dừng như trước khi ngắt kết nối.', 'info');

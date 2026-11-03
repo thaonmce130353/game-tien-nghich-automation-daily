@@ -14,9 +14,24 @@
         ];
 
         let bannerGiftBusy = false;
+        let bannerAbortRequested = false;
+
+        // Người dùng bấm dừng giữa lượt Banner: mọi lần chờ (bannerSleep) sẽ ném lỗi dừng để luồng thoát và đóng các bảng đã mở.
+        function bannerRequestAbort() {
+            if (bannerGiftBusy) bannerAbortRequested = true;
+        }
+
+        function bannerAbortError() {
+            const error = new Error('Banner: đã dừng giữa chừng');
+            error.bannerAbort = true;
+            return error;
+        }
 
         function bannerSleep(ms) {
-            return new Promise((resolve) => setTimeout(resolve, ms));
+            return new Promise((resolve, reject) => {
+                if (bannerAbortRequested) { reject(bannerAbortError()); return; }
+                setTimeout(() => (bannerAbortRequested ? reject(bannerAbortError()) : resolve()), ms);
+            });
         }
 
         // CHỈ ĐỌC, KHÔNG KÍCH HOẠT: không gọi gInst() (sẽ tạo controller sớm) và không gọi các getter
@@ -53,11 +68,17 @@
                 const dat = deseno.getActDat(cfg.activity);
                 if (!dat || dat.status !== openStatus || !(dat.close_time > now)) continue;
                 const match = /Chiến Lệnh\s+([^,]+)/.exec(String(cfg.tabName || ''));
+                let heroName = '';
+                try {
+                    const heroBase = window.HeroCtrl && window.HeroCtrl.gInst().getHeroBaseByBaseId(cfg.hero_id);
+                    heroName = heroBase && heroBase.name ? String(heroBase.name) : '';
+                } catch (e) { }
                 list.push({
                     uniqueId: cfg.activity_id,
                     activityId: cfg.activity,
                     series: match ? match[1].trim() : 'Hero ' + cfg.hero_id,
                     heroId: cfg.hero_id,
+                    heroName,
                     giftSystemId: cfg.gift_system_id,
                     closeTime: dat.close_time,
                     remainSec: dat.close_time - now
@@ -68,8 +89,8 @@
 
         // Quyết định cho một dòng quà. Không bao giờ chọn quà có price (tiền thật).
         function bannerGiftDecision(gift, remaining) {
-            if (Number(gift.price) > 0) return { action: 'skip', silent: true };
-            if (remaining <= 0) return { action: 'skip', silent: true };
+            if (Number(gift.price) > 0) return { action: 'skip', reason: 'quà nạp tiền thật (không mua)' };
+            if (remaining <= 0) return { action: 'skip', reason: 'đã nhận/mua đủ hôm nay' };
             const gold = Number(gift.gold) || 0;
             if (gold === 0) return { action: 'claim', reason: 'miễn phí' };
             // Quà Tiên Ngọc mua mặc định, nhưng chỉ đúng giá đã định (300); giá khác thì bỏ qua.
@@ -117,10 +138,20 @@
                 }
 
                 const list = view.giftList;
+                // Danh sách của game chỉ dựng ô hiển thị cho các dòng đang thấy; lấy đủ các dòng từ dữ liệu để không
+                // bỏ sót quà nằm dưới (ví dụ Lệnh Chiêu Mộ mua bằng Tiên Ngọc).
+                const rendered = [];
                 for (let i = 0; i < list.numElements; i++) {
-                    const item = list.getElementAt(i);
-                    const gift = item && item.data;
-                    if (!gift || typeof item.onBuy !== 'function') continue;
+                    const el = list.getElementAt(i);
+                    if (el && el.data) rendered.push(el);
+                }
+                const source = view.giftListCol && Array.isArray(view.giftListCol.source) && view.giftListCol.source.length
+                    ? view.giftListCol.source.slice() : rendered.map((el) => el.data);
+                sendLog(`ℹ️ ${tag} Bảng Quà có ${source.length} dòng (đang hiển thị ${rendered.length}).`, 'info');
+                for (const gift of source) {
+                    if (!gift) continue;
+                    const item = rendered.find((el) => el.data && el.data.charge_id === gift.charge_id) || null;
+                    if (item && typeof item.onBuy !== 'function') continue;
                     if (!ctrl.isActivityOpen(uid)) {
                         sendLog(`ℹ️ ${tag} Banner đã đóng; dừng.`, 'info');
                         break;
@@ -135,11 +166,23 @@
                         continue;
                     }
 
-                    // Nút của dòng quà phải đang hiển thị đúng như giao diện cung cấp.
-                    const button = decision.action === 'claim' ? item.buyBtn : item.moneyBtn;
-                    const offered = button && button.visible !== false && (!button.parent || button.parent.visible !== false);
-                    if (!offered) {
-                        sendLog(`ℹ️ ${tag} "${name}" không có nút ${decision.action === 'claim' ? 'Nhận' : 'mua Tiên Ngọc'} trên giao diện; bỏ qua.`, 'info');
+                    // Dòng đang hiển thị: nút phải đang hiện đúng như giao diện cung cấp. Dòng chưa dựng ô: dùng đúng điều kiện
+                    // dữ liệu mà ô của game dùng (không có giá nạp tiền; miễn phí hoặc có giá Tiên Ngọc).
+                    if (item) {
+                        const button = decision.action === 'claim' ? item.buyBtn : item.moneyBtn;
+                        const offered = button && button.visible !== false && (!button.parent || button.parent.visible !== false);
+                        if (!offered) {
+                            sendLog(`ℹ️ ${tag} "${name}" không có nút ${decision.action === 'claim' ? 'Nhận' : 'mua Tiên Ngọc'} trên giao diện; bỏ qua.`, 'info');
+                            continue;
+                        }
+                    } else if (!window.RechargeCtrl || typeof window.RechargeCtrl.gInst !== 'function' ||
+                        typeof window.RechargeCtrl.gInst().send12323 !== 'function') {
+                        sendLog(`⚠️ ${tag} "${name}" chưa hiển thị và không tìm thấy lệnh mua của game; bỏ qua.`, 'err');
+                        continue;
+                    }
+                    if (decision.action === 'buy' && window.CommonUtils && typeof window.CommonUtils.getRoleAsset === 'function' &&
+                        (Number(window.CommonUtils.getRoleAsset('gold')) || 0) < (Number(gift.gold) || 0)) {
+                        sendLog(`ℹ️ ${tag} Không đủ Tiên Ngọc để mua "${name}" (${gift.gold}); bỏ qua.`, 'info');
                         continue;
                     }
 
@@ -148,7 +191,9 @@
                     if (clicks[gift.charge_id] > Math.max(limit, 1)) continue;
 
                     sendLog(`🎁 ${tag} ${decision.action === 'buy' ? 'Mua' : 'Nhận'} "${name}" (${decision.reason}).`, 'action');
-                    item.onBuy();
+                    // Cùng đường gửi với nút của ô quà (không có giá nạp tiền): send12323(charge_id).
+                    if (item) item.onBuy();
+                    else window.RechargeCtrl.gInst().send12323(gift.charge_id);
 
                     let confirmed = false;
                     const clickedAt = Date.now();
@@ -159,7 +204,7 @@
                         await bannerSleep(300);
                     }
                     if (confirmed) {
-                        sendLog(`✅ ${tag} Đã ${decision.action === 'buy' ? 'mua' : 'nhận'} "${name}".`, 'action');
+                        sendLog(`✅ ${tag} Đã ${decision.action === 'buy' ? 'mua' : 'nhận'} "${name}".`, 'result');
                     } else {
                         unconfirmed = true;
                         sendLog(`⚠️ ${tag} Máy chủ chưa xác nhận "${name}".`, 'err');
@@ -171,14 +216,15 @@
             return { ok: !unconfirmed };
         }
 
-        // Một lượt duy nhất khi bấm BẮT ĐẦU: nhận quà cho các banner đã tick. Đặt cờ bận ngay (đồng bộ)
-        // để vòng chạy chính nhường chỗ cho tới khi xong.
+        // Một lượt duy nhất khi bấm BẮT ĐẦU: làm việc ngày cho TẤT CẢ banner đang mở (khi đã tick "Tướng Thần Lâm /
+        // Đạp Thiên"). Đặt cờ bận ngay (đồng bộ) để vòng chạy chính nhường chỗ cho tới khi xong.
         async function bannerRunOnce() {
-            const auto = CONFIG.bannerAuto || {};
-            const selected = Object.keys(auto).filter((k) => auto[k]);
-            if (!selected.length || bannerGiftBusy) return;
+            if (CONFIG.activeFeature !== 'autoBanner' || bannerGiftBusy) return;
 
             bannerGiftBusy = true;
+            bannerAbortRequested = false;
+            let aborted = false;
+            let ranCount = 0;
             try {
                 const vm = window.ViewMgr && window.ViewMgr.gInst ? window.ViewMgr.gInst() : null;
                 const banners = bannerGetOpenList();
@@ -190,30 +236,20 @@
                     sendLog('⚠️ [Banner Hero] Đang ở màn hình trận đấu/đội hình; bấm BẮT ĐẦU lại sau.', 'err');
                     return;
                 }
-                for (const id of selected) {
-                    if (!banners.some((b) => String(b.uniqueId) === id)) {
-                        sendLog(`ℹ️ [Banner Hero] Banner #${id} không còn mở; bỏ qua.`, 'info');
-                    }
+                if (!banners.length) {
+                    sendLog('ℹ️ [Banner Hero] Hiện không có banner nào đang mở; không có gì để làm.', 'info');
+                } else {
+                    sendLog(`🎴 [Banner Hero] Làm việc ngày cho ${banners.length} banner đang mở: ${banners.map((b) => b.series).join(', ')}.`, 'action');
                 }
-                for (const banner of banners) {
-                    if (auto[banner.uniqueId]) await bannerRunHero(banner);
-                }
-                sendLog('✅ [Banner Hero] Đã xong lượt Banner Hero.', 'info');
+                for (const banner of banners) { await bannerRunHero(banner); ranCount++; }
             } catch (error) {
-                sendLog(`⚠️ [Banner Hero] Lỗi: ${error && error.message || error}`, 'err');
+                if (error && error.bannerAbort) aborted = true;
+                else sendLog(`⚠️ [Banner Hero] Lỗi: ${error && error.message || error}`, 'err');
             } finally {
                 bannerGiftBusy = false;
-                // Không có tính năng chính nào đang chạy: lượt này là tất cả, tự dừng.
-                if (!CONFIG.activeFeature) {
-                    CONFIG.running = false;
-                    try {
-                        window.top.postMessage({
-                            source: 'TIEN_NGHICH_AUTO_GAME',
-                            action: 'AUTO_FINISHED',
-                            message: '✅ [Banner Hero] Đã xong; Auto tự dừng.'
-                        }, '*');
-                    } catch (e) { }
-                }
+                bannerAbortRequested = false;
+                // Bị dừng giữa chừng: runAbort đã ghi log; xong lượt: ghi kết quả và tự dừng Auto.
+                if (!aborted && CONFIG.activeFeature === 'autoBanner') runFinish(`${ranCount} banner`);
             }
         }
 

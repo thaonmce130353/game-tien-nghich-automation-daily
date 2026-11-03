@@ -6,6 +6,9 @@
         // Trả về: 'done' (đã xong / không có gì làm) | 'acted' (vừa thao tác) | 'wait' (đang chờ game).
         const UYEN_NHI_TIMEOUT_MS = 20000;
         let uyenNhiState = null;
+        runResetHooks.push(() => {
+            if (uyenNhiState && uyenNhiState.failed && uyenNhiState.phase === 'done') uyenNhiState = null;
+        });
 
         function uyenNhiFinish(state, message, type, failed) {
             state.phase = 'done';
@@ -72,7 +75,7 @@
 
             if (state.phase === 'confirm') {
                 if (ctrl.isCAwrd === true) {
-                    uyenNhiFinish(state, "✅ [M4 - Cửu Uyển Nhi] Máy chủ xác nhận Quét nhanh thành công.", "action");
+                    uyenNhiFinish(state, "✅ [M4 - Cửu Uyển Nhi] Máy chủ xác nhận Quét nhanh thành công.", "result");
                     if (vm.viewIsVisible('mzFinish')) vm.closeView('mzFinish');
                     try { ctrl.sd20201(); } catch (e) { }
                     ctrl.clsMz();
