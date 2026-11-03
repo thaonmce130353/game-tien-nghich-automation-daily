@@ -106,7 +106,9 @@
             try {
                 if (!ctx.ArenaCtrl || !ctx.ArenaCtrl.gInst) return false;
                 const configuredLimit = Number(CONFIG.arenaBattleLimit);
-                const battleLimit = Number.isInteger(configuredLimit) && configuredLimit >= 1 ? configuredLimit : 5;
+                const baseLimit = Number.isInteger(configuredLimit) && configuredLimit >= 1 ? configuredLimit : 5;
+                // Quét nhanh: chỉ đánh ít trận cho nhanh (không vượt giới hạn đã cài).
+                const battleLimit = typeof quickRunActive === 'function' && quickRunActive() ? Math.min(baseLimit, QUICK_ARENA_BATTLES) : baseLimit;
                 if (arenaRunState.battlesCompleted >= battleLimit) {
                     if (!arenaRunState.limitReachedLogged) {
                         sendLog(`ℹ️ [Đấu Tiên Đài] Đã đạt giới hạn ${battleLimit} trận của lần chạy Auto; bỏ qua các lượt còn lại.`, "info");

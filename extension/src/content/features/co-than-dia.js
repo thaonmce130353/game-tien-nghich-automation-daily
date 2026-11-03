@@ -120,6 +120,16 @@
             return pollTowerDailyRefresh(state, 'refreshing', now, () => ctrl.send11060(2), () => ctrl.mainUiDt);
         }
 
+        // Quét nhanh: chỉ chọn đội hình xuất chiến, không khiêu chiến / dùng vật phẩm / nhận thưởng.
+        function coThanTeamOnly() { return typeof quickRunActive === 'function' && quickRunActive(); }
+        function coThanFinishTeamOnly(ctrl, vm, state) {
+            state.teamOnly = true;
+            state.phase = 'done';
+            try { if (vm.viewIsVisible('adventureMainUi')) ctrl.closeMainUi(); } catch (e) { }
+            sendLog("✅ [Cổ Thần Địa] Quét nhanh: đã có đội hình xuất chiến; bỏ qua khiêu chiến (chạy riêng Cổ Thần Địa để đánh).", "result");
+            return true;
+        }
+
         function coThanOpen(ctx, ctrl, vm, state, now) {
             if (!state.sent) {
                 try {
@@ -149,6 +159,7 @@
                     failCoThan(state, 'ended', "Hoạt động Cổ Thần Địa đã kết thúc.");
                     return false;
                 }
+                if (coThanTeamOnly()) return coThanFinishTeamOnly(ctrl, vm, state);
                 state.phase = 'fight';
                 state.idleAt = now;
                 sendLog(`✅ [Cổ Thần Địa] Đã vào Cổ Thần Địa: ${coThanAliveCount(dt)}/${dt.heroLs.length} tướng còn sức, ${dt.killNum || 0} lượt hạ gục.`, "action");
@@ -165,6 +176,7 @@
             if (!ui) {
                 // Bảng đã đóng: game tự mở lại màn chính khi xác nhận (scmd11065 -> clkAdv); kiểm tra dữ liệu.
                 if (ctrl.mainUiDt && ctrl.mainUiDt.heroLs && ctrl.mainUiDt.heroLs.length) {
+                    if (coThanTeamOnly()) return coThanFinishTeamOnly(ctrl, vm, state);
                     state.phase = 'fight';
                     state.idleAt = now;
                     sendLog(`✅ [Cổ Thần Địa] Máy chủ xác nhận đã chọn ${ctrl.mainUiDt.heroLs.length} tướng xuất chiến.`, "action");
@@ -457,6 +469,8 @@
                     coThanState = createCoThanState();
                     sendLog("🗺️ [Cổ Thần Địa] Bắt đầu/khởi động lại: kiểm tra trạng thái từ game, khiêu chiến ải quanh rồi ải giữa, dùng vật phẩm, nhận thưởng.", "action");
                 }
+                // Bản ghi "xong" do Quét nhanh chỉ chọn đội: chạy riêng thì làm đầy đủ (khiêu chiến...).
+                if (coThanState.teamOnly && coThanState.phase === 'done' && !coThanTeamOnly()) coThanState = createCoThanState();
                 const state = coThanState;
                 if (state.phase === 'done') {
                     logCoThan(state, 'done', state.failed

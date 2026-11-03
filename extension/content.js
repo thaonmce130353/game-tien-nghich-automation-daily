@@ -2981,7 +2981,9 @@
             try {
                 if (!ctx.ArenaCtrl || !ctx.ArenaCtrl.gInst) return false;
                 const configuredLimit = Number(CONFIG.arenaBattleLimit);
-                const battleLimit = Number.isInteger(configuredLimit) && configuredLimit >= 1 ? configuredLimit : 5;
+                const baseLimit = Number.isInteger(configuredLimit) && configuredLimit >= 1 ? configuredLimit : 5;
+                // Quét nhanh: chỉ đánh ít trận cho nhanh (không vượt giới hạn đã cài).
+                const battleLimit = typeof quickRunActive === 'function' && quickRunActive() ? Math.min(baseLimit, QUICK_ARENA_BATTLES) : baseLimit;
                 if (arenaRunState.battlesCompleted >= battleLimit) {
                     if (!arenaRunState.limitReachedLogged) {
                         sendLog(`ℹ️ [Đấu Tiên Đài] Đã đạt giới hạn ${battleLimit} trận của lần chạy Auto; bỏ qua các lượt còn lại.`, "info");
@@ -5263,6 +5265,16 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
             return pollTowerDailyRefresh(state, 'refreshing', now, () => ctrl.send11060(2), () => ctrl.mainUiDt);
         }
 
+        // Quét nhanh: chỉ chọn đội hình xuất chiến, không khiêu chiến / dùng vật phẩm / nhận thưởng.
+        function coThanTeamOnly() { return typeof quickRunActive === 'function' && quickRunActive(); }
+        function coThanFinishTeamOnly(ctrl, vm, state) {
+            state.teamOnly = true;
+            state.phase = 'done';
+            try { if (vm.viewIsVisible('adventureMainUi')) ctrl.closeMainUi(); } catch (e) { }
+            sendLog("✅ [Cổ Thần Địa] Quét nhanh: đã có đội hình xuất chiến; bỏ qua khiêu chiến (chạy riêng Cổ Thần Địa để đánh).", "result");
+            return true;
+        }
+
         function coThanOpen(ctx, ctrl, vm, state, now) {
             if (!state.sent) {
                 try {
@@ -5292,6 +5304,7 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
                     failCoThan(state, 'ended', "Hoạt động Cổ Thần Địa đã kết thúc.");
                     return false;
                 }
+                if (coThanTeamOnly()) return coThanFinishTeamOnly(ctrl, vm, state);
                 state.phase = 'fight';
                 state.idleAt = now;
                 sendLog(`✅ [Cổ Thần Địa] Đã vào Cổ Thần Địa: ${coThanAliveCount(dt)}/${dt.heroLs.length} tướng còn sức, ${dt.killNum || 0} lượt hạ gục.`, "action");
@@ -5308,6 +5321,7 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
             if (!ui) {
                 // Bảng đã đóng: game tự mở lại màn chính khi xác nhận (scmd11065 -> clkAdv); kiểm tra dữ liệu.
                 if (ctrl.mainUiDt && ctrl.mainUiDt.heroLs && ctrl.mainUiDt.heroLs.length) {
+                    if (coThanTeamOnly()) return coThanFinishTeamOnly(ctrl, vm, state);
                     state.phase = 'fight';
                     state.idleAt = now;
                     sendLog(`✅ [Cổ Thần Địa] Máy chủ xác nhận đã chọn ${ctrl.mainUiDt.heroLs.length} tướng xuất chiến.`, "action");
@@ -5600,6 +5614,8 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
                     coThanState = createCoThanState();
                     sendLog("🗺️ [Cổ Thần Địa] Bắt đầu/khởi động lại: kiểm tra trạng thái từ game, khiêu chiến ải quanh rồi ải giữa, dùng vật phẩm, nhận thưởng.", "action");
                 }
+                // Bản ghi "xong" do Quét nhanh chỉ chọn đội: chạy riêng thì làm đầy đủ (khiêu chiến...).
+                if (coThanState.teamOnly && coThanState.phase === 'done' && !coThanTeamOnly()) coThanState = createCoThanState();
                 const state = coThanState;
                 if (state.phase === 'done') {
                     logCoThan(state, 'done', state.failed
@@ -9933,6 +9949,7 @@ function quickStepMaxMs(key) { return QUICK_STEP_MAX_MS_BY_KEY[key] || QUICK_STE
         // khi bấm BẮT ĐẦU thường thì checkbox đặt cờ này, nên Quét nhanh phải tự đặt theo từng bước.
         const QUICK_CONFIG_LOCKED_KEYS = ['activeFeature', 'running', 'towerSweepOnly', 'towerDailyRoutine'].concat(QUICK_RUN_QUEUE);
         let quickRun = null;
+const QUICK_ARENA_BATTLES = 3;     // Đấu Tiên Đài trong Quét nhanh: tối đa 3 trận
 
         // ---- Lưu tiến độ để dừng giữa chừng rồi TIẾP TỤC (hoặc chạy lại từ đầu). sessionStorage: sống qua lần tải lại trang
         // (tự vào lại game), chỉ hợp lệ trong ngày. idx = bước sẽ chạy tiếp theo; results = các bước đã xong.
