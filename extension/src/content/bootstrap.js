@@ -61,7 +61,7 @@
         // Module 8: Hoạt Động Ngày, Tiên Minh & Nhận Cuối Ngày
         autoTroChien: false,            // Trợ Chiến Linh Thú (Tab Hoàn & Nhận nhanh)
         autoTamTienDai: false,          // Nhận quà miễn phí Tâm Tiên Đài và Chiêu Mộ
-        buyTamTienGifts: false,         // Tự mua quà Tiên Ngọc Tâm Tiên Đài (tự bật khi chọn Tâm Tiên Đài)
+        buyTamTienGifts: true,          // Tự mua quà Tiên Ngọc Tâm Tiên Đài (đổi trong cài đặt ⚙ của tính năng)
         autoTienHuu: false,             // Tặng nhanh quà Bạn Bè (Tiên Hữu)
         autoArena: false,               // Đấu Tiên Đài PvP (giới hạn lượt, chọn đối thủ thấp)
         arenaBattleLimit: 5,             // Số trận Đấu Tiên Đài tối đa mỗi lần chạy Auto

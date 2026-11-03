@@ -11,6 +11,7 @@ const allSourceFiles = [
     'ui-init.js',
     'ui-styles.js',
     'ui-markup.js',
+    'ui-settings.js',
     'ui-events.js',
     'features/exposure-probe-ui.js',
     'features/banner-gifts-ui.js',

@@ -61,7 +61,7 @@
         // Module 8: Hoạt Động Ngày, Tiên Minh & Nhận Cuối Ngày
         autoTroChien: false,            // Trợ Chiến Linh Thú (Tab Hoàn & Nhận nhanh)
         autoTamTienDai: false,          // Nhận quà miễn phí Tâm Tiên Đài và Chiêu Mộ
-        buyTamTienGifts: false,         // Tự mua quà Tiên Ngọc Tâm Tiên Đài (tự bật khi chọn Tâm Tiên Đài)
+        buyTamTienGifts: true,          // Tự mua quà Tiên Ngọc Tâm Tiên Đài (đổi trong cài đặt ⚙ của tính năng)
         autoTienHuu: false,             // Tặng nhanh quà Bạn Bè (Tiên Hữu)
         autoArena: false,               // Đấu Tiên Đài PvP (giới hạn lượt, chọn đối thủ thấp)
         arenaBattleLimit: 5,             // Số trận Đấu Tiên Đài tối đa mỗi lần chạy Auto
@@ -637,6 +637,41 @@
                     cursor: pointer;
                     transform: scale(1.15);
                 }
+                .tn-feat-title { font-weight: bold; display: flex; align-items: center; gap: 6px; }
+                .tn-gear-btn {
+                    background: rgba(69, 71, 90, 0.7);
+                    color: #cdd6f4;
+                    border: 1px solid rgba(255, 255, 255, 0.12);
+                    border-radius: 5px;
+                    padding: 0 5px;
+                    font-size: 11px;
+                    line-height: 16px;
+                    cursor: pointer;
+                }
+                .tn-gear-btn:hover { background: rgba(203, 166, 247, 0.35); color: #fff; }
+                .tn-feat-desc { font-size: 9.5px; color: #a6adc8; margin-top: 2px; line-height: 1.3; }
+                .tn-feat-cfg { font-size: 9.5px; color: #f9e2af; margin-top: 2px; line-height: 1.3; }
+                .tn-feat-cfg:empty { display: none; }
+                #tn-settings-overlay {
+                    position: absolute; inset: 0; z-index: 1002;
+                    background: rgba(0, 0, 0, 0.55);
+                    display: none; align-items: center; justify-content: center;
+                }
+                #tn-settings-overlay.open { display: flex; }
+                #tn-settings-card {
+                    width: min(340px, 90%);
+                    background: #1e1e2e; color: #cdd6f4;
+                    border: 1px solid rgba(203, 166, 247, 0.5);
+                    border-radius: 10px; padding: 10px 12px;
+                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+                }
+                #tn-settings-card .tn-set-head { display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 12px; margin-bottom: 8px; color: #cba6f7; }
+                #tn-settings-card .tn-set-close { background: transparent; border: 0; color: #a6adc8; font-size: 14px; cursor: pointer; }
+                #tn-settings-card .tn-set-field { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 8px; margin-bottom: 5px; background: rgba(17, 17, 27, 0.7); border-radius: 6px; }
+                #tn-settings-card .tn-set-label { font-size: 10.5px; font-weight: bold; }
+                #tn-settings-card .tn-set-hint { font-size: 9.5px; color: #a6adc8; margin-top: 2px; line-height: 1.3; }
+                #tn-settings-card input[type="number"] { width: 56px; padding: 2px 4px; background: #181825; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; }
+                #tn-settings-card input[type="checkbox"] { accent-color: #cba6f7; transform: scale(1.15); cursor: pointer; }
                 .tn-action-btn {
                     width: 100%;
                     padding: 8px 0;
@@ -758,7 +793,6 @@
                         <!-- THANH ĐIỀU HƯỚNG 5 TAB GAME -->
                         <div class="tn-tab-bar">
                             <button class="tn-tab-btn active" data-tab="daoThanh" title="Khu vực Đạo Thành">🏛️ Đạo Thành</button>
-                            <button class="tn-tab-btn" data-tab="tuSi" title="Khu vực Tu Sĩ">🧘 Tu Sĩ</button>
                             <button class="tn-tab-btn" data-tab="troChien" title="Khu vực Trợ Chiến">⚔️ Trợ Chiến</button>
                             <button class="tn-tab-btn" data-tab="lichLuyen" title="Khu vực Lịch Luyện">🗺️ Lịch Luyện</button>
                             <button class="tn-tab-btn" data-tab="maDao" title="Khu vực Ma Đạo">🔥 Ma Đạo</button>
@@ -771,174 +805,157 @@
                             <div id="tn-tab-panel-dao-thanh" class="tn-tab-panel active">
                                 <div class="tn-opt-list">
                                     <label class="tn-opt-item" style="border-left: 3px solid #89dceb;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#89dceb;">✨ Tâm Tiên Đài (Nhận Quà 4 Tab Free)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Tự nhận quà miễn phí và Chiêu Mộ ngày; có thể bật mua thêm quà bằng Tiên Ngọc.</div>
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#89dceb;"><span class="tn-feat-name">✨ Tâm Tiên Đài</span><button type="button" class="tn-gear-btn" data-gear="autoTamTienDai" title="Cài đặt">⚙</button></div>
+                                            <div class="tn-feat-desc">Nhận quà miễn phí 4 tab và Chiêu Mộ ngày; có thể mua thêm quà bằng Tiên Ngọc.</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoTamTienDai"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoTamTienDai" ${CONFIG.activeFeature === 'autoTamTienDai' ? 'checked' : ''}>
                                     </label>
-                                    <label class="tn-opt-item" style="margin:0 0 4px 10px; padding:4px 8px; border-left:3px solid #a6e3a1;">
-                                        <div>
-                                            <div style="font-size:10px; color:#a6e3a1;">🟢 Mua Tiên Ngọc</div>
-                                            <div style="font-size:9px; color:#a6adc8; margin-top:2px;">Mua quà Pháp Bảo, Linh Thú, Pháp Trận bằng Tiên Ngọc; không mua quà tiền mặt.</div>
-                                        </div>
-                                        <input type="checkbox" id="tn-opt-buy-tam-tien-gifts" ${CONFIG.buyTamTienGifts ? 'checked' : ''}>
-                                    </label>
                                     <label class="tn-opt-item" style="border-left: 3px solid #a6e3a1;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#a6e3a1;">🏟️ Đấu Tiên Đài (PvP Delay 2.5s)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Chọn đối thủ lực chiến thấp và giới hạn tổng số trận miễn phí + vé mỗi lần chạy Auto.</div>
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#a6e3a1;"><span class="tn-feat-name">🏟️ Đấu Tiên Đài</span><button type="button" class="tn-gear-btn" data-gear="autoArena" title="Cài đặt">⚙</button></div>
+                                            <div class="tn-feat-desc">Chọn đối thủ lực chiến thấp; giới hạn tổng số trận (lượt miễn phí + Đấu Tiên Lệnh) mỗi lần chạy Auto.</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoArena"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoArena" ${CONFIG.activeFeature === 'autoArena' ? 'checked' : ''}>
                                     </label>
-                                    <label class="tn-opt-item" style="margin:0 0 4px 10px; padding:4px 8px; border-left:3px solid #a6e3a1;">
-                                        <div style="font-size:10px; color:#a6e3a1;">Giới hạn (Free + Dùng Đấu Tiên Lệnh):</div>
-                                        <input type="number" id="tn-opt-arena-battle-limit" min="1" step="1" value="${CONFIG.arenaBattleLimit}" style="width:52px; padding:2px 4px; background:#181825; color:#cdd6f4; border:1px solid #45475a; border-radius:4px;">
-                                    </label>
                                     <label class="tn-opt-item" style="border-left: 3px solid #f9e2af;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#f9e2af;">🤝 Tiên Hữu (Tặng Nhanh Bạn Bè)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Vào Tiên Hữu tự động bấm Tặng nhanh điểm tình bạn mỗi ngày.</div>
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#f9e2af;"><span class="tn-feat-name">🤝 Tiên Hữu</span></div>
+                                            <div class="tn-feat-desc">Vào Tiên Hữu, bấm Tặng nhanh điểm tình bạn mỗi ngày.</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoTienHuu"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoTienHuu" ${CONFIG.activeFeature === 'autoTienHuu' ? 'checked' : ''}>
                                     </label>
                                     <label class="tn-opt-item" style="border-left: 3px solid #cba6f7;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#cba6f7;">🏛️ Tiên Minh (Bang Hội Trọn Gói)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Trả giá Shop, Bí Cảnh, Tỉ Thí, Vấn Đạo, Viện trợ Tông Môn & Cung phụng Tôn Sư.</div>
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#cba6f7;"><span class="tn-feat-name">🏛️ Tiên Minh</span><button type="button" class="tn-gear-btn" data-gear="autoTienMinh" title="Cài đặt">⚙</button></div>
+                                            <div class="tn-feat-desc">Trả giá Shop, Bí Cảnh, Tỉ Thí, Vấn Đạo, Viện trợ Tông Môn & Cung phụng Tôn Sư.</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoTienMinh"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoTienMinh" ${CONFIG.activeFeature === 'autoTienMinh' ? 'checked' : ''}>
                                     </label>
-                                    <label class="tn-opt-item" style="margin:0 0 4px 10px; padding:4px 8px; border-left:3px solid #cba6f7;">
-                                        <div>
-                                            <div style="font-size:10px; color:#cba6f7;">Giới hạn Bí Cảnh Tông Môn (2 free + mua 20 Tiên Ngọc/lượt):</div>
-                                            <div style="font-size:9px; color:#a6adc8; margin-top:2px;">Trên 2 trận sẽ tự mua thêm lượt; tối đa 6.</div>
-                                        </div>
-                                        <input type="number" id="tn-opt-tien-minh-dungeon-limit" min="1" max="6" step="1" value="${CONFIG.tienMinhDungeonLimit}" style="width:52px; padding:2px 4px; background:#181825; color:#cdd6f4; border:1px solid #45475a; border-radius:4px;">
-                                    </label>
                                     <label class="tn-opt-item" style="border-left: 3px solid #f38ba8;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#f38ba8;">📬 Nhận Cuối Ngày (Thư, Like BXH, Sôi Nổi)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Nhận toàn bộ Thư, Like BXH Đạo Thành 3 lần, nhận hết rương Sôi Nổi (25, 50, 75, 100).</div>
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#f38ba8;"><span class="tn-feat-name">📬 Nhận Cuối Ngày</span></div>
+                                            <div class="tn-feat-desc">Nhận toàn bộ Thư, Like BXH Đạo Thành 3 lần, nhận hết rương Sôi Nổi (25, 50, 75, 100).</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoCuoiNgay"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoCuoiNgay" ${CONFIG.activeFeature === 'autoCuoiNgay' ? 'checked' : ''}>
                                     </label>
                                 </div>
                             </div>
 
-                            <!-- TAB 2: TU SĨ -->
-                            <div id="tn-tab-panel-tu-si" class="tn-tab-panel">
-                                <div style="text-align:center; padding:24px 8px; color:#a6adc8; font-size:11px; background:rgba(17,17,27,0.5); border-radius:8px;">
-                                    🧘 <b>Khu Vực Tu Sĩ</b><br>
-                                    <span style="font-size:9.5px; color:#6c7086; margin-top:4px; display:inline-block;">Tự động phối hợp bồi dưỡng tướng và nâng cấp cảnh giới.</span>
-                                </div>
-                            </div>
-
-                            <!-- TAB 3: TRỢ CHIẾN -->
+                            <!-- TAB 2: TRỢ CHIẾN -->
                             <div id="tn-tab-panel-tro-chien" class="tn-tab-panel">
                                 <div class="tn-opt-list">
                                     <label class="tn-opt-item" style="border-left: 3px solid #a6e3a1;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#a6e3a1;">🐾 Trợ Chiến Linh Thú (Nhận Nhanh)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Vào Trợ Chiến &rarr; Linh Thú &rarr; Tab Hoàn &rarr; Bấm Nhận nhanh tài nguyên.</div>
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#a6e3a1;"><span class="tn-feat-name">🐾 Trợ Chiến Linh Thú</span></div>
+                                            <div class="tn-feat-desc">Vào Trợ Chiến &rarr; Linh Thú &rarr; Tab Hoàn &rarr; Bấm Nhận nhanh tài nguyên.</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoTroChien"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoTroChien" ${CONFIG.activeFeature === 'autoTroChien' ? 'checked' : ''}>
                                     </label>
                                 </div>
                             </div>
 
-                            <!-- TAB 4: LỊCH LUYỆN (MODULE 1 ĐẾN 7 ĐẦY ĐỦ) -->
+                            <!-- TAB 3: LỊCH LUYỆN -->
                             <div id="tn-tab-panel-lich-luyen" class="tn-tab-panel">
                                 <div class="tn-opt-list">
                                     <!-- MODULE 1 -->
                                     <label class="tn-opt-item" style="border-left: 3px solid #f5c2e7;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#f5c2e7;">🗼 [M1] Thông Thiên Tháp & Tứ Linh Tháp</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Quét Thông Thiên (Free + Mua Tiên Ngọc). Cử trợ trận tướng 1, leo 4 tháp & quét 2 lần.</div>
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#f5c2e7;"><span class="tn-feat-name">🗼 Thông Thiên Tháp & Tứ Linh Tháp</span><button type="button" class="tn-gear-btn" data-gear="autoTongTian" title="Cài đặt">⚙</button></div>
+                                            <div class="tn-feat-desc">Quét Thông Thiên Tháp (miễn phí + mua bằng Tiên Ngọc), cử trợ trận tướng 1, leo 4 tháp Tứ Linh và quét 2 lần.</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoTongTian"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoTongTian" ${CONFIG.activeFeature === 'autoTongTian' ? 'checked' : ''}>
                                     </label>
-                                    <label class="tn-opt-item" style="margin:0 0 4px 10px; padding:4px 8px; border-left:3px solid #f5c2e7;">
-                                        <div>
-                                            <div style="font-size:10px; color:#f5c2e7;">📅 Nhận thưởng và Quét ải mỗi ngày</div>
-                                            <div style="font-size:9px; color:#a6adc8; margin-top:2px;">Thông Thiên Tháp quét 3 lần (2 free + 1 mua); Tứ Linh Tháp đang mở: 10 ải mới + quét 2 lần free (không mua).</div>
-                                        </div>
-                                        <input type="checkbox" id="tn-opt-tower-daily" ${CONFIG.activeFeature === 'autoTongTian' && CONFIG.towerDailyRoutine ? 'checked' : ''}>
-                                    </label>
                                     <!-- MODULE 2 -->
                                     <label class="tn-opt-item" style="border-left: 3px solid #fab387;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#fab387;">⚔️ [M2] Phụ Bản Ngày & Bí Cảnh Tứ Quốc</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Quét PB Ngày chỉ bằng lượt MIỄN PHÍ (1 lần/ngày, không mua lượt bằng Tiên Ngọc). Bí Cảnh Tứ Quốc: đánh ải mới từng tháp đang mở (bỏ qua trận), hết ải thì quét ải cuối tới hết lượt miễn phí.</div>
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#fab387;"><span class="tn-feat-name">⚔️ Phụ Bản Ngày & Bí Cảnh Tứ Quốc</span></div>
+                                            <div class="tn-feat-desc">Quét PB Ngày chỉ bằng lượt MIỄN PHÍ (1 lần/ngày, không mua lượt bằng Tiên Ngọc). Bí Cảnh Tứ Quốc: đánh ải mới từng tháp đang mở (bỏ qua trận), hết ải thì quét ải cuối tới hết lượt miễn phí.</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoDailyDungeon"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoDailyDungeon" ${CONFIG.activeFeature === 'autoDailyDungeon' ? 'checked' : ''}>
                                     </label>
                                     <!-- MODULE 3 -->
                                     <label class="tn-opt-item" style="border-left: 3px solid #89b4fa;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#89b4fa;">🛡️ [M3] Thủ Vệ Tứ Phái (Buff Cột Giữa)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Mở Thủ Vệ Tứ Phái, xếp đội & Khiêu Chiến, sau mỗi trận chọn Buff ở giữa; hết lượt thì vào Chiến Lệnh nhận thưởng miễn phí.</div>
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#89b4fa;"><span class="tn-feat-name">🛡️ Thủ Vệ Tứ Phái</span></div>
+                                            <div class="tn-feat-desc">Xếp đội & Khiêu Chiến, sau mỗi trận chọn Buff ở giữa; hết lượt thì vào Chiến Lệnh nhận thưởng miễn phí.</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoSectDefense"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoSectDefense" ${CONFIG.activeFeature === 'autoSectDefense' ? 'checked' : ''}>
                                     </label>
                                     <!-- MODULE 4 -->
                                     <label class="tn-opt-item" style="border-left: 3px solid #94e2d5;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#94e2d5;">⚔️ [M4] Cửu Uyển Nhi, Cổ Thần, Cực Âm</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Cửu Uyển Nhi: bấm Quét nhanh khi khả dụng. Cổ Thần Địa: xếp tướng, đánh 4 ải quanh rồi ải giữa, dùng vật phẩm đặc biệt, nhận thưởng Diệt Thủ Hộ. Sau đó Cực Âm Địa.</div>
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#94e2d5;"><span class="tn-feat-name">🏯 Cửu Uyển Nhi & Cổ Thần Địa</span></div>
+                                            <div class="tn-feat-desc">Cửu Uyển Nhi: bấm Quét nhanh khi khả dụng. Cổ Thần Địa: xếp tướng, đánh 4 ải quanh rồi ải giữa, dùng vật phẩm đặc biệt, nhận thưởng Diệt Thủ Hộ. Sau đó Cực Âm Địa.</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoOtherTrials"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoOtherTrials" ${CONFIG.activeFeature === 'autoOtherTrials' ? 'checked' : ''}>
                                     </label>
                                     <!-- CỰC ÂM ĐỊA (riêng) -->
                                     <label class="tn-opt-item" style="border-left: 3px solid #94e2d5;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#94e2d5;">🧘 Cực Âm Địa (chiếm chỗ & Đoạt)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Chọn địa từ Huyền Âm trở lên hợp sức, giành vị trí nếu đầy, Đoạt bằng lượt miễn phí rồi nhận Chiến Lệnh Cực Âm; hết giờ thì nhận thưởng.</div>
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#94e2d5;"><span class="tn-feat-name">🧘 Cực Âm Địa</span></div>
+                                            <div class="tn-feat-desc">Chọn địa từ Huyền Âm trở lên hợp sức, giành vị trí nếu đầy, Đoạt bằng lượt miễn phí rồi nhận Chiến Lệnh Cực Âm; hết giờ thì nhận thưởng.</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoExtremeYin"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoExtremeYin" ${CONFIG.activeFeature === 'autoExtremeYin' ? 'checked' : ''}>
                                     </label>
                                     <!-- MODULE 5 -->
                                     <label class="tn-opt-item" style="border-left: 3px solid #f9e2af;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#f9e2af;">💎 [M5] Di Tích Tiên Giới (Bảo Vệ Lv4)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Phái 1 đội vào bệ cấp cao nhất. Toàn bệ cấp thấp thì làm mới miễn phí (tối đa 3 lần) tới khi gặp Lv3-5.</div>
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#f9e2af;"><span class="tn-feat-name">💎 Di Tích Tiên Giới</span></div>
+                                            <div class="tn-feat-desc">Phái 1 đội vào bệ cấp cao nhất. Toàn bệ cấp thấp thì làm mới miễn phí (tối đa 3 lần) tới khi gặp Lv3-5.</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoImmortalRelic"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoImmortalRelic" ${CONFIG.activeFeature === 'autoImmortalRelic' ? 'checked' : ''}>
                                     </label>
                                     <!-- MODULE 6 -->
                                     <label class="tn-opt-item" style="border-left: 3px solid #cba6f7;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#cba6f7;">🧩 [M6] Giải Minigame Ảo Cảnh (Lưới 4x4)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Bắt đầu, chờ xem thẻ, ghép 8 cặp trong ~8-10s, chơi lại khi còn lượt thưởng, nhận thưởng mốc điểm.</div>
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#cba6f7;"><span class="tn-feat-name">🧩 Ảo Cảnh Pháp Trận</span></div>
+                                            <div class="tn-feat-desc">Bắt đầu, chờ xem thẻ, ghép 8 cặp trong ~8-10s, chơi lại khi còn lượt thưởng, nhận thưởng mốc điểm.</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoMinigameMemory"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoMinigameMemory" ${CONFIG.activeFeature === 'autoMinigameMemory' ? 'checked' : ''}>
                                     </label>
                                     <!-- MODULE 7 -->
                                     <label class="tn-opt-item" style="border-left: 3px solid #f38ba8;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#f38ba8;">🐉 [M7] Kiếm Hành & Điêu Long Khắc Tinh QTE</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Kiếm Hành: gieo xúc xắc đi hết 1 vòng (hết free thì mua bằng Tiên Ngọc, tối đa 12 lần/ngày), nhận Chiến Lệnh. Điêu Long: bấm nhịp Hoàn Mỹ 5 lần/ván, nhận rương, Khiêu chiến & Chiến Lệnh.</div>
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#f38ba8;"><span class="tn-feat-name">🐉 Kiếm Hành & Điêu Long</span></div>
+                                            <div class="tn-feat-desc">Kiếm Hành: gieo xúc xắc đi hết 1 vòng (hết free thì mua bằng Tiên Ngọc, tối đa 12 lần/ngày), nhận Chiến Lệnh. Điêu Long: bấm nhịp Hoàn Mỹ 5 lần/ván, nhận rương, Khiêu chiến & Chiến Lệnh.</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoMinigameDragon"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoMinigameDragon" ${CONFIG.activeFeature === 'autoMinigameDragon' ? 'checked' : ''}>
                                     </label>
                                     <!-- PHỤ BẢN PHỤ -->
                                     <label class="tn-opt-item" style="border-left: 3px solid #89b4fa;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#89b4fa;">🌌 Leo Vực U Minh (Tự xếp đội hình)</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Tự động đổi trận pháp & vượt ải Vực U Minh thu thập bí bảo.</div>
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#89b4fa;"><span class="tn-feat-name">🌌 Vực U Minh</span></div>
+                                            <div class="tn-feat-desc">Tự động đổi trận pháp & vượt ải Vực U Minh thu thập bí bảo.</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoClimbYMAbyss"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoClimbYMAbyss" ${CONFIG.activeFeature === 'autoClimbYMAbyss' ? 'checked' : ''}>
                                     </label>
                                 </div>
                             </div>
 
-                            <!-- TAB 5: MA ĐẠO (Treo máy, Ủy phái, Quà Tiên, Nhiệm vụ) -->
+                            <!-- TAB: SỰ KIỆN ĐANG MỞ -->
                             <div id="tn-tab-panel-banner" class="tn-tab-panel">
                                 <div class="tn-opt-list">
                                     <label class="tn-opt-item" style="border-left: 3px solid #cba6f7;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#cba6f7;">🎴 Tướng Thần Lâm / Đạp Thiên</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Làm việc ngày cho TẤT CẢ banner đang mở: nhận Quà (miễn phí + quà Tiên Ngọc ${CONFIG.bannerGoldPrice || 300}) → Chiêu mộ 1 lần → Khiêu Chiến Thí Luyện 1 lần → nhận điểm nhiệm vụ → Chiến Lệnh Nhận nhanh. Chạy một lượt rồi tự dừng. Không mua quà tiền thật.</div>
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#cba6f7;"><span class="tn-feat-name">🎴 Tướng Thần Lâm / Đạp Thiên</span></div>
+                                            <div class="tn-feat-desc">Làm việc ngày cho TẤT CẢ banner đang mở: nhận Quà (miễn phí + quà Tiên Ngọc ${CONFIG.bannerGoldPrice || 300}) → Chiêu mộ 1 lần → Khiêu Chiến Thí Luyện 1 lần → nhận điểm nhiệm vụ → Chiến Lệnh Nhận nhanh. Chạy một lượt rồi tự dừng. Không mua quà tiền thật.</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoBanner"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoBanner" ${CONFIG.activeFeature === 'autoBanner' ? 'checked' : ''}>
                                     </label>
@@ -949,9 +966,10 @@
                             <div id="tn-tab-panel-ma-dao" class="tn-tab-panel">
                                 <div class="tn-opt-list">
                                     <label class="tn-opt-item" style="border-left: 3px solid #f9e2af;">
-                                        <div>
-                                            <div style="font-weight:bold; color:#f9e2af;">🔥 Ma Đạo tổng hợp</div>
-                                            <div style="font-size:9.5px; color:#a6adc8; margin-top:2px; line-height:1.3;">Lần lượt: nhận Thưởng Treo Máy &rarr; Tác Chiến Nhanh (hết free thì MUA bằng Tiên Ngọc, tối đa 20 lần/ngày) &rarr; Đi Ải Chính Tuyến (chưa đủ cấp thì chỉ ghi log) &rarr; Ủy Phái Sử Thi (Nhận nhanh, làm mới tới khi có Sử Thi, tối đa 30 lần làm mới/ngày, có thể tốn Tiên Ngọc).</div>
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#f9e2af;"><span class="tn-feat-name">🔥 Ma Đạo Tổng Hợp</span></div>
+                                            <div class="tn-feat-desc">Lần lượt: nhận Thưởng Treo Máy &rarr; Tác Chiến Nhanh (hết free thì MUA bằng Tiên Ngọc, tối đa 20 lần/ngày) &rarr; Đi Ải Chính Tuyến (chưa đủ cấp thì chỉ ghi log) &rarr; Ủy Phái Sử Thi (Nhận nhanh, làm mới tới khi có Sử Thi, tối đa 30 lần làm mới/ngày, có thể tốn Tiên Ngọc).</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoMaDao"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoMaDao" ${CONFIG.activeFeature === 'autoMaDao' ? 'checked' : ''}>
                                     </label>
@@ -970,6 +988,128 @@
                 <div class="tn-resize-handle tn-resize-right" title="Kéo để đổi kích thước"></div>
             `;
             document.body.appendChild(hud);
+        // Cài đặt con của từng tính năng: nút ⚙ cạnh tên tính năng mở cửa sổ popup; mô tả tính năng hiện giá trị đang dùng.
+        // Thêm cài đặt mới: khai báo trong FEATURE_SETTINGS (key = data-key của tính năng) + giá trị mặc định trong CONFIG,
+        // và thêm nút `<button class="tn-gear-btn" data-gear="<key>">` cạnh tên tính năng trong ui-markup.js.
+        const FEATURE_SETTINGS = {
+            autoTamTienDai: {
+                title: 'Tâm Tiên Đài',
+                fields: [
+                    { key: 'buyTamTienGifts', type: 'checkbox', label: '🟢 Mua quà bằng Tiên Ngọc', hint: 'Mua quà Pháp Bảo, Linh Thú, Pháp Trận bằng Tiên Ngọc; không bao giờ mua quà tiền thật.' }
+                ],
+                summary: (c) => `Mua quà bằng Tiên Ngọc: ${c.buyTamTienGifts ? 'BẬT' : 'TẮT'}.`
+            },
+            autoArena: {
+                title: 'Đấu Tiên Đài',
+                fields: [
+                    { key: 'arenaBattleLimit', type: 'number', min: 1, max: 99, def: 5, label: 'Giới hạn số trận mỗi lần chạy', hint: 'Tổng lượt miễn phí + lượt dùng Đấu Tiên Lệnh.' }
+                ],
+                summary: (c) => `Tối đa ${c.arenaBattleLimit} trận mỗi lần chạy.`
+            },
+            autoTienMinh: {
+                title: 'Tiên Minh',
+                fields: [
+                    { key: 'tienMinhDungeonLimit', type: 'number', min: 1, max: 6, def: 3, label: 'Số trận Bí Cảnh Tông Môn', hint: '2 trận đầu miễn phí; trận thứ 3 trở đi tự mua lượt (20 Tiên Ngọc/lượt). Tối đa 6.' }
+                ],
+                summary: (c) => `Bí Cảnh Tông Môn ${c.tienMinhDungeonLimit} trận` + (c.tienMinhDungeonLimit > 2 ? ` (mua thêm ${c.tienMinhDungeonLimit - 2} lượt, ${(c.tienMinhDungeonLimit - 2) * 20} Tiên Ngọc).` : ' (chỉ lượt miễn phí).')
+            },
+            autoTongTian: {
+                title: 'Thông Thiên Tháp & Tứ Linh Tháp',
+                fields: [
+                    { key: 'towerDailyRoutine', type: 'checkbox', label: '📅 Nhận thưởng và Quét ải mỗi ngày', hint: 'Thông Thiên Tháp quét 3 lần (2 miễn phí + 1 mua); Tứ Linh Tháp đang mở: 10 ải mới + quét 2 lần miễn phí (không mua).' }
+                ],
+                summary: (c) => `Nhận thưởng & quét ải mỗi ngày: ${c.towerDailyRoutine ? 'BẬT' : 'TẮT (chỉ leo/bỏ qua Thông Thiên Tháp)'}.`
+            }
+        };
+
+        function featureSettingNormalize(field, raw) {
+            if (field.type === 'checkbox') return Boolean(raw);
+            const n = Number(raw);
+            return Number.isInteger(n) && n >= field.min && n <= field.max ? n : field.def;
+        }
+
+        // Dòng "Hiện tại: ..." dưới mô tả mỗi tính năng có cài đặt.
+        function refreshFeatureSummaries() {
+            for (const key of Object.keys(FEATURE_SETTINGS)) {
+                const el = document.querySelector(`.tn-feat-cfg[data-cfg-for="${key}"]`);
+                if (el) el.textContent = '⚙ ' + FEATURE_SETTINGS[key].summary(CONFIG);
+            }
+        }
+
+        function initFeatureSettings() {
+            const hud = document.getElementById('tn-auto-hud');
+            if (!hud) return;
+            const overlay = document.createElement('div');
+            overlay.id = 'tn-settings-overlay';
+            const card = document.createElement('div');
+            card.id = 'tn-settings-card';
+            overlay.appendChild(card);
+            hud.appendChild(overlay);
+
+            const close = () => overlay.classList.remove('open');
+            overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) close(); });
+            document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+
+            function open(key) {
+                const def = FEATURE_SETTINGS[key];
+                if (!def) return;
+                card.textContent = '';
+                const head = document.createElement('div');
+                head.className = 'tn-set-head';
+                const title = document.createElement('span');
+                title.textContent = '⚙ Cài đặt: ' + def.title;
+                const x = document.createElement('button');
+                x.type = 'button';
+                x.className = 'tn-set-close';
+                x.textContent = '✕';
+                x.addEventListener('click', close);
+                head.append(title, x);
+                card.appendChild(head);
+
+                for (const f of def.fields) {
+                    const row = document.createElement('label');
+                    row.className = 'tn-set-field';
+                    const text = document.createElement('div');
+                    const label = document.createElement('div');
+                    label.className = 'tn-set-label';
+                    label.textContent = f.label;
+                    const hint = document.createElement('div');
+                    hint.className = 'tn-set-hint';
+                    hint.textContent = f.hint || '';
+                    text.append(label, hint);
+                    const input = document.createElement('input');
+                    input.type = f.type;
+                    if (f.type === 'checkbox') input.checked = Boolean(CONFIG[f.key]);
+                    else { input.min = f.min; input.max = f.max; input.step = 1; input.value = String(CONFIG[f.key]); }
+                    input.addEventListener('change', () => {
+                        CONFIG[f.key] = featureSettingNormalize(f, f.type === 'checkbox' ? input.checked : input.value);
+                        if (f.type === 'checkbox') input.checked = CONFIG[f.key]; else input.value = String(CONFIG[f.key]);
+                        sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
+                        refreshFeatureSummaries();
+                        addLogToUI(`⚙ ${def.title}: ${def.summary(CONFIG)}`, 'info');
+                    });
+                    row.append(text, input);
+                    card.appendChild(row);
+                }
+                const done = document.createElement('button');
+                done.type = 'button';
+                done.className = 'tn-action-btn tn-btn-start';
+                done.style.cssText = 'margin:6px 0 0 0;padding:6px 0;';
+                done.textContent = 'Xong';
+                done.addEventListener('click', close);
+                card.appendChild(done);
+                overlay.classList.add('open');
+            }
+
+            document.querySelectorAll('.tn-gear-btn').forEach((btn) => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    open(btn.dataset.gear);
+                });
+            });
+            refreshFeatureSummaries();
+        }
 
             // NẠP NGAY DỮ LIỆU NHÂN VẬT TỪ PHIÊN TRƯỚC (NẾU CÓ) TRÁNH HIỆN --
             try {
@@ -1019,7 +1159,6 @@
             const tabButtons = document.querySelectorAll('.tn-tab-btn');
             const tabPanels = {
                 daoThanh: document.getElementById('tn-tab-panel-dao-thanh'),
-                tuSi: document.getElementById('tn-tab-panel-tu-si'),
                 troChien: document.getElementById('tn-tab-panel-tro-chien'),
                 lichLuyen: document.getElementById('tn-tab-panel-lich-luyen'),
                 maDao: document.getElementById('tn-tab-panel-ma-dao'),
@@ -1068,46 +1207,10 @@
                 }
             });
 
-            const towerDailyEl = document.getElementById('tn-opt-tower-daily');
-            function setTowerDailyRoutine(enabled) {
-                CONFIG.towerDailyRoutine = enabled;
-                if (towerDailyEl) towerDailyEl.checked = enabled;
-            }
-            // Tùy chọn con chỉ bật khi M1 đang là chức năng chính.
-            if (CONFIG.activeFeature !== 'autoTongTian') setTowerDailyRoutine(false);
-            else if (towerDailyEl) towerDailyEl.checked = Boolean(CONFIG.towerDailyRoutine);
-
-            if (towerDailyEl) {
-                towerDailyEl.addEventListener('change', (e) => {
-                    if (CONFIG.activeFeature !== 'autoTongTian') {
-                        e.target.checked = false;
-                        return;
-                    }
-                    CONFIG.towerDailyRoutine = e.target.checked;
-                    sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
-                    addLogToUI(
-                        CONFIG.towerDailyRoutine
-                            ? "🟢 Đã bật Nhận thưởng và Quét ải mỗi ngày (Thông Thiên & Tứ Linh)."
-                            : "⏸️ Đã tắt Nhận thưởng và Quét ải mỗi ngày; chỉ chạy bỏ qua Thông Thiên Tháp.",
-                        "info"
-                    );
-                });
-            }
-
             mutexCheckboxes.forEach(cb => {
                 cb.addEventListener('change', (e) => {
                     const key = cb.dataset.key;
                     if (e.target.checked) {
-                        if (key === 'autoTamTienDai') {
-                            CONFIG.buyTamTienGifts = true;
-                            const buyTamTienGiftsEl = document.getElementById('tn-opt-buy-tam-tien-gifts');
-                            if (buyTamTienGiftsEl) buyTamTienGiftsEl.checked = true;
-                        } else {
-                            CONFIG.buyTamTienGifts = false;
-                            const buyTamTienGiftsEl = document.getElementById('tn-opt-buy-tam-tien-gifts');
-                            if (buyTamTienGiftsEl) buyTamTienGiftsEl.checked = false;
-                        }
-                        setTowerDailyRoutine(key === 'autoTongTian');
                         // Tắt tất cả các chức năng chính khác
                         mutexCheckboxes.forEach(other => {
                             if (other !== cb) other.checked = false;
@@ -1118,20 +1221,15 @@
                         CONFIG.activeFeature = key;
                         sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                         // Chỉ lấy tên tính năng (div tiêu đề), không lấy cả phần mô tả.
-                        const titleEl = cb.closest('label').querySelector('div > div');
+                        const titleEl = cb.closest('label').querySelector('.tn-feat-name');
                         const title = titleEl ? titleEl.innerText : key;
                         addLogToUI("🎯 Đã chọn: " + title, "run");
                     } else {
                         CONFIG[key] = false;
-                        if (key === 'autoTamTienDai') {
-                            CONFIG.buyTamTienGifts = false;
-                            const buyTamTienGiftsEl = document.getElementById('tn-opt-buy-tam-tien-gifts');
-                            if (buyTamTienGiftsEl) buyTamTienGiftsEl.checked = false;
-                        }
-                        if (key === 'autoTongTian') setTowerDailyRoutine(false);
                         if (CONFIG.activeFeature === key) CONFIG.activeFeature = null;
                         sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
-                        addLogToUI("⏸️ Đã tắt tính năng: " + key, "warn");
+                        const offEl = cb.closest('label').querySelector('.tn-feat-name');
+                        addLogToUI("⏸️ Đã bỏ chọn: " + (offEl ? offEl.innerText : key), "warn");
                     }
                 });
             });
@@ -1181,42 +1279,7 @@
                 });
             }
 
-            const buyTamTienGiftsEl = document.getElementById('tn-opt-buy-tam-tien-gifts');
-            if (buyTamTienGiftsEl) {
-                buyTamTienGiftsEl.checked = Boolean(CONFIG.buyTamTienGifts);
-                buyTamTienGiftsEl.addEventListener('change', (e) => {
-                    CONFIG.buyTamTienGifts = e.target.checked;
-                    sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
-                    addLogToUI(
-                        CONFIG.buyTamTienGifts
-                            ? "🟢 Đã bật mua quà Tâm Tiên Đài bằng Tiên Ngọc."
-                            : "⏸️ Đã tắt mua quà Tâm Tiên Đài bằng Tiên Ngọc.",
-                        "info"
-                    );
-                });
-            }
-
-            const arenaBattleLimitEl = document.getElementById('tn-opt-arena-battle-limit');
-            if (arenaBattleLimitEl) {
-                arenaBattleLimitEl.addEventListener('change', (e) => {
-                    const input = e.target;
-                    const limit = Number(input.value);
-                    CONFIG.arenaBattleLimit = Number.isInteger(limit) && limit >= 1 ? limit : 5;
-                    input.value = String(CONFIG.arenaBattleLimit);
-                    sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
-                });
-            }
-
-            const tienMinhDungeonLimitEl = document.getElementById('tn-opt-tien-minh-dungeon-limit');
-            if (tienMinhDungeonLimitEl) {
-                tienMinhDungeonLimitEl.addEventListener('change', (e) => {
-                    const input = e.target;
-                    const limit = Number(input.value);
-                    CONFIG.tienMinhDungeonLimit = Number.isInteger(limit) && limit >= 1 && limit <= 6 ? limit : 3;
-                    input.value = String(CONFIG.tienMinhDungeonLimit);
-                    sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
-                });
-            }
+            initFeatureSettings();
 
             const btnMain = document.getElementById('tn-btn-main');
             if (btnMain) {

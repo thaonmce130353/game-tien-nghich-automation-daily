@@ -273,6 +273,41 @@
                     cursor: pointer;
                     transform: scale(1.15);
                 }
+                .tn-feat-title { font-weight: bold; display: flex; align-items: center; gap: 6px; }
+                .tn-gear-btn {
+                    background: rgba(69, 71, 90, 0.7);
+                    color: #cdd6f4;
+                    border: 1px solid rgba(255, 255, 255, 0.12);
+                    border-radius: 5px;
+                    padding: 0 5px;
+                    font-size: 11px;
+                    line-height: 16px;
+                    cursor: pointer;
+                }
+                .tn-gear-btn:hover { background: rgba(203, 166, 247, 0.35); color: #fff; }
+                .tn-feat-desc { font-size: 9.5px; color: #a6adc8; margin-top: 2px; line-height: 1.3; }
+                .tn-feat-cfg { font-size: 9.5px; color: #f9e2af; margin-top: 2px; line-height: 1.3; }
+                .tn-feat-cfg:empty { display: none; }
+                #tn-settings-overlay {
+                    position: absolute; inset: 0; z-index: 1002;
+                    background: rgba(0, 0, 0, 0.55);
+                    display: none; align-items: center; justify-content: center;
+                }
+                #tn-settings-overlay.open { display: flex; }
+                #tn-settings-card {
+                    width: min(340px, 90%);
+                    background: #1e1e2e; color: #cdd6f4;
+                    border: 1px solid rgba(203, 166, 247, 0.5);
+                    border-radius: 10px; padding: 10px 12px;
+                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+                }
+                #tn-settings-card .tn-set-head { display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 12px; margin-bottom: 8px; color: #cba6f7; }
+                #tn-settings-card .tn-set-close { background: transparent; border: 0; color: #a6adc8; font-size: 14px; cursor: pointer; }
+                #tn-settings-card .tn-set-field { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 8px; margin-bottom: 5px; background: rgba(17, 17, 27, 0.7); border-radius: 6px; }
+                #tn-settings-card .tn-set-label { font-size: 10.5px; font-weight: bold; }
+                #tn-settings-card .tn-set-hint { font-size: 9.5px; color: #a6adc8; margin-top: 2px; line-height: 1.3; }
+                #tn-settings-card input[type="number"] { width: 56px; padding: 2px 4px; background: #181825; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; }
+                #tn-settings-card input[type="checkbox"] { accent-color: #cba6f7; transform: scale(1.15); cursor: pointer; }
                 .tn-action-btn {
                     width: 100%;
                     padding: 8px 0;

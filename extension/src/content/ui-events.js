@@ -47,7 +47,6 @@
             const tabButtons = document.querySelectorAll('.tn-tab-btn');
             const tabPanels = {
                 daoThanh: document.getElementById('tn-tab-panel-dao-thanh'),
-                tuSi: document.getElementById('tn-tab-panel-tu-si'),
                 troChien: document.getElementById('tn-tab-panel-tro-chien'),
                 lichLuyen: document.getElementById('tn-tab-panel-lich-luyen'),
                 maDao: document.getElementById('tn-tab-panel-ma-dao'),
@@ -96,46 +95,10 @@
                 }
             });
 
-            const towerDailyEl = document.getElementById('tn-opt-tower-daily');
-            function setTowerDailyRoutine(enabled) {
-                CONFIG.towerDailyRoutine = enabled;
-                if (towerDailyEl) towerDailyEl.checked = enabled;
-            }
-            // Tùy chọn con chỉ bật khi M1 đang là chức năng chính.
-            if (CONFIG.activeFeature !== 'autoTongTian') setTowerDailyRoutine(false);
-            else if (towerDailyEl) towerDailyEl.checked = Boolean(CONFIG.towerDailyRoutine);
-
-            if (towerDailyEl) {
-                towerDailyEl.addEventListener('change', (e) => {
-                    if (CONFIG.activeFeature !== 'autoTongTian') {
-                        e.target.checked = false;
-                        return;
-                    }
-                    CONFIG.towerDailyRoutine = e.target.checked;
-                    sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
-                    addLogToUI(
-                        CONFIG.towerDailyRoutine
-                            ? "🟢 Đã bật Nhận thưởng và Quét ải mỗi ngày (Thông Thiên & Tứ Linh)."
-                            : "⏸️ Đã tắt Nhận thưởng và Quét ải mỗi ngày; chỉ chạy bỏ qua Thông Thiên Tháp.",
-                        "info"
-                    );
-                });
-            }
-
             mutexCheckboxes.forEach(cb => {
                 cb.addEventListener('change', (e) => {
                     const key = cb.dataset.key;
                     if (e.target.checked) {
-                        if (key === 'autoTamTienDai') {
-                            CONFIG.buyTamTienGifts = true;
-                            const buyTamTienGiftsEl = document.getElementById('tn-opt-buy-tam-tien-gifts');
-                            if (buyTamTienGiftsEl) buyTamTienGiftsEl.checked = true;
-                        } else {
-                            CONFIG.buyTamTienGifts = false;
-                            const buyTamTienGiftsEl = document.getElementById('tn-opt-buy-tam-tien-gifts');
-                            if (buyTamTienGiftsEl) buyTamTienGiftsEl.checked = false;
-                        }
-                        setTowerDailyRoutine(key === 'autoTongTian');
                         // Tắt tất cả các chức năng chính khác
                         mutexCheckboxes.forEach(other => {
                             if (other !== cb) other.checked = false;
@@ -146,20 +109,15 @@
                         CONFIG.activeFeature = key;
                         sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
                         // Chỉ lấy tên tính năng (div tiêu đề), không lấy cả phần mô tả.
-                        const titleEl = cb.closest('label').querySelector('div > div');
+                        const titleEl = cb.closest('label').querySelector('.tn-feat-name');
                         const title = titleEl ? titleEl.innerText : key;
                         addLogToUI("🎯 Đã chọn: " + title, "run");
                     } else {
                         CONFIG[key] = false;
-                        if (key === 'autoTamTienDai') {
-                            CONFIG.buyTamTienGifts = false;
-                            const buyTamTienGiftsEl = document.getElementById('tn-opt-buy-tam-tien-gifts');
-                            if (buyTamTienGiftsEl) buyTamTienGiftsEl.checked = false;
-                        }
-                        if (key === 'autoTongTian') setTowerDailyRoutine(false);
                         if (CONFIG.activeFeature === key) CONFIG.activeFeature = null;
                         sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
-                        addLogToUI("⏸️ Đã tắt tính năng: " + key, "warn");
+                        const offEl = cb.closest('label').querySelector('.tn-feat-name');
+                        addLogToUI("⏸️ Đã bỏ chọn: " + (offEl ? offEl.innerText : key), "warn");
                     }
                 });
             });
@@ -209,42 +167,7 @@
                 });
             }
 
-            const buyTamTienGiftsEl = document.getElementById('tn-opt-buy-tam-tien-gifts');
-            if (buyTamTienGiftsEl) {
-                buyTamTienGiftsEl.checked = Boolean(CONFIG.buyTamTienGifts);
-                buyTamTienGiftsEl.addEventListener('change', (e) => {
-                    CONFIG.buyTamTienGifts = e.target.checked;
-                    sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
-                    addLogToUI(
-                        CONFIG.buyTamTienGifts
-                            ? "🟢 Đã bật mua quà Tâm Tiên Đài bằng Tiên Ngọc."
-                            : "⏸️ Đã tắt mua quà Tâm Tiên Đài bằng Tiên Ngọc.",
-                        "info"
-                    );
-                });
-            }
-
-            const arenaBattleLimitEl = document.getElementById('tn-opt-arena-battle-limit');
-            if (arenaBattleLimitEl) {
-                arenaBattleLimitEl.addEventListener('change', (e) => {
-                    const input = e.target;
-                    const limit = Number(input.value);
-                    CONFIG.arenaBattleLimit = Number.isInteger(limit) && limit >= 1 ? limit : 5;
-                    input.value = String(CONFIG.arenaBattleLimit);
-                    sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
-                });
-            }
-
-            const tienMinhDungeonLimitEl = document.getElementById('tn-opt-tien-minh-dungeon-limit');
-            if (tienMinhDungeonLimitEl) {
-                tienMinhDungeonLimitEl.addEventListener('change', (e) => {
-                    const input = e.target;
-                    const limit = Number(input.value);
-                    CONFIG.tienMinhDungeonLimit = Number.isInteger(limit) && limit >= 1 && limit <= 6 ? limit : 3;
-                    input.value = String(CONFIG.tienMinhDungeonLimit);
-                    sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
-                });
-            }
+            initFeatureSettings();
 
             const btnMain = document.getElementById('tn-btn-main');
             if (btnMain) {
