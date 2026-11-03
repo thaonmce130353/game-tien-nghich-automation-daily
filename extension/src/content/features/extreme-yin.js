@@ -64,6 +64,9 @@
             }).filter((l) => l.id > 0).sort((a, b) => b.quality - a.quality);
         }
 
+        // Chỉ nhịp có thao tác thật (gửi yêu cầu/bấm nút) mới bị nghỉ kiểu người chơi; nhịp chỉ chờ máy chủ trả 'wait' (kiểm tra lại ngay).
+        let eyDidSend = false;
+
         function eyIsFull(land) {
             return land.seat > 0 && land.count >= land.seat;
         }
@@ -92,6 +95,7 @@
                 if (!r.opened) {
                     r.opened = true;
                     r.at = now;
+                    eyDidSend = true;
                     ctrl.lookExercise(landId, mode);
                     return null;
                 }
@@ -122,8 +126,9 @@
             // Bấm "Lên trận nhanh", kiểm tra ô đội hình có tướng, mới bấm "Bắt đầu".
             const step = embattleStep(ui, state.emb, now);
             if (step === 'wait') return 'wait';
-            if (step === 'arranged') return 'acted';
+            if (step === 'arranged') { eyDidSend = true; return 'acted'; }
             if (step === 'failed') {
+                eyDidSend = true;
                 const diag = embattleDiagnose(ui, state.emb);
                 try { vm.closeView('embattleUi'); } catch (e) { }
                 sendLog(`❌ [Cực Âm Địa] Không xếp được đội hình sau ${EMBATTLE_ARRANGE_TRIES} lần Lên trận nhanh (${diag}); không khiêu chiến, sẽ kiểm tra lại sau.`, "error");
@@ -135,12 +140,13 @@
             }
             if (typeof ui.cBtnH2 !== 'function') return 'none';
             embattleMarkStarted(state.emb);
+            eyDidSend = true;
             ui.cBtnH2();
             return 'acted';
         }
 
         function eySync(ctrl, state, now) {
-            return pollTowerDailyRefresh(state, 'refreshing', now, () => { ctrl.send32201(); ctrl.send32200(); }, () => ctrl.playerData);
+            return pollTowerDailyRefresh(state, 'refreshing', now, () => { eyDidSend = true; ctrl.send32201(); ctrl.send32200(); }, () => ctrl.playerData);
         }
 
         function eyAfterSync(ctx, ctrl, state, now) {
@@ -265,7 +271,7 @@
                 }
                 return false;
             }
-            if (now - state.idleAt < humanDelay(1200)) return false;
+            if (now - state.idleAt < humanDelay(500)) return false;
             if (!tryAttemptTarget('ey-enter-' + plan.landId, `[Cực Âm Địa] Vào ${plan.name}`)) {
                 sendLog(`❌ [Cực Âm Địa] Vào ${plan.name} nhiều lần vẫn chưa được; dừng, sẽ thử lại khi Auto khởi động lại.`, "error");
                 state.nextSyncAt = now + 600000; state.phase = 'wait';
@@ -276,6 +282,7 @@
             state.idleAt = now;
             state.fight = { kind: 'enter', at: now };
             state.refreshing = null;
+            eyDidSend = true;
             ctrl.chanllenge(plan.landId);
             sendLog(`⚔️ [Cực Âm Địa] Khiêu chiến Thủ Vệ ${plan.name}; chờ bảng đội hình.`, "action");
             return true;
@@ -295,7 +302,7 @@
                 state.fight = null;
                 return { done: true, ready: r === 'ready', fight: f };
             }
-            if (now - state.idleAt < humanDelay(1200)) return { acted: false };
+            if (now - state.idleAt < humanDelay(500)) return { acted: false };
             const players = eyReadPlayers(ctrl, vm, state, landId, mode, now);
             if (players === null) return { acted: false };
             if (players === 'timeout') return { failed: 'timeout' };
@@ -319,6 +326,7 @@
             const pd = ctrl.getPlayerData();
             state.fight = { kind: mode, at: now, target, robBefore: pd ? Number(pd.rob_times) || 0 : 0 };
             state.refreshing = null;
+            eyDidSend = true;
             ctrl.openEmBattle({ id: landId, role_id: target.id, bAutoOpenRecord: false, playerState: mode });
             sendLog(`⚔️ [Cực Âm Địa] ${label} ${target.name} (sức ${target.fc.toLocaleString('vi-VN')}${target.steal !== undefined ? `, có thể đoạt ~${target.steal}` : ''}); chờ bảng đội hình.`, "action");
             return { acted: true };
@@ -371,13 +379,14 @@
         }
 
         function eyWarOrder(ctx, vm, state, now) {
-            if (now - state.idleAt < humanDelay(1200)) return false;
+            if (now - state.idleAt < humanDelay(500)) return false;
             const r = warOrderClaimStep(ctx, vm, state.warOrder, { label: 'Cực Âm Địa', typeKey: 'zhanLingType_6', fallbackType: 6, termId: 1 }, now);
             if (r.status === 'done') {
                 state.warOrderFor = state.plunders;
                 state.phase = 'sync'; state.refreshing = null; state.nextSyncAt = 0;
                 return true;
             }
+            if (r.status === 'acted') eyDidSend = true;
             return r.status === 'acted';
         }
 
@@ -387,6 +396,7 @@
                 state.claim = { id: pd.id, at: now };
                 state.refreshing = null;
                 sendLog(`🏆 [Cực Âm Địa] Đã tu luyện xong ${ctrl.getCurlModel().getBuildName(pd.id)}; nhận thưởng.`, "success");
+                eyDidSend = true;
                 ctrl.send32204(pd.id);
                 return true;
             }
@@ -406,6 +416,12 @@
         }
 
         function handleExtremeYin(ctx) {
+            eyDidSend = false;
+            const res = handleExtremeYinStep(ctx);
+            return res && !eyDidSend ? 'wait' : res;
+        }
+
+        function handleExtremeYinStep(ctx) {
             try {
                 if (!ctx.ExtremeYinCtrl || !ctx.ExtremeYinCtrl.gInst || !ctx.ViewMgr || !ctx.ViewMgr.gInst) return false;
                 const ctrl = ctx.ExtremeYinCtrl.gInst();

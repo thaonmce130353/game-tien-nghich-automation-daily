@@ -3,7 +3,7 @@
         const CUOI_NGAY_ACTION_INTERVAL_MS = 450;
         const TAM_TIEN_ACTION_INTERVAL_MS = 450;
         // Các tính năng là chuỗi nhiều bước nhỏ, mỗi bước chờ máy chủ: nhịp nhanh, không nghỉ dài ngẫu nhiên.
-        const FAST_ROUTINE_FEATURES = ['autoCuoiNgay', 'autoTamTienDai'];
+        const FAST_ROUTINE_FEATURES = ['autoCuoiNgay', 'autoTamTienDai', 'autoExtremeYin'];
         const OTHER_TRIALS_ACTION_INTERVAL_MS = 600;
 
         let disconnectPauseLogged = false;
@@ -176,7 +176,7 @@
             // Chuỗi thao tác dài, mỗi bước chờ xác nhận từ máy chủ: nhịp ngắn hơn (vẫn ngẫu nhiên).
             const actionInterval = active === 'autoCuoiNgay'
                 ? CUOI_NGAY_ACTION_INTERVAL_MS
-                : (active === 'autoTamTienDai' ? TAM_TIEN_ACTION_INTERVAL_MS
+                : (active === 'autoTamTienDai' || active === 'autoExtremeYin' ? TAM_TIEN_ACTION_INTERVAL_MS
                     : (active === 'autoOtherTrials' ? OTHER_TRIALS_ACTION_INTERVAL_MS : (CONFIG.intervalMs || 1200)));
             if (now < nextActionAt) return;
 
@@ -282,7 +282,10 @@
                 }
                 // 6. LỊCH LUYỆN: Đánh Cực Âm Địa
                 else if (active === 'autoExtremeYin' || (CONFIG.autoExtremeYin && !active)) {
-                    if (handleExtremeYin(ctx)) { markActed(actionInterval); return; }
+                    const ey = handleExtremeYin(ctx);
+                    // 'wait' = chỉ chờ máy chủ/chuyển bước: kiểm tra lại ngay, không nghỉ kiểu người chơi.
+                    if (ey === 'wait') { nextActionAt = Date.now() + 40; runNoteActed(true); return; }
+                    if (ey) { markActed(actionInterval, true); return; }
                 }
                 // 7. LỊCH LUYỆN: Leo Tứ Linh Trận
                 else if (active === 'autoClimbCamp' || (CONFIG.autoClimbCamp && !active)) {
