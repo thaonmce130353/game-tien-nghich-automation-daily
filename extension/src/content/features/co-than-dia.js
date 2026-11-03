@@ -69,7 +69,7 @@
 
         function failCoThan(state, key, message, nextPhase) {
             state.failed = true;
-            logCoThan(state, key, `❌ [M4 - Cổ Thần Địa] ${message}`, "error");
+            logCoThan(state, key, `❌ [Cổ Thần Địa] ${message}`, "error");
             state.phase = nextPhase || 'done';
         }
 
@@ -107,11 +107,11 @@
             state.pending = null;
             state.door = null;
             state.refreshing = null;
-            if (!tryAttemptTarget('co-than-resync', "[M4 - Cổ Thần Địa] Tải lại trạng thái")) {
+            if (!tryAttemptTarget('co-than-resync', "[Cổ Thần Địa] Tải lại trạng thái")) {
                 failCoThan(state, key, `${message} Đã thử tải lại nhiều lần mà không được; dừng để an toàn.`, 'done');
                 return;
             }
-            sendLog(`⚠️ [M4 - Cổ Thần Địa] ${message}`, "warn");
+            sendLog(`⚠️ [Cổ Thần Địa] ${message}`, "warn");
             state.phase = 'open';
             state.sent = false;
         }
@@ -132,13 +132,13 @@
                 state.stepAt = now;
                 state.sent = true;
                 ctrl.send11060(1);
-                sendLog("🗺️ [M4 - Cổ Thần Địa] Đang mở Cổ Thần Địa và kiểm tra dữ liệu từ game...", "action");
+                sendLog("🗺️ [Cổ Thần Địa] Đang mở Cổ Thần Địa và kiểm tra dữ liệu từ game...", "action");
                 return true;
             }
             if (vm.viewIsVisible('adventureHeroMainUi')) {
                 state.phase = 'heroes';
                 state.stepAt = now;
-                sendLog("ℹ️ [M4 - Cổ Thần Địa] Chưa có tướng xuất chiến; chuyển sang chọn tướng tự động.", "info");
+                sendLog("ℹ️ [Cổ Thần Địa] Chưa có tướng xuất chiến; chuyển sang chọn tướng tự động.", "info");
                 return false;
             }
             const dt = ctrl.mainUiDt;
@@ -151,7 +151,7 @@
                 }
                 state.phase = 'fight';
                 state.idleAt = now;
-                sendLog(`✅ [M4 - Cổ Thần Địa] Đã vào Cổ Thần Địa: ${coThanAliveCount(dt)}/${dt.heroLs.length} tướng còn sức, ${dt.killNum || 0} lượt hạ gục.`, "action");
+                sendLog(`✅ [Cổ Thần Địa] Đã vào Cổ Thần Địa: ${coThanAliveCount(dt)}/${dt.heroLs.length} tướng còn sức, ${dt.killNum || 0} lượt hạ gục.`, "action");
                 return true;
             }
             if (now - state.stepAt > CO_THAN_REQUEST_TIMEOUT_MS) {
@@ -167,14 +167,14 @@
                 if (ctrl.mainUiDt && ctrl.mainUiDt.heroLs && ctrl.mainUiDt.heroLs.length) {
                     state.phase = 'fight';
                     state.idleAt = now;
-                    sendLog(`✅ [M4 - Cổ Thần Địa] Máy chủ xác nhận đã chọn ${ctrl.mainUiDt.heroLs.length} tướng xuất chiến.`, "action");
+                    sendLog(`✅ [Cổ Thần Địa] Máy chủ xác nhận đã chọn ${ctrl.mainUiDt.heroLs.length} tướng xuất chiến.`, "action");
                     return true;
                 }
                 if (now - state.stepAt > CO_THAN_REQUEST_TIMEOUT_MS) failCoThan(state, 'heroes-timeout', "Không chọn được tướng xuất chiến; bỏ qua.");
                 return false;
             }
             if (now - state.stepAt < humanDelay(1100)) return false;
-            if (!tryAttemptTarget('co-than-heroes', "[M4 - Cổ Thần Địa] Chọn tướng xuất chiến")) {
+            if (!tryAttemptTarget('co-than-heroes', "[Cổ Thần Địa] Chọn tướng xuất chiến")) {
                 failCoThan(state, 'heroes-stuck', "Chọn tướng nhiều lần vẫn chưa được; dừng.");
                 return false;
             }
@@ -182,17 +182,17 @@
             if (state.heroStage === 'arrange') {
                 ui.clickBtnHandler2({ target: ui.buzhenBtn });
                 state.heroStage = 'confirm';
-                sendLog("🛡️ [M4 - Cổ Thần Địa] Đã xếp tướng tự động.", "action");
+                sendLog("🛡️ [Cổ Thần Địa] Đã xếp tướng tự động.", "action");
             } else {
                 const picked = (ctrl.selFightLs || []).filter(Boolean).length;
                 if (!picked) {
                     state.heroStage = 'arrange';
-                    logCoThan(state, 'no-heroes', "⚠️ [M4 - Cổ Thần Địa] Xếp tự động chưa chọn được tướng nào (có thể thiếu tướng ở tộc đang chọn).", "warn");
+                    logCoThan(state, 'no-heroes', "⚠️ [Cổ Thần Địa] Xếp tự động chưa chọn được tướng nào (có thể thiếu tướng ở tộc đang chọn).", "warn");
                     return false;
                 }
                 ui.clickBtnHandler2({ target: ui.enterBtn });
                 state.heroStage = 'arrange';
-                sendLog(`⚔️ [M4 - Cổ Thần Địa] Đã xác nhận ${picked} tướng xuất chiến; chờ máy chủ.`, "action");
+                sendLog(`⚔️ [Cổ Thần Địa] Đã xác nhận ${picked} tướng xuất chiến; chờ máy chủ.`, "action");
             }
             return true;
         }
@@ -215,7 +215,7 @@
                 if (Number(after.cLayer) > Number(d.layer)) {
                     state.floors++;
                     clearTargetAttempts('co-than-door-' + d.layer);
-                    sendLog(`✅ [M4 - Cổ Thần Địa] Máy chủ xác nhận đã sang tầng ${after.cLayer} (tầng trước ${d.layer}); tiếp tục 4 ải quanh + ải giữa.`, "action");
+                    sendLog(`✅ [Cổ Thần Địa] Máy chủ xác nhận đã sang tầng ${after.cLayer} (tầng trước ${d.layer}); tiếp tục 4 ải quanh + ải giữa.`, "action");
                 } else {
                     failCoThan(state, 'door-unconfirmed', `Đã đi qua cửa ô #${d.gridId} nhưng vẫn ở tầng ${after.cLayer}; dừng đi tầng mới.`, 'special');
                 }
@@ -245,11 +245,11 @@
                 state.fights++;
                 clearTargetAttempts('co-than-open-' + p.gridId);
                 if (grid && grid.isFsh === 1) {
-                    sendLog(`✅ [M4 - Cổ Thần Địa] Máy chủ xác nhận đã hạ ải ô #${p.gridId} (hạ gục ${after.killNum || 0}).`, "action");
+                    sendLog(`✅ [Cổ Thần Địa] Máy chủ xác nhận đã hạ ải ô #${p.gridId} (hạ gục ${after.killNum || 0}).`, "action");
                 } else if (grid && grid.eType === (ctx.AdvConst && ctx.AdvConst.NEXT_SGC || CO_THAN_NEXT_FLOOR_ETYPE)) {
-                    sendLog(`✅ [M4 - Cổ Thần Địa] Máy chủ xác nhận đã hạ ải giữa ô #${p.gridId}; cửa sang tầng sau đã xuất hiện (hạ gục ${after.killNum || 0}).`, "action");
+                    sendLog(`✅ [Cổ Thần Địa] Máy chủ xác nhận đã hạ ải giữa ô #${p.gridId}; cửa sang tầng sau đã xuất hiện (hạ gục ${after.killNum || 0}).`, "action");
                 } else {
-                    sendLog(`ℹ️ [M4 - Cổ Thần Địa] Trận ô #${p.gridId} kết thúc nhưng ải chưa bị hạ (HP đội ${p.hpBefore} -> ${coThanTotalHp(after)}).`, "info");
+                    sendLog(`ℹ️ [Cổ Thần Địa] Trận ô #${p.gridId} kết thúc nhưng ải chưa bị hạ (HP đội ${p.hpBefore} -> ${coThanTotalHp(after)}).`, "info");
                 }
                 state.idleAt = now;
                 return true;
@@ -269,12 +269,12 @@
                 state.pending = { gridId, at: now, hpBefore: coThanTotalHp(dt) };
                 state.refreshing = null;
                 ctrl.send11066(gridId, 0);
-                sendLog(`⚔️ [M4 - Cổ Thần Địa] Khiêu chiến ải ô #${gridId}.`, "action");
+                sendLog(`⚔️ [Cổ Thần Địa] Khiêu chiến ải ô #${gridId}.`, "action");
                 return true;
             }
 
             if (coThanAliveCount(dt) === 0) {
-                sendLog("ℹ️ [M4 - Cổ Thần Địa] Đã hết tướng còn sức; chuyển sang dùng vật phẩm đặc biệt.", "info");
+                sendLog("ℹ️ [Cổ Thần Địa] Đã hết tướng còn sức; chuyển sang dùng vật phẩm đặc biệt.", "info");
                 state.phase = 'special';
                 return false;
             }
@@ -284,7 +284,7 @@
                 if (door && state.floors < CO_THAN_MAX_FLOORS) {
                     if (now - state.idleAt < humanDelay(800)) return false;
                     const layer = Number(dt.cLayer) || 0;
-                    if (!tryAttemptTarget('co-than-door-' + layer, `[M4 - Cổ Thần Địa] Cửa tầng sau (tầng ${layer})`)) {
+                    if (!tryAttemptTarget('co-than-door-' + layer, `[Cổ Thần Địa] Cửa tầng sau (tầng ${layer})`)) {
                         failCoThan(state, 'door-stuck', "Qua cửa sang tầng sau nhiều lần vẫn chưa được; dừng đi tầng mới.", 'special');
                         return false;
                     }
@@ -292,23 +292,23 @@
                     state.door = { gridId: door.id, at: now, layer };
                     state.refreshing = null;
                     ctrl.send11063(door.id);
-                    sendLog(`🚪 [M4 - Cổ Thần Địa] Đã hạ hết ải tầng ${layer}; đi qua cửa ô #${door.id} sang tầng sau.`, "action");
+                    sendLog(`🚪 [Cổ Thần Địa] Đã hạ hết ải tầng ${layer}; đi qua cửa ô #${door.id} sang tầng sau.`, "action");
                     return true;
                 }
-                if (door) logCoThan(state, 'floor-cap', `ℹ️ [M4 - Cổ Thần Địa] Đã đi ${CO_THAN_MAX_FLOORS} tầng trong một lượt (giới hạn an toàn); dừng ở đây.`, "info");
-                else sendLog("✅ [M4 - Cổ Thần Địa] Không còn ải nào để khiêu chiến.", "action");
+                if (door) logCoThan(state, 'floor-cap', `ℹ️ [Cổ Thần Địa] Đã đi ${CO_THAN_MAX_FLOORS} tầng trong một lượt (giới hạn an toàn); dừng ở đây.`, "info");
+                else sendLog("✅ [Cổ Thần Địa] Không còn ải nào để khiêu chiến.", "action");
                 state.phase = 'special';
                 return false;
             }
             if (now - state.idleAt < humanDelay(600)) return false;
-            if (!tryAttemptTarget('co-than-open-' + grid.id, `[M4 - Cổ Thần Địa] Ô #${grid.id}`)) {
+            if (!tryAttemptTarget('co-than-open-' + grid.id, `[Cổ Thần Địa] Ô #${grid.id}`)) {
                 // Ô này mãi không mở bảng khiêu chiến/không hạ được: bỏ qua ô, đánh tiếp ô khác nếu còn.
                 grid.isFsh = 1;
                 return false;
             }
             state.idleAt = now;
             ctrl.clkBossGrid(grid);
-            sendLog(`🗺️ [M4 - Cổ Thần Địa] Chọn ải ô #${grid.id}${grid.id === 13 ? ' (ải giữa)' : ''}; chờ bảng khiêu chiến.`, "action");
+            sendLog(`🗺️ [Cổ Thần Địa] Chọn ải ô #${grid.id}${grid.id === 13 ? ' (ải giữa)' : ''}; chờ bảng khiêu chiến.`, "action");
             return true;
         }
 
@@ -345,7 +345,7 @@
                     } catch (e) { }
                     // 196050 = "Tầng hiện tại không thể dùng Tuyệt Mệnh Cấm Chế lên Thủ Lĩnh": từ chối bình thường khi chỉ còn ải giữa, không phải lỗi.
                     const knownRefusal = String(reply.msg) === '196050';
-                    sendLog(`${knownRefusal ? 'ℹ️' : '⚠️'} [M4 - Cổ Thần Địa] Máy chủ trả lời dùng vật phẩm ô #${sp.pending.gridId}: res=${reply.res}, thông báo: "${text || '(trống)'}".`, knownRefusal ? "info" : "warn");
+                    sendLog(`${knownRefusal ? 'ℹ️' : '⚠️'} [Cổ Thần Địa] Máy chủ trả lời dùng vật phẩm ô #${sp.pending.gridId}: res=${reply.res}, thông báo: "${text || '(trống)'}".`, knownRefusal ? "info" : "warn");
                 }
                 if (reply && reply.res !== 1) {
                     // Máy chủ từ chối rõ ràng (ví dụ "không thể dùng lên Thủ Lĩnh ở tầng này"): vật phẩm chưa bị trừ, nên
@@ -370,7 +370,7 @@
                 const grid = (after.gridLs || []).find((x) => x.id === pending.gridId);
                 const spent = after.lsPotion < pending.left || after.slPotion < pending.owned;
                 if (spent || (grid && grid.isFsh === 1)) {
-                    sendLog(`✅ [M4 - Cổ Thần Địa] Máy chủ xác nhận đã dùng vật phẩm đặc biệt lên ô #${pending.gridId} (lần ${sp.uses}/${CO_THAN_MAX_SPECIAL_USES}).`, "result");
+                    sendLog(`✅ [Cổ Thần Địa] Máy chủ xác nhận đã dùng vật phẩm đặc biệt lên ô #${pending.gridId} (lần ${sp.uses}/${CO_THAN_MAX_SPECIAL_USES}).`, "result");
                 } else {
                     failCoThan(state, 'sp-unconfirmed', `Đã dùng vật phẩm lên ô #${pending.gridId} nhưng game chưa ghi nhận; dừng bước này.`, 'reward');
                 }
@@ -383,7 +383,7 @@
             if (sp.uses >= CO_THAN_MAX_SPECIAL_USES || owned <= 0 || left <= 0 || !targets.length) {
                 const why = sp.uses >= CO_THAN_MAX_SPECIAL_USES ? 'đã đủ số lần'
                     : (!targets.length ? 'không còn ải' : 'hết vật phẩm/lượt');
-                sendLog(`ℹ️ [M4 - Cổ Thần Địa] Kết thúc dùng vật phẩm đặc biệt (${why}; đã dùng ${sp.uses} lần, còn ${owned} vật phẩm, ${left} lượt).`, "info");
+                sendLog(`ℹ️ [Cổ Thần Địa] Kết thúc dùng vật phẩm đặc biệt (${why}; đã dùng ${sp.uses} lần, còn ${owned} vật phẩm, ${left} lượt).`, "info");
                 state.phase = 'reward';
                 state.refreshing = null;
                 return false;
@@ -398,7 +398,7 @@
             sp.uses++;
             saveCoThanSpecialSent(sp.uses);
             ctrl.send11079(target.id);
-            sendLog(`🛡️ [M4 - Cổ Thần Địa] Dùng vật phẩm đặc biệt (Cấm Tuyệt Mệnh) lên ô #${target.id}.`, "action");
+            sendLog(`🛡️ [Cổ Thần Địa] Dùng vật phẩm đặc biệt (Cấm Tuyệt Mệnh) lên ô #${target.id}.`, "action");
             return true;
         }
 
@@ -412,7 +412,7 @@
                 const entry = (ctrl.mainUiDt && ctrl.mainUiDt.killLs || []).find((k) => k.num === pending.num);
                 if (r === 'ready' && entry && entry.status === 2) {
                     cl.done++;
-                    sendLog(`✅ [M4 - Cổ Thần Địa] Máy chủ xác nhận đã nhận thưởng Diệt Thủ Hộ mốc ${pending.num}.`, "result");
+                    sendLog(`✅ [Cổ Thần Địa] Máy chủ xác nhận đã nhận thưởng Diệt Thủ Hộ mốc ${pending.num}.`, "result");
                 } else {
                     failCoThan(state, 'claim-unconfirmed', `Đã gửi nhận thưởng mốc ${pending.num} nhưng game chưa ghi nhận; dừng bước này.`);
                 }
@@ -429,8 +429,8 @@
             const next = dt && (dt.killLs || []).find((k) => k.status === 1);
             if (!next || cl.done >= CO_THAN_MAX_CLAIMS) {
                 sendLog(cl.done
-                    ? `ℹ️ [M4 - Cổ Thần Địa] Đã nhận ${cl.done} thưởng Diệt Thủ Hộ; không còn mốc nào đủ điều kiện.`
-                    : `ℹ️ [M4 - Cổ Thần Địa] Chưa có thưởng Diệt Thủ Hộ nào đủ điều kiện nhận (hạ gục ${dt ? dt.killNum : 0}).`, "info");
+                    ? `ℹ️ [Cổ Thần Địa] Đã nhận ${cl.done} thưởng Diệt Thủ Hộ; không còn mốc nào đủ điều kiện.`
+                    : `ℹ️ [Cổ Thần Địa] Chưa có thưởng Diệt Thủ Hộ nào đủ điều kiện nhận (hạ gục ${dt ? dt.killNum : 0}).`, "info");
                 state.phase = 'done';
                 if (vm.viewIsVisible('adventureTarAwardUi')) vm.closeView('adventureTarAwardUi');
                 if (vm.viewIsVisible('adventureMainUi')) ctrl.closeMainUi();
@@ -441,7 +441,7 @@
             cl.pending = { num: next.num };
             state.refreshing = null;
             ctrl.send11084(next.num);
-            sendLog(`🎁 [M4 - Cổ Thần Địa] Nhận thưởng Diệt Thủ Hộ mốc ${next.num}.`, "action");
+            sendLog(`🎁 [Cổ Thần Địa] Nhận thưởng Diệt Thủ Hộ mốc ${next.num}.`, "action");
             return true;
         }
 
@@ -449,19 +449,19 @@
         function handleCoThanDia(ctx) {
             try {
                 if (!ctx.AdvCtrl || !ctx.AdvCtrl.gInst || !ctx.ViewMgr || !ctx.ViewMgr.gInst) {
-                    logUnsupportedOnce('co-than', "⚠️ [M4 - Cổ Thần Địa] Game chưa sẵn sàng (AdvCtrl); bỏ qua bước này.");
+                    logUnsupportedOnce('co-than', "⚠️ [Cổ Thần Địa] Game chưa sẵn sàng (AdvCtrl); bỏ qua bước này.");
                     return 'done';
                 }
                 const dayKey = new Date().toDateString();
                 if (!coThanState || coThanState.dayKey !== dayKey) {
                     coThanState = createCoThanState();
-                    sendLog("🗺️ [M4 - Cổ Thần Địa] Bắt đầu/khởi động lại: kiểm tra trạng thái từ game, khiêu chiến ải quanh rồi ải giữa, dùng vật phẩm, nhận thưởng.", "action");
+                    sendLog("🗺️ [Cổ Thần Địa] Bắt đầu/khởi động lại: kiểm tra trạng thái từ game, khiêu chiến ải quanh rồi ải giữa, dùng vật phẩm, nhận thưởng.", "action");
                 }
                 const state = coThanState;
                 if (state.phase === 'done') {
                     logCoThan(state, 'done', state.failed
-                        ? "⚠️ [M4 - Cổ Thần Địa] Kết thúc nhưng có bước lỗi/chưa xác nhận; sẽ kiểm tra lại khi Auto khởi động lại."
-                        : "✅ [M4 - Cổ Thần Địa] Đã hoàn tất hôm nay.", state.failed ? "warn" : "action");
+                        ? "⚠️ [Cổ Thần Địa] Kết thúc nhưng có bước lỗi/chưa xác nhận; sẽ kiểm tra lại khi Auto khởi động lại."
+                        : "✅ [Cổ Thần Địa] Đã hoàn tất hôm nay.", state.failed ? "warn" : "action");
                     return 'done';
                 }
                 const ctrl = ctx.AdvCtrl.gInst();
@@ -476,7 +476,7 @@
                 if (state.phase === 'done') return 'acted';
                 return acted ? 'acted' : 'wait';
             } catch (e) {
-                const message = `❌ [M4 - Cổ Thần Địa] Lỗi: ${e && e.message ? e.message : e}`;
+                const message = `❌ [Cổ Thần Địa] Lỗi: ${e && e.message ? e.message : e}`;
                 if (message !== lastCoThanError) {
                     lastCoThanError = message;
                     sendLog(message, "error");

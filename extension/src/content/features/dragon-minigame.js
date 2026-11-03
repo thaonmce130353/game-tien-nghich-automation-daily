@@ -53,7 +53,7 @@
         }
 
         function dragonFail(s, message, nextPhase) {
-            sendLog(`❌ [M7] ${message}`, "error");
+            sendLog(`❌ [Kiếm Hành & Điêu Long] ${message}`, "error");
             s.failed = true;
             s.refreshing = null;
             s.phase = nextPhase;
@@ -77,7 +77,7 @@
         function dragonStepDice(ctx, vm, s, now) {
             const dice = ctx.DiceCtrl && ctx.DiceCtrl.gInst && ctx.DiceCtrl.gInst();
             if (!dice || typeof dice.sd20501 !== 'function' || typeof dice.sd20502 !== 'function') {
-                logUnsupportedOnce('m7-dice', "⚠️ [M7 - Kiếm Hành] Bản game hiện tại không có DiceCtrl phù hợp; bỏ qua Kiếm Hành.");
+                logUnsupportedOnce('m7-dice', "⚠️ [Kiếm Hành] Bản game hiện tại không có DiceCtrl phù hợp; bỏ qua Kiếm Hành.");
                 s.phase = 'dice-war';
                 return false;
             }
@@ -99,7 +99,7 @@
                 const b = s.pendingBuy;
                 const cost = dragonDiceCost(ctx, dice, info);
                 if (cost.have >= b.need) {
-                    sendLog(`✅ [M7 - Kiếm Hành] Máy chủ xác nhận đã mua xúc xắc (có ${cost.have}, cần ${b.need}).`, "result");
+                    sendLog(`✅ [Kiếm Hành] Máy chủ xác nhận đã mua xúc xắc (có ${cost.have}, cần ${b.need}).`, "result");
                     s.pendingBuy = null;
                 } else if (now - b.at >= DRAGON_REQUEST_TIMEOUT_MS) {
                     dragonFail(s, "[Kiếm Hành] Đã gửi mua xúc xắc nhưng số xúc xắc không tăng; dừng, không mua lại.", 'dice-war');
@@ -111,7 +111,7 @@
                 const p = s.pendingRoll;
                 if (info.index !== p.index || info.percent >= 100) {
                     s.pendingRoll = null;
-                    sendLog(`🎲 [M7 - Kiếm Hành] Máy chủ xác nhận đã đi: ô ${p.index} → ${info.index} (${info.percent}%).`, "action");
+                    sendLog(`🎲 [Kiếm Hành] Máy chủ xác nhận đã đi: ô ${p.index} → ${info.index} (${info.percent}%).`, "action");
                     s.nextAt = now + DRAGON_DICE_MIN_GAP_MS + humanDelay(500);
                 } else if (now - p.at >= DRAGON_REQUEST_TIMEOUT_MS) {
                     dragonFail(s, "[Kiếm Hành] Đã gieo xúc xắc nhưng máy chủ chưa trả bước đi; dừng, không gieo lại.", 'dice-war');
@@ -122,11 +122,11 @@
 
             if (info.percent >= 100) {
                 if (info.round >= info.maxRound) {
-                    sendLog(`✅ [M7 - Kiếm Hành] Đã đi hết đường (vòng ${info.round}/${info.maxRound}, ${info.percent}%).`, "action");
+                    sendLog(`✅ [Kiếm Hành] Đã đi hết đường (vòng ${info.round}/${info.maxRound}, ${info.percent}%).`, "action");
                     s.phase = 'dice-war';
                     return true;
                 }
-                sendLog(`ℹ️ [M7 - Kiếm Hành] Xong vòng ${info.round}/${info.maxRound} (chỉ làm 1 vòng mỗi lượt chạy theo yêu cầu); không làm mới sang vòng kế.`, "info");
+                sendLog(`ℹ️ [Kiếm Hành] Xong vòng ${info.round}/${info.maxRound} (chỉ làm 1 vòng mỗi lượt chạy theo yêu cầu); không làm mới sang vòng kế.`, "info");
                 s.phase = 'dice-war';
                 return true;
             }
@@ -138,7 +138,7 @@
                 if (!(cost.need > 0)) { dragonFail(s, "[Kiếm Hành] Không đọc được giá xúc xắc (bản game đổi); không mua.", 'dice-war'); return false; }
                 if (cost.have < cost.need) {
                     if (s.buys >= DRAGON_DICE_MAX_BUYS) {
-                        sendLog(`⏸️ [M7 - Kiếm Hành] Đã mua ${s.buys} lần hôm nay (trần ${DRAGON_DICE_MAX_BUYS}); dừng mua thêm. Đường đi chưa xong (${info.percent}%).`, "warn");
+                        sendLog(`⏸️ [Kiếm Hành] Đã mua ${s.buys} lần hôm nay (trần ${DRAGON_DICE_MAX_BUYS}); dừng mua thêm. Đường đi chưa xong (${info.percent}%).`, "warn");
                         s.phase = 'dice-war';
                         return true;
                     }
@@ -146,7 +146,7 @@
                     if (!ctx.ShopCtrl || typeof ctx.ShopCtrl.gInst().quickBuy !== 'function') { dragonFail(s, "[Kiếm Hành] Không có lệnh mua xúc xắc; dừng.", 'dice-war'); return false; }
                     s.buys++;
                     saveDiceBuys(s.buys);
-                    sendLog(`💎 [M7 - Kiếm Hành] Hết xúc xắc free; mua ${missing} xúc xắc (khoảng ${missing * cost.price} Tiên Ngọc, lần mua ${s.buys}/${DRAGON_DICE_MAX_BUYS}).`, "result");
+                    sendLog(`💎 [Kiếm Hành] Hết xúc xắc free; mua ${missing} xúc xắc (khoảng ${missing * cost.price} Tiên Ngọc, lần mua ${s.buys}/${DRAGON_DICE_MAX_BUYS}).`, "result");
                     ctx.ShopCtrl.gInst().quickBuy(1501001, missing);
                     s.pendingBuy = { need: cost.need, at: now };
                     return true;
@@ -155,7 +155,7 @@
             s.rolls++;
             s.pendingRoll = { index: info.index, at: now };
             dice.sd20502();
-            sendLog(`🎲 [M7 - Kiếm Hành] Gieo xúc xắc lần ${s.rolls} (tại ô ${info.index}, ${info.percent}%${free > 0 ? ', free còn ' + free : ''}).`, "action");
+            sendLog(`🎲 [Kiếm Hành] Gieo xúc xắc lần ${s.rolls} (tại ô ${info.index}, ${info.percent}%${free > 0 ? ', free còn ' + free : ''}).`, "action");
             return true;
         }
 
@@ -191,7 +191,7 @@
         function dragonStepLongOpen(ctx, vm, s, now) {
             const ec = ctx.EngraveCtrl && ctx.EngraveCtrl.gInst && ctx.EngraveCtrl.gInst();
             if (!ec || typeof ec.send32611 !== 'function' || typeof ec.send32614 !== 'function' || typeof ec.send32615 !== 'function' || typeof ec.send32616 !== 'function') {
-                logUnsupportedOnce('m7-long', "⚠️ [M7 - Điêu Long] Bản game hiện tại không có EngraveCtrl phù hợp; bỏ qua Điêu Long.");
+                logUnsupportedOnce('m7-long', "⚠️ [Điêu Long] Bản game hiện tại không có EngraveCtrl phù hợp; bỏ qua Điêu Long.");
                 s.phase = 'done';
                 return false;
             }
@@ -204,7 +204,7 @@
             const info = model.engraveLongInfo;
             const maxCfg = model.getLongPointRewardMaxConfig(Number.MAX_SAFE_INTEGER);
             s.longTarget = maxCfg ? Number(maxCfg.num) || 0 : 0;
-            sendLog(`🐉 [M7 - Điêu Long] Điểm hôm nay ${info.daily_scores_acc}/${s.longTarget || '?'} (cao nhất ${info.history_scores}).`, "info");
+            sendLog(`🐉 [Điêu Long] Điểm hôm nay ${info.daily_scores_acc}/${s.longTarget || '?'} (cao nhất ${info.history_scores}).`, "info");
             s.phase = 'long-play';
             return true;
         }
@@ -217,16 +217,16 @@
 
             if (!s.play) {
                 if (s.longTarget > 0 && info.daily_scores_acc >= s.longTarget) {
-                    sendLog(`✅ [M7 - Điêu Long] Đã đủ điểm ngày (${info.daily_scores_acc}/${s.longTarget}).`, "action");
+                    sendLog(`✅ [Điêu Long] Đã đủ điểm ngày (${info.daily_scores_acc}/${s.longTarget}).`, "action");
                     s.phase = 'long-stage';
                     return true;
                 }
-                if (s.plays >= DRAGON_LONG_MAX_PLAYS) { sendLog(`⏸️ [M7 - Điêu Long] Đã chơi ${s.plays} ván trong lượt này; dừng chơi thêm.`, "warn"); s.phase = 'long-stage'; return true; }
+                if (s.plays >= DRAGON_LONG_MAX_PLAYS) { sendLog(`⏸️ [Điêu Long] Đã chơi ${s.plays} ván trong lượt này; dừng chơi thêm.`, "warn"); s.phase = 'long-stage'; return true; }
                 const band = dragonPerfectBand(model);
                 if (!band) { dragonFail(s, "[Điêu Long] Không đọc được khoảng 'Hoàn Mỹ' từ cấu hình game; không tự bấm nhịp.", 'long-stage'); return false; }
                 s.play = { stage: 'start', band, step: 0, sentAt: 0, beforeAcc: info.daily_scores_acc, perfects: 0 };
                 s.plays++;
-                sendLog(`🐉 [M7 - Điêu Long] Ván ${s.plays}: khoảng Hoàn Mỹ ${Math.round(band.lo)}–${Math.round(band.hi)}; bấm Bắt đầu.`, "action");
+                sendLog(`🐉 [Điêu Long] Ván ${s.plays}: khoảng Hoàn Mỹ ${Math.round(band.lo)}–${Math.round(band.hi)}; bấm Bắt đầu.`, "action");
             }
             const p = s.play;
 
@@ -271,7 +271,7 @@
                 const got = ec.getGameStepData(p.entry.stepid);
                 if (got && got.group !== undefined) {
                     if (got.group === DRAGON_PERFECT_GROUP) p.perfects++;
-                    sendLog(`🐉 [M7 - Điêu Long] Bước ${p.step + 1}/${chance}: ${got.group === DRAGON_PERFECT_GROUP ? 'HOÀN MỸ' : 'chưa hoàn mỹ (nhóm ' + got.group + ')'} (+${got.score} điểm, đã bấm ${p.accurate}).`, got.group === DRAGON_PERFECT_GROUP ? "action" : "warn");
+                    sendLog(`🐉 [Điêu Long] Bước ${p.step + 1}/${chance}: ${got.group === DRAGON_PERFECT_GROUP ? 'HOÀN MỸ' : 'chưa hoàn mỹ (nhóm ' + got.group + ')'} (+${got.score} điểm, đã bấm ${p.accurate}).`, got.group === DRAGON_PERFECT_GROUP ? "action" : "warn");
                     p.step++;
                     p.stepAt = 0;
                     s.nextAt = now + 900 + humanDelay(300);
@@ -288,7 +288,7 @@
                     const total = model.engraveLongGameTotalScore;
                     try { if (vm.viewIsVisible('engraveResultUi')) vm.closeView('engraveResultUi'); } catch (e) { }
                     const after = model.engraveLongInfo ? model.engraveLongInfo.daily_scores_acc : 0;
-                    sendLog(`✅ [M7 - Điêu Long] Máy chủ xác nhận xong ván ${s.plays}: ${p.perfects}/${chance} hoàn mỹ, điểm ngày ${p.beforeAcc} → ${after}${total ? ` (+${total.daily_scores_last})` : ''}.`, "action");
+                    sendLog(`✅ [Điêu Long] Máy chủ xác nhận xong ván ${s.plays}: ${p.perfects}/${chance} hoàn mỹ, điểm ngày ${p.beforeAcc} → ${after}${total ? ` (+${total.daily_scores_last})` : ''}.`, "action");
                     s.play = null;
                     s.nextAt = now + humanDelay(1500);
                     return true;
@@ -307,22 +307,22 @@
             const claimable = () => ec.checkLongRewardStatRed() === true;
             if (s.stageSent) {
                 if (!claimable()) {
-                    sendLog("✅ [M7 - Điêu Long] Máy chủ xác nhận đã nhận rương mốc điểm.", "result");
+                    sendLog("✅ [Điêu Long] Máy chủ xác nhận đã nhận rương mốc điểm.", "result");
                     s.stageSent = 0;
                     s.phase = 'long-tasks';
                     return true;
                 }
                 if (now - s.stageSent >= DRAGON_REQUEST_TIMEOUT_MS) {
-                    sendLog("⚠️ [M7 - Điêu Long] Đã gửi nhận rương mốc nhưng máy chủ chưa xác nhận hết; không gửi lại.", "warn");
+                    sendLog("⚠️ [Điêu Long] Đã gửi nhận rương mốc nhưng máy chủ chưa xác nhận hết; không gửi lại.", "warn");
                     s.stageSent = 0;
                     s.phase = 'long-tasks';
                 }
                 return false;
             }
-            if (!info || !claimable()) { sendLog("ℹ️ [M7 - Điêu Long] Không có rương mốc điểm nào để nhận.", "info"); s.phase = 'long-tasks'; return true; }
+            if (!info || !claimable()) { sendLog("ℹ️ [Điêu Long] Không có rương mốc điểm nào để nhận.", "info"); s.phase = 'long-tasks'; return true; }
             ec.send32613();
             s.stageSent = now;
-            sendLog("🎁 [M7 - Điêu Long] Đã gửi nhận rương mốc điểm; chờ máy chủ xác nhận.", "action");
+            sendLog("🎁 [Điêu Long] Đã gửi nhận rương mốc điểm; chờ máy chủ xác nhận.", "action");
             return true;
         }
 
@@ -330,7 +330,7 @@
         function dragonStepLongTasks(ctx, vm, s, now) {
             const ds = ctx.DevilSeaCtrl && ctx.DevilSeaCtrl.gInst && ctx.DevilSeaCtrl.gInst();
             if (!ds || typeof ds.send30040 !== 'function' || typeof ds.send30041 !== 'function') {
-                logUnsupportedOnce('m7-task', "⚠️ [M7 - Điêu Long] Không có DevilSeaCtrl để nhận nhiệm vụ Khiêu chiến Điêu Long; bỏ qua.");
+                logUnsupportedOnce('m7-task', "⚠️ [Điêu Long] Không có DevilSeaCtrl để nhận nhiệm vụ Khiêu chiến Điêu Long; bỏ qua.");
                 s.phase = 'long-war';
                 return false;
             }
@@ -346,10 +346,10 @@
                 const t = list().find((x) => x.id === s.claimPending.id);
                 if (t && t.status === 2) {
                     s.claimedTasks++;
-                    sendLog(`✅ [M7 - Điêu Long] Máy chủ xác nhận đã nhận nhiệm vụ Khiêu chiến #${t.id}.`, "result");
+                    sendLog(`✅ [Điêu Long] Máy chủ xác nhận đã nhận nhiệm vụ Khiêu chiến #${t.id}.`, "result");
                     s.claimPending = null;
                 } else if (now - s.claimPending.at >= DRAGON_REQUEST_TIMEOUT_MS) {
-                    sendLog(`⚠️ [M7 - Điêu Long] Đã gửi nhận nhiệm vụ #${s.claimPending.id} nhưng máy chủ chưa xác nhận; không gửi lại.`, "warn");
+                    sendLog(`⚠️ [Điêu Long] Đã gửi nhận nhiệm vụ #${s.claimPending.id} nhưng máy chủ chưa xác nhận; không gửi lại.`, "warn");
                     s.doneTasks = (s.doneTasks || {}); s.doneTasks[s.claimPending.id] = true;
                     s.claimPending = null;
                 } else return false;
@@ -357,21 +357,21 @@
             s.doneTasks = s.doneTasks || {};
             const next = list().find((x) => x.status === 1 && !s.doneTasks[x.id]);
             if (!next) {
-                sendLog(`ℹ️ [M7 - Điêu Long] Nhiệm vụ Khiêu chiến: đã nhận ${s.claimedTasks}, không còn nhiệm vụ nào nhận được.`, "info");
+                sendLog(`ℹ️ [Điêu Long] Nhiệm vụ Khiêu chiến: đã nhận ${s.claimedTasks}, không còn nhiệm vụ nào nhận được.`, "info");
                 s.phase = 'long-war';
                 return true;
             }
             s.doneTasks[next.id] = true;
             s.claimPending = { id: next.id, at: now };
             ds.send30041(DRAGON_LONG_TASK_TYPE, next.id);
-            sendLog(`🎁 [M7 - Điêu Long] Đã gửi nhận nhiệm vụ Khiêu chiến #${next.id}; chờ máy chủ xác nhận.`, "action");
+            sendLog(`🎁 [Điêu Long] Đã gửi nhận nhiệm vụ Khiêu chiến #${next.id}; chờ máy chủ xác nhận.`, "action");
             return true;
         }
 
         function handleMinigameDragon(ctx) {
             try {
                 if (!ctx.ViewMgr || !ctx.ViewMgr.gInst || !ctx.DiceCtrl && !ctx.EngraveCtrl) {
-                    logUnsupportedOnce('m7', "⚠️ [M7 - Kiếm Hành/Điêu Long] Bản game hiện tại không có DiceCtrl/EngraveCtrl; tính năng chưa hỗ trợ, không gửi thao tác nào.");
+                    logUnsupportedOnce('m7', "⚠️ [Kiếm Hành & Điêu Long] Bản game hiện tại không có DiceCtrl/EngraveCtrl; tính năng chưa hỗ trợ, không gửi thao tác nào.");
                     return false;
                 }
                 if (!dragonState) dragonState = createDragonState();
@@ -398,13 +398,13 @@
                     case 'long-war': {
                         if (!s.warOrder2) s.warOrder2 = {};
                         const r = warOrderClaimStep(ctx, vm, s.warOrder2, { label: 'Điêu Long', typeKey: 'zhanLingType_28', fallbackType: 28, termId: 1 }, now);
-                        if (r.status === 'done') { s.phase = 'done'; sendLog(`🏁 [M7] Kiếm Hành & Điêu Long đã chạy xong${s.failed ? ' (có bước chưa hoàn tất)' : ''}.`, "info"); return true; }
+                        if (r.status === 'done') { s.phase = 'done'; sendLog(`🏁 [Kiếm Hành & Điêu Long] Kiếm Hành & Điêu Long đã chạy xong${s.failed ? ' (có bước chưa hoàn tất)' : ''}.`, "info"); return true; }
                         return r.status === 'acted';
                     }
                     default: return false;
                 }
             } catch (e) {
-                sendLog(`❌ [M7] Lỗi: ${e && e.message || e}`, "error");
+                sendLog(`❌ [Kiếm Hành & Điêu Long] Lỗi: ${e && e.message || e}`, "error");
                 if (dragonState) { dragonState.failed = true; dragonState.phase = 'done'; }
                 return false;
             }

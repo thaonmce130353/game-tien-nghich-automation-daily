@@ -229,22 +229,22 @@
                 const vm = window.ViewMgr && window.ViewMgr.gInst ? window.ViewMgr.gInst() : null;
                 const banners = bannerGetOpenList();
                 if (!vm || typeof vm.viewIsVisible !== 'function' || !banners) {
-                    sendLog('⚠️ [Banner Hero] Game chưa sẵn sàng (chưa có dữ liệu banner); bấm BẮT ĐẦU lại sau.', 'err');
+                    sendLog('⚠️ [Tướng Thần Lâm / Đạp Thiên] Game chưa sẵn sàng (chưa có dữ liệu banner); bấm BẮT ĐẦU lại sau.', 'err');
                     return;
                 }
                 if (BANNER_BUSY_VIEWS.some((name) => vm.viewIsVisible(name))) {
-                    sendLog('⚠️ [Banner Hero] Đang ở màn hình trận đấu/đội hình; bấm BẮT ĐẦU lại sau.', 'err');
+                    sendLog('⚠️ [Tướng Thần Lâm / Đạp Thiên] Đang ở màn hình trận đấu/đội hình; bấm BẮT ĐẦU lại sau.', 'err');
                     return;
                 }
                 if (!banners.length) {
-                    sendLog('ℹ️ [Banner Hero] Hiện không có banner nào đang mở; không có gì để làm.', 'info');
+                    sendLog('ℹ️ [Tướng Thần Lâm / Đạp Thiên] Hiện không có banner nào đang mở; không có gì để làm.', 'info');
                 } else {
-                    sendLog(`🎴 [Banner Hero] Làm việc ngày cho ${banners.length} banner đang mở: ${banners.map((b) => b.series).join(', ')}.`, 'action');
+                    sendLog(`🎴 [Tướng Thần Lâm / Đạp Thiên] Làm việc ngày cho ${banners.length} banner đang mở: ${banners.map((b) => b.series).join(', ')}.`, 'action');
                 }
                 for (const banner of banners) { await bannerRunHero(banner); ranCount++; }
             } catch (error) {
                 if (error && error.bannerAbort) aborted = true;
-                else sendLog(`⚠️ [Banner Hero] Lỗi: ${error && error.message || error}`, 'err');
+                else sendLog(`⚠️ [Tướng Thần Lâm / Đạp Thiên] Lỗi: ${error && error.message || error}`, 'err');
             } finally {
                 bannerGiftBusy = false;
                 bannerAbortRequested = false;

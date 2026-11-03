@@ -49,7 +49,7 @@
 
         function failSect(state, key, message, nextPhase) {
             state.failed = true;
-            logSect(state, key, `❌ [M3 - Thủ Vệ Tứ Phái] ${message}`, "error");
+            logSect(state, key, `❌ [Thủ Vệ Tứ Phái] ${message}`, "error");
             if (nextPhase) state.phase = nextPhase;
         }
 
@@ -84,19 +84,19 @@
             let buffs = view.lsCltn && (view.lsCltn.source || view.lsCltn);
             if (!buffs || typeof buffs.length !== 'number') buffs = view.exData && view.exData.bfLs;
             if (!buffs || !buffs.length) {
-                logSect(state, 'buff-empty', "⚠️ [M3 - Thủ Vệ Tứ Phái] Bảng chọn Buff chưa có dữ liệu; chờ game tải.", "warn");
+                logSect(state, 'buff-empty', "⚠️ [Thủ Vệ Tứ Phái] Bảng chọn Buff chưa có dữ liệu; chờ game tải.", "warn");
                 return false;
             }
             const index = Math.floor(buffs.length / 2);
             const buff = buffs[index];
             const eId = view.exData && view.exData.eId;
             if (!buff || typeof buff.id !== 'number' && typeof buff.id !== 'string') return false;
-            if (!tryAttemptTarget(`sect-buff-${eId}`, `[M3 - Thủ Vệ Tứ Phái] Chọn Buff màn #${eId}`)) return false;
+            if (!tryAttemptTarget(`sect-buff-${eId}`, `[Thủ Vệ Tứ Phái] Chọn Buff màn #${eId}`)) return false;
 
             ctrl.choiceBuffId(buff.id);
             state.pendingBuff = { at: now, eId, result: ctrl.fResult };
             state.buffSeenAt = 0;
-            sendLog(`✨ [M3 - Thủ Vệ Tứ Phái] Chọn Buff ở giữa (vị trí ${index + 1}/${buffs.length}, #${buff.id}); chờ máy chủ xác nhận trận.`, "action");
+            sendLog(`✨ [Thủ Vệ Tứ Phái] Chọn Buff ở giữa (vị trí ${index + 1}/${buffs.length}, #${buff.id}); chờ máy chủ xác nhận trận.`, "action");
             return true;
         }
 
@@ -105,7 +105,7 @@
             const trialType = ctx.EmbattleConst && ctx.EmbattleConst.embattleType && ctx.EmbattleConst.embattleType.trial;
             if (!embUi || trialType === undefined) return false;
             if (embUi.embattleType !== trialType) {
-                logSect(state, 'emb-other', "ℹ️ [M3 - Thủ Vệ Tứ Phái] Đang mở bảng đội hình của chức năng khác; chờ bạn đóng hoặc hoàn tất.", "info");
+                logSect(state, 'emb-other', "ℹ️ [Thủ Vệ Tứ Phái] Đang mở bảng đội hình của chức năng khác; chờ bạn đóng hoặc hoàn tất.", "info");
                 return false;
             }
             // Bấm "Lên trận nhanh", kiểm tra ô đội hình có tướng, mới bấm "Khiêu Chiến" (Bắt đầu).
@@ -113,7 +113,7 @@
             const step = embattleStep(embUi, state.emb, now);
             if (step === 'wait') return false;
             if (step === 'arranged') {
-                sendLog(`🛡️ [M3 - Thủ Vệ Tứ Phái] Đã bấm Lên trận nhanh (lần ${state.emb.clicked}); kiểm tra đội hình.`, "action");
+                sendLog(`🛡️ [Thủ Vệ Tứ Phái] Đã bấm Lên trận nhanh (lần ${state.emb.clicked}); kiểm tra đội hình.`, "action");
                 return true;
             }
             if (step === 'failed') {
@@ -131,7 +131,7 @@
             embUi.cBtnH2();
             state.lastEntryAt = now;
             state.idleSince = now;
-            sendLog("⚔️ [M3 - Thủ Vệ Tứ Phái] Đã bấm Khiêu Chiến; chờ bảng chọn Buff.", "action");
+            sendLog("⚔️ [Thủ Vệ Tứ Phái] Đã bấm Khiêu Chiến; chờ bảng chọn Buff.", "action");
             return true;
         }
 
@@ -150,7 +150,7 @@
             clearTargetAttempts('sect-entry');
             state.idleSince = now;
             const won = ctrl.isCgeSess === true;
-            sendLog(`✅ [M3 - Thủ Vệ Tứ Phái] Máy chủ xác nhận trận ${state.battles} đã kết thúc (${won ? 'thắng' : 'thua'}${ctrl.is_quit ? ', kết thúc lượt' : ''}).`, "action");
+            sendLog(`✅ [Thủ Vệ Tứ Phái] Máy chủ xác nhận trận ${state.battles} đã kết thúc (${won ? 'thắng' : 'thua'}${ctrl.is_quit ? ', kết thúc lượt' : ''}).`, "action");
             if (ctrl.is_quit || !won) state.phase = 'status';
             return true;
         }
@@ -164,7 +164,7 @@
             }
             const status = ctrl.endLsData && ctrl.endLsData.status;
             if (status === SECT_STATE_END) {
-                logSect(state, 'status-end', `✅ [M3 - Thủ Vệ Tứ Phái] Máy chủ báo đã hết lượt khiêu chiến${state.battles ? ` (đã đánh ${state.battles} trận trong lượt này)` : ' hôm nay'}.`, "action");
+                logSect(state, 'status-end', `✅ [Thủ Vệ Tứ Phái] Máy chủ báo đã hết lượt khiêu chiến${state.battles ? ` (đã đánh ${state.battles} trận trong lượt này)` : ' hôm nay'}.`, "action");
                 state.phase = 'stageReward';
             } else if (status === SECT_STATE_READY || status === SECT_STATE_FIGHTING) {
                 state.phase = 'fight';
@@ -184,7 +184,7 @@
             // Đang chờ game mở bảng Buff/đội hình hoặc chờ trận chạy: không làm gì thêm.
             if (state.pendingBuff || sectViewVisible(vm, 'eTFightUi')) return false;
             if (now - state.idleSince < humanDelay(2500)) return false;
-            if (!tryAttemptTarget('sect-entry', "[M3 - Thủ Vệ Tứ Phái] Mở Thí Luyện / vào trận")) {
+            if (!tryAttemptTarget('sect-entry', "[Thủ Vệ Tứ Phái] Mở Thí Luyện / vào trận")) {
                 failSect(state, 'entry-stuck', "Không vào được trận sau 3 lần thử; dừng và kiểm tra lại sau.", 'claim');
                 return false;
             }
@@ -198,14 +198,14 @@
             if (status === SECT_STATE_READY) {
                 if (!sectViewVisible(vm, 'eTMainUi')) {
                     ctrl.sd11030(0);          // game tự mở eTMainUi khi sẵn sàng
-                    sendLog("🛡️ [M3 - Thủ Vệ Tứ Phái] Đang mở màn Thủ Vệ Tứ Phái...", "action");
+                    sendLog("🛡️ [Thủ Vệ Tứ Phái] Đang mở màn Thủ Vệ Tứ Phái...", "action");
                 } else {
                     ctx.EmbattleCtrl.gInst().openEmbattle(ctx.EmbattleConst.embattleType.trial);
-                    sendLog("🛡️ [M3 - Thủ Vệ Tứ Phái] Đã bấm Khiêu Chiến, mở bảng đội hình.", "action");
+                    sendLog("🛡️ [Thủ Vệ Tứ Phái] Đã bấm Khiêu Chiến, mở bảng đội hình.", "action");
                 }
             } else {
                 ctrl.opEBuffUi(null);       // đang đánh dở: game mở lại bảng chọn Buff
-                sendLog("🛡️ [M3 - Thủ Vệ Tứ Phái] Tiếp tục lượt đang đánh dở, mở bảng chọn Buff.", "action");
+                sendLog("🛡️ [Thủ Vệ Tứ Phái] Tiếp tục lượt đang đánh dở, mở bảng chọn Buff.", "action");
             }
             return true;
         }
@@ -231,7 +231,7 @@
                     return true;
                 }
                 sr.claimed++;
-                sendLog(`✅ [M3 - Thủ Vệ Tứ Phái] Máy chủ xác nhận đã nhận thưởng mốc #${pending.id}.`, "result");
+                sendLog(`✅ [Thủ Vệ Tứ Phái] Máy chủ xác nhận đã nhận thưởng mốc #${pending.id}.`, "result");
                 return true;
             }
             const data = ctrl.endLsData;
@@ -244,14 +244,14 @@
             if (nextId === null || nextId === undefined || nextId > maxId || sr.claimed >= SECT_MAX_STAGE_CLAIMS) {
                 const detail = nextId ? ` (đã thắng tới #${maxId}, mốc kế tiếp #${nextId})` : ' (đã nhận hết các mốc)';
                 sendLog(sr.claimed
-                    ? `ℹ️ [M3 - Thủ Vệ Tứ Phái] Đã nhận ${sr.claimed} thưởng mốc; không còn mốc nào đủ điều kiện${detail}.`
-                    : `ℹ️ [M3 - Thủ Vệ Tứ Phái] Chưa có thưởng mốc nào đủ điều kiện nhận${detail}.`, "info");
+                    ? `ℹ️ [Thủ Vệ Tứ Phái] Đã nhận ${sr.claimed} thưởng mốc; không còn mốc nào đủ điều kiện${detail}.`
+                    : `ℹ️ [Thủ Vệ Tứ Phái] Chưa có thưởng mốc nào đủ điều kiện nhận${detail}.`, "info");
                 state.phase = 'claim';
                 return true;
             }
             sr.pending = { id: nextId };
             sr.refreshing = null;
-            sendLog(`🎁 [M3 - Thủ Vệ Tứ Phái] Đã chạm mốc thưởng #${nextId} (thắng tới #${maxId}); đang nhận.`, "action");
+            sendLog(`🎁 [Thủ Vệ Tứ Phái] Đã chạm mốc thưởng #${nextId} (thắng tới #${maxId}); đang nhận.`, "action");
             return true;
         }
 
@@ -282,13 +282,13 @@
                     failSect(state, 'zl-count', "Không đọc được danh sách thưởng Chiến Lệnh (bản game đổi); không nhận.", 'done');
                     sectCloseZl(vm);
                 } else if (available === 0) {
-                    logSect(state, 'zl-none', "ℹ️ [M3 - Chiến Lệnh] Không có phần thưởng miễn phí nào để nhận lúc này.", "info");
+                    logSect(state, 'zl-none', "ℹ️ [Thủ Vệ Tứ Phái - Chiến Lệnh] Không có phần thưởng miễn phí nào để nhận lúc này.", "info");
                     state.phase = 'done';
                     sectCloseZl(vm);
                 } else {
                     c.before = available;
                     c.stage = 'claim';
-                    sendLog(`🎁 [M3 - Chiến Lệnh] Có ${available} phần thưởng miễn phí có thể nhận; đang nhận.`, "action");
+                    sendLog(`🎁 [Thủ Vệ Tứ Phái - Chiến Lệnh] Có ${available} phần thưởng miễn phí có thể nhận; đang nhận.`, "action");
                 }
                 return true;
             }
@@ -301,7 +301,7 @@
                     return true;
                 }
                 const left = sectCountFreeZlRewards(rc, zlType);
-                if (left === 0) sendLog(`✅ [M3 - Chiến Lệnh] Máy chủ xác nhận đã nhận ${c.before} phần thưởng.`, "result");
+                if (left === 0) sendLog(`✅ [Thủ Vệ Tứ Phái - Chiến Lệnh] Máy chủ xác nhận đã nhận ${c.before} phần thưởng.`, "result");
                 else failSect(state, 'zl-partial', `Đã gửi nhận nhưng còn ${left} phần thưởng chưa nhận được (có thể cần điều kiện khác).`);
                 state.phase = 'done';
                 sectCloseZl(vm);
@@ -317,7 +317,7 @@
         function handleSectDefense(ctx) {
             try {
                 if (!ctx.ETCtrl || !ctx.ETCtrl.gInst || !ctx.ViewMgr || !ctx.ViewMgr.gInst) {
-                    logUnsupportedOnce('m3', "⚠️ [M3 - Thủ Vệ Tứ Phái] Game chưa sẵn sàng (ETCtrl); sẽ thử lại.");
+                    logUnsupportedOnce('m3', "⚠️ [Thủ Vệ Tứ Phái] Game chưa sẵn sàng (ETCtrl); sẽ thử lại.");
                     return false;
                 }
                 const ctrl = ctx.ETCtrl.gInst();
@@ -325,13 +325,13 @@
                 const dayKey = new Date().toDateString();
                 if (!sectDefenseState || sectDefenseState.dayKey !== dayKey) {
                     sectDefenseState = createSectDefenseState();
-                    sendLog("🛡️ [M3 - Thủ Vệ Tứ Phái] Bắt đầu/khởi động lại: kiểm tra trạng thái từ game, khiêu chiến, chọn Buff giữa rồi nhận Chiến Lệnh.", "action");
+                    sendLog("🛡️ [Thủ Vệ Tứ Phái] Bắt đầu/khởi động lại: kiểm tra trạng thái từ game, khiêu chiến, chọn Buff giữa rồi nhận Chiến Lệnh.", "action");
                 }
                 const state = sectDefenseState;
                 if (state.phase === 'done') {
                     logSect(state, 'done', state.failed
-                        ? "⚠️ [M3 - Thủ Vệ Tứ Phái] Kết thúc nhưng có bước lỗi/chưa xác nhận; sẽ kiểm tra lại khi Auto khởi động lại."
-                        : "✅ [M3 - Thủ Vệ Tứ Phái] Đã hoàn tất hôm nay (khiêu chiến + Chiến Lệnh).", state.failed ? "warn" : "action");
+                        ? "⚠️ [Thủ Vệ Tứ Phái] Kết thúc nhưng có bước lỗi/chưa xác nhận; sẽ kiểm tra lại khi Auto khởi động lại."
+                        : "✅ [Thủ Vệ Tứ Phái] Đã hoàn tất hôm nay (khiêu chiến + Chiến Lệnh).", state.failed ? "warn" : "action");
                     return false;
                 }
 
@@ -348,7 +348,7 @@
                 state.emb = null;
                 return sectHandleFight(ctx, ctrl, vm, state, now);
             } catch (e) {
-                const message = `❌ [M3 - Thủ Vệ Tứ Phái] Lỗi: ${e && e.message ? e.message : e}`;
+                const message = `❌ [Thủ Vệ Tứ Phái] Lỗi: ${e && e.message ? e.message : e}`;
                 if (message !== lastSectDefenseError) {
                     lastSectDefenseError = message;
                     sendLog(message, "error");

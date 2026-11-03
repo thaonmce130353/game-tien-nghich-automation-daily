@@ -37,7 +37,7 @@
 
         function failTowerDaily(state, key, message, nextPhase) {
             state.failed = true;
-            logTowerDaily(state, key, `❌ [M1 - Quét mỗi ngày] ${message}`, "error");
+            logTowerDaily(state, key, `❌ [Thông Thiên Tháp - Quét mỗi ngày] ${message}`, "error");
             if (nextPhase) state.phase = nextPhase;
         }
 
@@ -106,10 +106,10 @@
                     t.pending = null;
                     if (pending.kind === 'buy') {
                         t.bought++;
-                        logTowerDaily(state, `tower-buy-${counts.buy}`, `✅ [M1 - Thông Thiên Tháp] Máy chủ xác nhận đã mua và quét thêm 1 lượt (${counts.buy} lượt đã mua).`, "result");
+                        logTowerDaily(state, `tower-buy-${counts.buy}`, `✅ [Thông Thiên Tháp] Máy chủ xác nhận đã mua và quét thêm 1 lượt (${counts.buy} lượt đã mua).`, "result");
                     } else {
                         t.done++;
-                        logTowerDaily(state, `tower-fight-${counts.enter}`, `✅ [M1 - Thông Thiên Tháp] Máy chủ xác nhận đã quét lượt ${counts.enter}/${counts.dayCount + counts.buy}.`, "action");
+                        logTowerDaily(state, `tower-fight-${counts.enter}`, `✅ [Thông Thiên Tháp] Máy chủ xác nhận đã quét lượt ${counts.enter}/${counts.dayCount + counts.buy}.`, "action");
                     }
                     t.stage = 'decide';
                 } else if (now - pending.startedAt >= TOWER_DAILY_REQUEST_TIMEOUT_MS) {
@@ -152,7 +152,7 @@
                     }
                     t.attempts++;
                     t.pending = { kind: 'buy', before: counts.buy, beforeEnter: counts.enter, token: counts.token, startedAt: now, lastRefreshAt: now };
-                    sendLog(`🗼 [M1 - Thông Thiên Tháp] Hết lượt quét miễn phí; mua thêm 1 lượt quét (${cost.gold} Tiên Ngọc)...`, "result");
+                    sendLog(`🗼 [Thông Thiên Tháp] Hết lượt quét miễn phí; mua thêm 1 lượt quét (${cost.gold} Tiên Ngọc)...`, "result");
                     try {
                         // Giống nút Quét của game: mua rồi máy chủ tự quét ải đã vượt.
                         dd.send11007(lastId, type, ctx.DailyDungeonConst.buyType.saodang);
@@ -163,9 +163,9 @@
                     return true;
                 }
                 if (t.done + t.bought > 0) {
-                    logTowerDaily(state, 'tower-finished', `✅ [M1 - Thông Thiên Tháp] Đã quét xong lượt trong ngày (${counts.enter}/${counts.dayCount + counts.buy} lượt, đã mua ${counts.buy}).`, "result");
+                    logTowerDaily(state, 'tower-finished', `✅ [Thông Thiên Tháp] Đã quét xong lượt trong ngày (${counts.enter}/${counts.dayCount + counts.buy} lượt, đã mua ${counts.buy}).`, "result");
                 } else {
-                    logTowerDaily(state, 'tower-already', `ℹ️ [M1 - Thông Thiên Tháp] Hôm nay đã quét đủ (${counts.enter}/${counts.dayCount + counts.buy} lượt, đã mua ${counts.buy}); bỏ qua.`, "info");
+                    logTowerDaily(state, 'tower-already', `ℹ️ [Thông Thiên Tháp] Hôm nay đã quét đủ (${counts.enter}/${counts.dayCount + counts.buy} lượt, đã mua ${counts.buy}); bỏ qua.`, "info");
                 }
                 state.phase = 'camp';
                 return true;
@@ -178,7 +178,7 @@
             }
             t.attempts++;
             t.pending = { kind: 'sweep', before: counts.enter, beforeEnter: counts.enter, token: counts.token, startedAt: now, lastRefreshAt: now };
-            sendLog(`🗼 [M1 - Thông Thiên Tháp] Quét lượt ${counts.enter + 1}/${counts.dayCount + counts.buy} (tầng đã vượt #${lastId})...`, "action");
+            sendLog(`🗼 [Thông Thiên Tháp] Quét lượt ${counts.enter + 1}/${counts.dayCount + counts.buy} (tầng đã vượt #${lastId})...`, "action");
             try {
                 dd.send11005(lastId);
             } catch (e) {
@@ -197,7 +197,7 @@
                 try {
                     if (ctx.FunOpenCtrl && ctx.FunOpenType && ctx.FunOpenType.SING_CAMP !== undefined &&
                         !ctx.FunOpenCtrl.gInst().check(ctx.FunOpenType.SING_CAMP, false)) {
-                        logTowerDaily(state, 'camp-locked', "ℹ️ [M1 - Tứ Linh Tháp] Chức năng chưa mở khóa (chưa đủ cấp độ); bỏ qua.", "info");
+                        logTowerDaily(state, 'camp-locked', "ℹ️ [Tứ Linh Tháp] Chức năng chưa mở khóa (chưa đủ cấp độ); bỏ qua.", "info");
                         state.phase = 'done';
                         return true;
                     }
@@ -213,10 +213,10 @@
                     c.list = open.map(n => types.singCamp_wei + Number(n) - 1)
                         .filter(v => v >= types.singCamp_wei && v <= types.singCamp_qun);
                     if (c.list.length === 0) {
-                        logTowerDaily(state, 'camp-none-open', "ℹ️ [M1 - Tứ Linh Tháp] Hôm nay không có tháp nào đang mở; bỏ qua.", "info");
+                        logTowerDaily(state, 'camp-none-open', "ℹ️ [Tứ Linh Tháp] Hôm nay không có tháp nào đang mở; bỏ qua.", "info");
                         state.phase = 'done';
                     } else {
-                        logTowerDaily(state, 'camp-open', `🛡️ [M1 - Tứ Linh Tháp] Tháp đang mở hôm nay: ${c.list.map(v => '#' + (v - types.singCamp_wei + 1)).join(', ')}.`, "info");
+                        logTowerDaily(state, 'camp-open', `🛡️ [Tứ Linh Tháp] Tháp đang mở hôm nay: ${c.list.map(v => '#' + (v - types.singCamp_wei + 1)).join(', ')}.`, "info");
                         c.stage = 'next';
                     }
                 } else if (result === 'timeout' || result === 'error') {
@@ -256,10 +256,10 @@
                     cur.pending = null;
                     if (p.kind === 'fight') {
                         cur.fights++;
-                        logTowerDaily(state, `camp-${label}-fight-${counts.todayPass}`, `✅ [M1 - Tứ Linh Tháp ${label}] Máy chủ xác nhận ải mới ${counts.todayPass}/${getTowerDailyNewBattleLimit()}.`, "action");
+                        logTowerDaily(state, `camp-${label}-fight-${counts.todayPass}`, `✅ [Tứ Linh Tháp ${label}] Máy chủ xác nhận ải mới ${counts.todayPass}/${getTowerDailyNewBattleLimit()}.`, "action");
                     } else {
                         cur.sweeps++;
-                        logTowerDaily(state, `camp-${label}-sweep-${counts.enter}`, `✅ [M1 - Tứ Linh Tháp ${label}] Máy chủ xác nhận đã quét lượt ${counts.enter}/${counts.dayCount + counts.buy}.`, "action");
+                        logTowerDaily(state, `camp-${label}-sweep-${counts.enter}`, `✅ [Tứ Linh Tháp ${label}] Máy chủ xác nhận đã quét lượt ${counts.enter}/${counts.dayCount + counts.buy}.`, "action");
                     }
                     cur.stage = 'decide';
                 } else if (now - p.startedAt >= TOWER_DAILY_FIGHT_TIMEOUT_MS) {
@@ -293,7 +293,7 @@
                 if (nextId > 0 && typeof dd.send11020 === 'function') {
                     cur.attempts++;
                     cur.pending = { kind: 'fight', before: counts.todayPass, token: counts.token, startedAt: now, lastRefreshAt: now };
-                    sendLog(`🛡️ [M1 - Tứ Linh Tháp ${label}] Khiêu chiến ải mới ${counts.todayPass + 1}/${limit} (#${nextId})...`, "action");
+                    sendLog(`🛡️ [Tứ Linh Tháp ${label}] Khiêu chiến ải mới ${counts.todayPass + 1}/${limit} (#${nextId})...`, "action");
                     try {
                         if (typeof dd.saveScId === 'function') dd.saveScId(nextId);
                         dd.send11020(nextId);
@@ -304,7 +304,7 @@
                     return true;
                 }
                 // Hết ải để đánh: chuyển sang quét.
-                logTowerDaily(state, `camp-${label}-no-next`, `ℹ️ [M1 - Tứ Linh Tháp ${label}] Không còn ải mới để đánh (${counts.todayPass}/${limit}).`, "info");
+                logTowerDaily(state, `camp-${label}-no-next`, `ℹ️ [Tứ Linh Tháp ${label}] Không còn ải mới để đánh (${counts.todayPass}/${limit}).`, "info");
             }
 
             // 2. Quét bằng lượt miễn phí (không mua thêm)
@@ -315,7 +315,7 @@
                 }
                 cur.attempts++;
                 cur.pending = { kind: 'sweep', before: counts.enter, token: counts.token, startedAt: now, lastRefreshAt: now };
-                sendLog(`🛡️ [M1 - Tứ Linh Tháp ${label}] Quét ải #${lastId} (còn ${counts.free} lượt miễn phí)...`, "action");
+                sendLog(`🛡️ [Tứ Linh Tháp ${label}] Quét ải #${lastId} (còn ${counts.free} lượt miễn phí)...`, "action");
                 try {
                     dd.send11005(lastId);
                 } catch (e) {
@@ -326,9 +326,9 @@
             }
 
             if (cur.fights + cur.sweeps > 0) {
-                return finishCamp(true, `camp-${label}-finished`, `✅ [M1 - Tứ Linh Tháp ${label}] Hoàn tất: ${cur.fights} ải mới, ${cur.sweeps} lượt quét (ải mới hôm nay ${counts.todayPass}/${limit}).`);
+                return finishCamp(true, `camp-${label}-finished`, `✅ [Tứ Linh Tháp ${label}] Hoàn tất: ${cur.fights} ải mới, ${cur.sweeps} lượt quét (ải mới hôm nay ${counts.todayPass}/${limit}).`);
             }
-            logTowerDaily(state, `camp-${label}-already`, `ℹ️ [M1 - Tứ Linh Tháp ${label}] Hôm nay đã xong (ải mới ${counts.todayPass}/${limit}, quét ${counts.enter}/${counts.dayCount + counts.buy}); bỏ qua.`, "info");
+            logTowerDaily(state, `camp-${label}-already`, `ℹ️ [Tứ Linh Tháp ${label}] Hôm nay đã xong (ải mới ${counts.todayPass}/${limit}, quét ${counts.enter}/${counts.dayCount + counts.buy}); bỏ qua.`, "info");
             c.index++;
             c.stage = 'next';
             return true;
@@ -337,9 +337,9 @@
         function finishTowerDaily(state) {
             state.phase = 'done';
             if (state.failed) {
-                sendLog("⚠️ [M1 - Quét mỗi ngày] Kết thúc nhưng có bước lỗi/chưa xác nhận; sẽ kiểm tra lại khi Auto khởi động lại.", "warn");
+                sendLog("⚠️ [Thông Thiên Tháp - Quét mỗi ngày] Kết thúc nhưng có bước lỗi/chưa xác nhận; sẽ kiểm tra lại khi Auto khởi động lại.", "warn");
             } else {
-                sendLog("✅ [M1 - Quét mỗi ngày] Đã hoàn tất Thông Thiên Tháp & Tứ Linh Tháp hôm nay.", "result");
+                sendLog("✅ [Thông Thiên Tháp - Quét mỗi ngày] Đã hoàn tất Thông Thiên Tháp & Tứ Linh Tháp hôm nay.", "result");
             }
         }
 
@@ -351,7 +351,7 @@
             if (!types || !dd || typeof dd.getDungeonData !== 'function' || typeof dd.send11004 !== 'function') {
                 if (!towerDailyUnavailableLogged) {
                     towerDailyUnavailableLogged = true;
-                    sendLog("⚠️ [M1 - Quét mỗi ngày] Game chưa sẵn sàng (DailyDungeonCtrl); sẽ thử lại.", "warn");
+                    sendLog("⚠️ [Thông Thiên Tháp - Quét mỗi ngày] Game chưa sẵn sàng (DailyDungeonCtrl); sẽ thử lại.", "warn");
                 }
                 return false;
             }
@@ -360,7 +360,7 @@
             const dayKey = new Date().toDateString();
             if (!towerDailyState || towerDailyState.dayKey !== dayKey) {
                 towerDailyState = createTowerDailyState();
-                sendLog("🗼 [M1 - Quét mỗi ngày] Bắt đầu nhận thưởng và quét ải: Thông Thiên Tháp rồi Tứ Linh Tháp.", "action");
+                sendLog("🗼 [Thông Thiên Tháp - Quét mỗi ngày] Bắt đầu nhận thưởng và quét ải: Thông Thiên Tháp rồi Tứ Linh Tháp.", "action");
             }
             const state = towerDailyState;
             if (state.phase === 'done') return false;
@@ -375,9 +375,11 @@
         function handleTowerAndTuLinh(ctx) {
             try {
                 if (handleTowerDailyRoutine(ctx)) return true;
+                // Chế độ quét (Quét nhanh): chỉ quét/đánh ải mỗi ngày, xong là thôi, không leo tháp.
+                if (CONFIG.towerSweepOnly) return false;
                 return handleTongTianTower(ctx) || handleClimbCamp(ctx);
             } catch(e) {
-                const message = `❌ [M1] Lỗi: ${e && e.message ? e.message : e}`;
+                const message = `❌ [Thông Thiên Tháp & Tứ Linh Tháp] Lỗi: ${e && e.message ? e.message : e}`;
                 if (message !== lastTowerAndTuLinhError) {
                     lastTowerAndTuLinhError = message;
                     sendLog(message, "error");

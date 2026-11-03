@@ -185,8 +185,13 @@
 
             const btnSweep = document.getElementById('tn-btn-sweep');
             btnSweep.addEventListener('click', () => {
-                addLogToUI("⚡ Đang quét một lượt toàn bộ các phụ bản đã vượt...", "action");
-                sendCommandToGame('RUN_SWEEP', { config: CONFIG });
+                if (CONFIG.running) {
+                    addLogToUI("⚠️ Auto đang chạy; bấm TẠM DỪNG trước khi dùng QUÉT NHANH.", "warn");
+                    return;
+                }
+                CONFIG.running = true;
+                updateBadge(true);
+                sendCommandToGame('TOGGLE_AUTO', { running: true, quick: true, config: CONFIG });
             });
 
             updateBadge(CONFIG.running);

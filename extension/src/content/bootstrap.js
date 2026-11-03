@@ -32,6 +32,7 @@
         // Module 1: Thông Thiên Tháp & Tứ Linh Tháp
         autoTongTian: false,            // Quét & Leo Thông Thiên Tháp (Hỗ trợ mua thêm bằng Tiên Ngọc)
         buyTowerSweep: true,            // Tự mua thêm lượt quét Thông Thiên Tháp
+        towerSweepOnly: false,          // chỉ do Quét nhanh đặt: Thông Thiên/Tứ Linh chỉ quét & đánh ải mỗi ngày, không leo
         towerDailyRoutine: true,        // Nhận thưởng và Quét ải mỗi ngày: Thông Thiên (2 free + 1 mua) & Tứ Linh (10 ải mới + 2 quét free)
         autoTuLinhThap: true,           // Cử tướng Trợ Trận & Leo + Quét 4 Tháp Tứ Linh (Ma/Thiên/Nghịch/Dị)
         

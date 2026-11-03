@@ -53,7 +53,7 @@
         }
 
         function memoryFail(state, message) {
-            sendLog(`❌ [M6 - Ảo Cảnh] ${message}`, "error");
+            sendLog(`❌ [Ảo Cảnh Pháp Trận] ${message}`, "error");
             state.failed = true;
             // Ván lỗi không được làm mất thưởng mốc điểm đã đủ: thử nhận thưởng một lần rồi mới dừng.
             if (!state.claimBlocked && !state.claimDone && !state.claimSent) { state.phase = 'claim'; state.claimReturn = 'done'; }
@@ -111,14 +111,14 @@
         function handleMinigameMemory(ctx) {
             try {
                 if (!ctx.FaZhenMirageCtrl || !ctx.FaZhenMirageCtrl.gInst || !ctx.ViewMgr || !ctx.ViewMgr.gInst) {
-                    logUnsupportedOnce('m6', "⚠️ [M6 - Ảo Cảnh] Bản game hiện tại không có FaZhenMirageCtrl; tính năng chưa hỗ trợ, không gửi thao tác nào.");
+                    logUnsupportedOnce('m6', "⚠️ [Ảo Cảnh Pháp Trận] Bản game hiện tại không có FaZhenMirageCtrl; tính năng chưa hỗ trợ, không gửi thao tác nào.");
                     return false;
                 }
                 const ctrl = ctx.FaZhenMirageCtrl.gInst();
                 const vm = ctx.ViewMgr.gInst();
                 if (!ctrl || typeof ctrl.send32060 !== 'function' || typeof ctrl.send32061 !== 'function' ||
                     typeof ctrl.send32062 !== 'function' || typeof ctrl.send32064 !== 'function') {
-                    logUnsupportedOnce('m6', "⚠️ [M6 - Ảo Cảnh] FaZhenMirageCtrl thiếu lệnh gửi cần thiết (bản game đổi); không gửi thao tác nào.");
+                    logUnsupportedOnce('m6', "⚠️ [Ảo Cảnh Pháp Trận] FaZhenMirageCtrl thiếu lệnh gửi cần thiết (bản game đổi); không gửi thao tác nào.");
                     return false;
                 }
                 if (!memoryState) memoryState = createMemoryState();
@@ -141,13 +141,13 @@
                     if (!d || !(d.rewardRuns > 0)) { memoryFail(s, "Không đọc được số lượt thưởng Ảo Cảnh (bản game đổi); dừng."); return false; }
                     const left = d.rewardRuns - d.passTaken;
                     if (d.beginMs === 0 && left <= 0 && !s.claimDone && !s.claimBlocked && memoryClaimable(ctrl)) {
-                        sendLog(`🎁 [M6 - Ảo Cảnh] Đã chơi đủ ${d.passTaken}/${d.rewardRuns} ván (điểm ${d.scores}; mốc ${memoryMilestoneText(ctrl)}); nhận thưởng mốc cuối (một lần nhận hết).`, "action");
+                        sendLog(`🎁 [Ảo Cảnh Pháp Trận] Đã chơi đủ ${d.passTaken}/${d.rewardRuns} ván (điểm ${d.scores}; mốc ${memoryMilestoneText(ctrl)}); nhận thưởng mốc cuối (một lần nhận hết).`, "action");
                         s.phase = 'claim';
                         s.claimReturn = 'open';
                         return true;
                     }
                     if (d.beginMs > 0) {
-                        sendLog("ℹ️ [M6 - Ảo Cảnh] Đang có ván dở; tiếp tục ghép thẻ.", "info");
+                        sendLog("ℹ️ [Ảo Cảnh Pháp Trận] Đang có ván dở; tiếp tục ghép thẻ.", "info");
                         s.pairs = memoryBuildPairs(ctrl);
                         s.pairsTotal = s.pairs.length;
                         s.roundStartedAt = now;
@@ -159,9 +159,9 @@
                     }
                     if (left <= 0 && !s.extraUsed && s.rounds < MEMORY_MAX_ROUNDS) {
                         s.extraUsed = true;   // theo yêu cầu: mỗi lần chạy thêm đúng 1 ván dù đã hết lượt thưởng
-                        sendLog(`ℹ️ [M6 - Ảo Cảnh] Đã hết lượt nhận thưởng (${d.passTaken}/${d.rewardRuns}); chơi thêm 1 ván (không thưởng).`, "info");
+                        sendLog(`ℹ️ [Ảo Cảnh Pháp Trận] Đã hết lượt nhận thưởng (${d.passTaken}/${d.rewardRuns}); chơi thêm 1 ván (không thưởng).`, "info");
                     } else if (left <= 0 || s.rounds >= MEMORY_MAX_ROUNDS) {
-                        sendLog(`ℹ️ [M6 - Ảo Cảnh] Hết ván cần chơi (${d.passTaken}/${d.rewardRuns}); chuyển sang nhận thưởng mốc điểm.`, "info");
+                        sendLog(`ℹ️ [Ảo Cảnh Pháp Trận] Hết ván cần chơi (${d.passTaken}/${d.rewardRuns}); chuyển sang nhận thưởng mốc điểm.`, "info");
                         s.phase = 'claim';
                         s.claimReturn = 'done';
                         return true;
@@ -169,7 +169,7 @@
                     s.passBefore = d.passTaken;
                     s.scoreBefore = d.scores;
                     s.phase = 'start';
-                    sendLog(`🧩 [M6 - Ảo Cảnh] Lượt thưởng còn ${Math.max(0, left)}/${d.rewardRuns}; bấm Bắt đầu.`, "action");
+                    sendLog(`🧩 [Ảo Cảnh Pháp Trận] Lượt thưởng còn ${Math.max(0, left)}/${d.rewardRuns}; bấm Bắt đầu.`, "action");
                     return true;
                 }
 
@@ -189,7 +189,7 @@
                     const previewMs = d.previewSec * 1000;
                     s.firstPairAt = s.startSentAt + previewMs + 300;
                     s.phase = 'preview';
-                    sendLog(`🧩 [M6 - Ảo Cảnh] Ván ${s.rounds} đã mở; xem thẻ ${d.previewSec}s rồi ghép 8 cặp.`, "action");
+                    sendLog(`🧩 [Ảo Cảnh Pháp Trận] Ván ${s.rounds} đã mở; xem thẻ ${d.previewSec}s rồi ghép 8 cặp.`, "action");
                     return true;
                 }
 
@@ -219,7 +219,7 @@
                     if (r !== 'ready' || !d) { memoryFail(s, "Không tải lại được dữ liệu sau ván; dừng."); return false; }
                     const secs = Math.round((now - s.roundStartedAt) / 100) / 10;
                     if (d.beginMs === 0) {
-                        sendLog(`✅ [M6 - Ảo Cảnh] Máy chủ xác nhận đã đóng ván ${s.rounds} sau ${secs}s (điểm ${s.scoreBefore} → ${d.scores}, lượt thưởng ${s.passBefore} → ${d.passTaken}).`, "action");
+                        sendLog(`✅ [Ảo Cảnh Pháp Trận] Máy chủ xác nhận đã đóng ván ${s.rounds} sau ${secs}s (điểm ${s.scoreBefore} → ${d.scores}, lượt thưởng ${s.passBefore} → ${d.passTaken}).`, "action");
                         s.phase = 'open';
                         s.startSentAt = 0;
                         s.refreshing = null;
@@ -236,12 +236,12 @@
                         if (memoryStatusSig(ctrl) !== s.claimSig) {
                             closeResult();
                             const rest = memoryClaimable(ctrl);
-                            sendLog(rest ? `⚠️ [M6 - Ảo Cảnh] Máy chủ đã phản hồi nhận thưởng nhưng còn mốc chưa nhận (mốc ${memoryMilestoneText(ctrl)}).` : `✅ [M6 - Ảo Cảnh] Máy chủ xác nhận đã nhận thưởng mốc điểm (mốc ${memoryMilestoneText(ctrl)}).`, rest ? "warn" : "result");
+                            sendLog(rest ? `⚠️ [Ảo Cảnh Pháp Trận] Máy chủ đã phản hồi nhận thưởng nhưng còn mốc chưa nhận (mốc ${memoryMilestoneText(ctrl)}).` : `✅ [Ảo Cảnh Pháp Trận] Máy chủ xác nhận đã nhận thưởng mốc điểm (mốc ${memoryMilestoneText(ctrl)}).`, rest ? "warn" : "result");
                             back();
                             return true;
                         }
                         if (now - s.claimSent >= MEMORY_REQUEST_TIMEOUT_MS) {
-                            sendLog(`⚠️ [M6 - Ảo Cảnh] Đã gửi nhận thưởng mốc điểm nhưng máy chủ chưa xác nhận (mốc ${memoryMilestoneText(ctrl)}); không gửi lại.`, "warn");
+                            sendLog(`⚠️ [Ảo Cảnh Pháp Trận] Đã gửi nhận thưởng mốc điểm nhưng máy chủ chưa xác nhận (mốc ${memoryMilestoneText(ctrl)}); không gửi lại.`, "warn");
                             s.claimBlocked = true;
                             s.failed = true;
                             back();
@@ -251,19 +251,19 @@
                     if (s.claimBlocked || (s.claimDone && s.claimReturn === 'done')) { back(); return false; }   // đã gửi mà máy chủ không xác nhận: không gửi lại
                     if (!memoryClaimable(ctrl)) {
                         const d = memoryRead(ctrl);
-                        sendLog(`ℹ️ [M6 - Ảo Cảnh] Không có thưởng mốc điểm nào để nhận (điểm ${d ? d.scores : '?'}; mốc ${memoryMilestoneText(ctrl)}).`, "info");
+                        sendLog(`ℹ️ [Ảo Cảnh Pháp Trận] Không có thưởng mốc điểm nào để nhận (điểm ${d ? d.scores : '?'}; mốc ${memoryMilestoneText(ctrl)}).`, "info");
                         back();
                         return false;
                     }
                     s.claimSent = now;
                     s.claimSig = memoryStatusSig(ctrl);
                     ctrl.send32064();
-                    sendLog("🎁 [M6 - Ảo Cảnh] Đã gửi nhận thưởng mốc điểm; chờ máy chủ xác nhận.", "action");
+                    sendLog("🎁 [Ảo Cảnh Pháp Trận] Đã gửi nhận thưởng mốc điểm; chờ máy chủ xác nhận.", "action");
                     return true;
                 }
                 return false;
             } catch (e) {
-                sendLog(`❌ [M6 - Ảo Cảnh] Lỗi: ${e && e.message || e}`, "error");
+                sendLog(`❌ [Ảo Cảnh Pháp Trận] Lỗi: ${e && e.message || e}`, "error");
                 if (memoryState) { memoryState.failed = true; memoryState.phase = 'done'; }
                 return false;
             }

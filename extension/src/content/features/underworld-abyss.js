@@ -25,7 +25,7 @@
 
                 const curAbyssId = curCfg.id;
                 lastAbyssClimbTime = now;
-                if (!tryAttemptTarget(`abyss-${curAbyssId}`, `[Vực U Minh] Tầng #${curAbyssId}`)) { abyssGaveUp = curAbyssId; return false; }
+                if (!tryAttemptTarget(`abyss-${curAbyssId}`, `[Vực U Minh] Tầng #${curAbyssId}`, undefined, 'info')) { abyssGaveUp = curAbyssId; return false; }
 
                 if (ctx.ViewMgr && ctx.ViewMgr.gInst) {
                     const vm = ctx.ViewMgr.gInst();

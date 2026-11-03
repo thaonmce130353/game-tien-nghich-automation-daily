@@ -244,7 +244,7 @@
                 <!-- THANH NÚT CHẠY CỐ ĐỊNH Ở ĐÁY HUD (STICKY / FIXED FOOTER) -->
                 <div id="tn-hud-footer">
                     <button id="tn-btn-main" class="tn-action-btn tn-btn-start">▶ BẮT ĐẦU TREO LEO ẢI AUTO</button>
-                    <button id="tn-btn-sweep" class="tn-action-btn tn-btn-sweep">⚡ QUÉT NHANH (1 CHẠM)</button>
+                    <button id="tn-btn-sweep" class="tn-action-btn tn-btn-sweep" title="Chạy lần lượt: Tâm Tiên Đài, Tiên Hữu, Trợ Chiến, Tiên Minh, Thông Thiên (quét 3 lần) + Tứ Linh (10 ải), Phụ Bản Ngày & Bí Cảnh, Thủ Vệ, Cửu Uyển Nhi & Cổ Thần, Cực Âm, Di Tích, Ảo Cảnh, Kiếm Hành & Điêu Long, Vực U Minh, Đấu Tiên Đài, Ma Đạo, Banner; cuối cùng Nhận Cuối Ngày.">⚡ QUÉT NHANH (1 CHẠM)</button>
                 </div>
                 <div class="tn-resize-handle tn-resize-left" title="Kéo để đổi kích thước"></div>
                 <div class="tn-resize-handle tn-resize-right" title="Kéo để đổi kích thước"></div>

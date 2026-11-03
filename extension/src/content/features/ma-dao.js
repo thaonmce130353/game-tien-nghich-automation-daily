@@ -1,4 +1,4 @@
-        // [Ma Đạo] Gộp: Thưởng Treo Máy (AFK) -> Tác Chiến Nhanh -> Ải Chính Tuyến -> Ủy Phái, chạy lần lượt theo đúng thứ tự.
+        // [Ma Đạo Tổng Hợp] Gộp: Thưởng Treo Máy (AFK) -> Tác Chiến Nhanh -> Ải Chính Tuyến -> Ủy Phái, chạy lần lượt theo đúng thứ tự.
         //   afk    : HangupCtrl.reqGetHangupAwards (S14103), xác nhận bằng last_time đổi sau khi tải lại (S14101).
         //   quick  : Tác Chiến Nhanh (S14105): hết lượt free thì MUA bằng Tiên Ngọc cho tới hết lượt mua trong ngày
         //            (trần MA_DAO_MAX_QUICK_BUYS); xác nhận bằng left_free_count/left_buy_count giảm.
@@ -68,7 +68,7 @@
         }
 
         function maDaoFail(s, message, nextPhase) {
-            sendLog(`❌ [Ma Đạo] ${message}`, "error");
+            sendLog(`❌ [Ma Đạo Tổng Hợp] ${message}`, "error");
             s.failed = true;
             s.refreshing = null;
             s.phase = nextPhase;
@@ -318,7 +318,7 @@
             const t = s.travel;
             const tokenOf = () => tc.travelInfo;
             const serverNow = () => { try { return ctx.NetMgr.gInst().getTime(); } catch (e) { return Math.floor(Date.now() / 1000); } };
-            const done = () => { sendLog(`🏁 [Ma Đạo] Đã chạy xong${s.failed ? ' (có bước chưa hoàn tất)' : ''}.`, "info"); s.phase = 'done'; };
+            const done = () => { sendLog(`🏁 [Ma Đạo Tổng Hợp] Đã chạy xong${s.failed ? ' (có bước chưa hoàn tất)' : ''}.`, "info"); s.phase = 'done'; };
 
             if (t.stage === 'query') {
                 const r = pollTowerDailyRefresh(s, 'refreshing', now, () => tc.send30201(), tokenOf);
@@ -469,7 +469,7 @@
         function handleMaDao(ctx) {
             try {
                 if (!ctx.HangupCtrl || !ctx.HangupCtrl.gInst || !ctx.ViewMgr || !ctx.ViewMgr.gInst || !ctx.NetMgr || !ctx.NProtoNum) {
-                    logUnsupportedOnce('ma-dao', "⚠️ [Ma Đạo] Bản game hiện tại thiếu HangupCtrl/NetMgr; tính năng chưa hỗ trợ, không gửi thao tác nào.");
+                    logUnsupportedOnce('ma-dao', "⚠️ [Ma Đạo Tổng Hợp] Bản game hiện tại thiếu HangupCtrl/NetMgr; tính năng chưa hỗ trợ, không gửi thao tác nào.");
                     return false;
                 }
                 if (!maDaoState) maDaoState = createMaDaoState();
@@ -483,7 +483,7 @@
                     default: return false;
                 }
             } catch (e) {
-                sendLog(`❌ [Ma Đạo] Lỗi: ${e && e.message || e}`, "error");
+                sendLog(`❌ [Ma Đạo Tổng Hợp] Lỗi: ${e && e.message || e}`, "error");
                 if (maDaoState) { maDaoState.failed = true; maDaoState.phase = 'done'; }
                 return false;
             }

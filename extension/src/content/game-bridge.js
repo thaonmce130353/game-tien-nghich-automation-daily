@@ -26,13 +26,13 @@
         const unsupportedLogged = {};
         const runResetHooks = [];         // các module đăng ký đặt lại trạng thái khi bắt đầu lượt Auto mới
 
-        function tryAttemptTarget(key, label, maxAttempts) {
+        function tryAttemptTarget(key, label, maxAttempts, giveUpLogType) {
             const max = maxAttempts || MAX_TARGET_ATTEMPTS;
             const count = targetAttempts[key] || 0;
             if (count >= max) {
                 if (count === max) {
                     targetAttempts[key] = count + 1;
-                    sendLog(`⏸️ ${label}: đã thử ${max} lần chưa qua; dừng thử mục tiêu này trong lượt Auto này.`, "warn");
+                    sendLog(`⏸️ ${label}: đã thử ${max} lần chưa qua; dừng thử mục tiêu này trong lượt Auto này.`, giveUpLogType || "warn");
                 }
                 return false;
             }
@@ -128,13 +128,13 @@
         //   - Dừng giữa chừng: đặt lại trạng thái dở dang để tính năng khác/lần sau chạy sạch (runAbort).
         // =====================================================================
         const RUN_LABELS = {
-            autoArena: 'Đấu Tiên Đài', autoTongTian: 'M1 - Thông Thiên Tháp', autoDailyDungeon: 'M2 - Phụ Bản Ngày & Bí Cảnh',
-            autoSectDefense: 'M3 - Thủ Vệ Tứ Phái', autoOtherTrials: 'M4 - Cửu Uyển Nhi, Cổ Thần, Cực Âm',
-            autoImmortalRelic: 'M5 - Di Tích Tiên Giới', autoMinigameMemory: 'M6 - Ảo Cảnh', autoMinigameDragon: 'M7 - Kiếm Hành & Điêu Long',
-            autoTroChien: 'Trợ Chiến', autoTamTienDai: 'Tâm Tiên Đài', autoTienHuu: 'Tiên Hữu', autoTienMinh: 'Tiên Minh',
-            autoCuoiNgay: 'Nhận Cuối Ngày', autoClimbDailyDungeons: 'Leo Phụ Bản Ngày', autoClimbYMAbyss: 'Leo Vực U Minh',
+            autoArena: 'Đấu Tiên Đài', autoTongTian: 'Thông Thiên Tháp & Tứ Linh Tháp', autoDailyDungeon: 'Phụ Bản Ngày & Bí Cảnh Tứ Quốc',
+            autoSectDefense: 'Thủ Vệ Tứ Phái', autoOtherTrials: 'Cửu Uyển Nhi & Cổ Thần Địa',
+            autoImmortalRelic: 'Di Tích Tiên Giới', autoMinigameMemory: 'Ảo Cảnh Pháp Trận', autoMinigameDragon: 'Kiếm Hành & Điêu Long',
+            autoTroChien: 'Trợ Chiến Linh Thú', autoTamTienDai: 'Tâm Tiên Đài', autoTienHuu: 'Tiên Hữu', autoTienMinh: 'Tiên Minh',
+            autoCuoiNgay: 'Nhận Cuối Ngày', autoClimbDailyDungeons: 'Leo Phụ Bản Ngày', autoClimbYMAbyss: 'Vực U Minh',
             autoExtremeYin: 'Cực Âm Địa', autoClimbCamp: 'Leo Tứ Linh Trận', autoSweepDungeons: 'Quét Phụ Bản',
-            autoMaDao: 'Ma Đạo', autoXianYuan: 'Quà Tiên Duyên', autoBanner: 'Tướng Thần Lâm / Đạp Thiên'
+            autoMaDao: 'Ma Đạo Tổng Hợp', autoXianYuan: 'Quà Tiên Duyên', autoBanner: 'Tướng Thần Lâm / Đạp Thiên'
         };
 
         function runBegin(key) {
@@ -161,6 +161,8 @@
             const bad = Boolean(failed) || info.problems > 0;
             sendLog(`${bad ? '⚠️' : '✅'} [${info.label}] Hoàn tất${reason ? ': ' + reason : ''} (${runFormatDuration(Date.now() - info.startedAt)})` +
                 `${bad ? '; có bước chưa hoàn tất/lỗi, xem các dòng ⚠️/❌ phía trên' : ''}.`, 'run');
+            // Dãy Quét nhanh: sang bước kế tiếp, không dừng nút Auto.
+            if (typeof quickRunAfterStep === 'function' && quickRunAfterStep(info, bad, reason)) return;
             CONFIG.running = false;
             try {
                 window.top.postMessage({ source: 'TIEN_NGHICH_AUTO_GAME', action: 'AUTO_FINISHED' }, '*');
@@ -175,6 +177,7 @@
             waitingForFloorUpdate = false;
             nextActionAt = 0;
             if (typeof bannerRequestAbort === 'function') bannerRequestAbort();
+            if (typeof quickRunAbort === 'function') quickRunAbort();
             for (const k of Object.keys(failCounts)) delete failCounts[k];
             for (const k of Object.keys(targetAttempts)) delete targetAttempts[k];
             if (typeof resetUnfinishedRunStates === 'function') resetUnfinishedRunStates();
@@ -374,12 +377,20 @@
                 sendRoleInfo(true);
                 return;
             } else if (data.action === 'UPDATE_CONFIG') {
-                Object.assign(CONFIG, data.config);
+                Object.assign(CONFIG, quickRunFilterConfig(data.config));
             } else if (data.action === 'TOGGLE_AUTO') {
                 const wasRunning = CONFIG.running;
                 CONFIG.running = data.running;
-                if (data.config) Object.assign(CONFIG, data.config);
-                if (CONFIG.running) {
+                if (data.config) Object.assign(CONFIG, quickRunFilterConfig(data.config));
+                if (CONFIG.running && data.quick && !wasRunning) {
+                    // QUÉT NHANH: dãy nhiều bước (features/quick-run.js), mỗi bước như bấm BẮT ĐẦU cho một tính năng.
+                    wasAutoRunning = true;
+                    resetRunGuards();
+                    isTowerChallenging = false;
+                    waitingForFloorUpdate = false;
+                    quickRunStart();
+                    executeCycle(false);
+                } else if (CONFIG.running) {
                     // resumed: Auto được bật lại sau khi tự vào lại game (không phải người dùng bấm BẮT ĐẦU).
                     const resumed = !!data.resumed;
                     if (!wasRunning) {
@@ -411,8 +422,6 @@
                     wasAutoRunning = false;
                     runAbort();
                 }
-            } else if (data.action === 'RUN_SWEEP') {
-                handleSweepDungeons(window, true);
             }
         });
 

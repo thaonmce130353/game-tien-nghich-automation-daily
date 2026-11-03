@@ -74,7 +74,7 @@
             state.failed = true;
             if (state.loggedErrors.has(key)) return;
             state.loggedErrors.add(key);
-            sendLog(`⚠️ [M8 - Cuối Ngày] ${message}`, "err");
+            sendLog(`⚠️ [Nhận Cuối Ngày] ${message}`, "err");
         }
 
         function finishCuoiNgay(state) {
@@ -82,11 +82,11 @@
             const confirmedClaims = state.mail.claimed + state.rank.worshipped +
                 state.tasks.taskClaims + state.tasks.chestClaims;
             if (state.failed) {
-                sendLog("⚠️ [M8 - Cuối Ngày] Đã kiểm tra xong nhưng một số thao tác chưa được máy chủ xác nhận; xem các lỗi phía trên.", "err");
+                sendLog("⚠️ [Nhận Cuối Ngày] Đã kiểm tra xong nhưng một số thao tác chưa được máy chủ xác nhận; xem các lỗi phía trên.", "err");
             } else if (confirmedClaims > 0) {
-                sendLog(`✅ [M8 - Cuối Ngày] Máy chủ xác nhận ${state.mail.claimed} lượt nhận nhanh Thư, ${state.rank.worshipped} lượt Hành Lễ và ${state.tasks.taskClaims + state.tasks.chestClaims} thưởng Nhiệm Vụ/Rương.`, "result");
+                sendLog(`✅ [Nhận Cuối Ngày] Máy chủ xác nhận ${state.mail.claimed} lượt nhận nhanh Thư, ${state.rank.worshipped} lượt Hành Lễ và ${state.tasks.taskClaims + state.tasks.chestClaims} thưởng Nhiệm Vụ/Rương.`, "result");
             } else {
-                sendLog("ℹ️ [M8 - Cuối Ngày] Đã kiểm tra trạng thái; không còn phần thưởng đang chờ nhận, không gửi lại thao tác đã hoàn tất.", "info");
+                sendLog("ℹ️ [Nhận Cuối Ngày] Đã kiểm tra trạng thái; không còn phần thưởng đang chờ nhận, không gửi lại thao tác đã hoàn tất.", "info");
             }
         }
 
@@ -115,7 +115,7 @@
                 }
                 emailCtrl.reqDataBeforeEnter();
                 cuoiNgayDidSend = true;
-                sendLog("ℹ️ [M8 - Cuối Ngày - Thư] Đã mở Thư; đang tải trạng thái trước khi nhận nhanh.", "info");
+                sendLog("ℹ️ [Nhận Cuối Ngày - Thư] Đã mở Thư; đang tải trạng thái trước khi nhận nhanh.", "info");
                 return true;
             }
 
@@ -136,7 +136,7 @@
             if (state.mail.pending) {
                 if (!emailCtrl.isCanReward(state.mail.pending.type)) {
                     state.mail.claimed++;
-                    sendLog("✅ [M8 - Cuối Ngày - Thư] Máy chủ xác nhận đã nhận nhanh thư có đính kèm.", "result");
+                    sendLog("✅ [Nhận Cuối Ngày - Thư] Máy chủ xác nhận đã nhận nhanh thư có đính kèm.", "result");
                     state.mail.typeIndex++;
                     state.mail.pending = null;
                 } else if (Date.now() - state.mail.pending.startedAt >= CUOI_NGAY_REQUEST_TIMEOUT_MS) {
@@ -159,7 +159,7 @@
                 return true;
             }
             if (!emailCtrl.isCanReward(type)) {
-                sendLog(`ℹ️ [M8 - Cuối Ngày - Thư] Không có thư chờ nhận ở loại ${type}; bỏ qua.`, "info");
+                sendLog(`ℹ️ [Nhận Cuối Ngày - Thư] Không có thư chờ nhận ở loại ${type}; bỏ qua.`, "info");
                 state.mail.typeIndex++;
                 return true;
             }
@@ -167,7 +167,7 @@
             state.mail.pending = { type, startedAt: Date.now() };
             emailCtrl.send16007(type);
             cuoiNgayDidSend = true;
-            sendLog(`ℹ️ [M8 - Cuối Ngày - Thư] Đã yêu cầu Nhận nhanh loại ${type}; đang chờ máy chủ xác nhận.`, "info");
+            sendLog(`ℹ️ [Nhận Cuối Ngày - Thư] Đã yêu cầu Nhận nhanh loại ${type}; đang chờ máy chủ xác nhận.`, "info");
             return true;
         }
 
@@ -236,7 +236,7 @@
                 rankCtrl.send15005();
                 cuoiNgayDidSend = true;
                 state.rank.view.reqRankList();
-                sendLog("ℹ️ [M8 - Cuối Ngày - BXH] Đã mở BXH Sức Mạnh; đang tải trạng thái các biểu tượng Hành Lễ.", "info");
+                sendLog("ℹ️ [Nhận Cuối Ngày - BXH] Đã mở BXH Sức Mạnh; đang tải trạng thái các biểu tượng Hành Lễ.", "info");
                 return true;
             }
 
@@ -262,7 +262,7 @@
                 const type = state.rank.pending.type;
                 if (!state.rank.model.getCanWorship(type, 1)) {
                     state.rank.worshipped++;
-                    sendLog(`✅ [M8 - Cuối Ngày - BXH] Máy chủ xác nhận đã Hành Lễ qua biểu tượng BXH loại ${type}.`, "action");
+                    sendLog(`✅ [Nhận Cuối Ngày - BXH] Máy chủ xác nhận đã Hành Lễ qua biểu tượng BXH loại ${type}.`, "action");
                     state.rank.rankIndex++;
                     state.rank.pending = null;
                 } else if (Date.now() - state.rank.pending.startedAt >= CUOI_NGAY_REQUEST_TIMEOUT_MS) {
@@ -277,9 +277,9 @@
 
             if (state.rank.rankIndex > state.rank.types.length) {
                 if (state.rank.skipped > 0 && state.rank.worshipped === 0) {
-                    sendLog(`ℹ️ [M8 - Cuối Ngày - BXH] Không còn lượt Hành Lễ khả dụng; đã bỏ qua ${state.rank.skipped} biểu tượng.`, "info");
+                    sendLog(`ℹ️ [Nhận Cuối Ngày - BXH] Không còn lượt Hành Lễ khả dụng; đã bỏ qua ${state.rank.skipped} biểu tượng.`, "info");
                 } else if (state.rank.skipped > 0) {
-                    sendLog(`ℹ️ [M8 - Cuối Ngày - BXH] Đã bỏ qua ${state.rank.skipped} biểu tượng không còn lượt Hành Lễ khả dụng.`, "info");
+                    sendLog(`ℹ️ [Nhận Cuối Ngày - BXH] Đã bỏ qua ${state.rank.skipped} biểu tượng không còn lượt Hành Lễ khả dụng.`, "info");
                 }
                 state.phase = 'tasks';
                 return true;
@@ -313,7 +313,7 @@
             state.rank.pending = { type, startedAt: Date.now() };
             button.dispatchEventWith(ctx.egret.TouchEvent.TOUCH_TAP, true);
             cuoiNgayDidSend = true;
-            sendLog(`ℹ️ [M8 - Cuối Ngày - BXH] Đã bấm biểu tượng Hành Lễ loại ${type}; đang chờ máy chủ xác nhận.`, "info");
+            sendLog(`ℹ️ [Nhận Cuối Ngày - BXH] Đã bấm biểu tượng Hành Lễ loại ${type}; đang chờ máy chủ xác nhận.`, "info");
             return true;
         }
 
@@ -339,7 +339,7 @@
                 acvCtrl.send30501();
                 acvCtrl.send12501();
                 cuoiNgayDidSend = true;
-                sendLog("ℹ️ [M8 - Cuối Ngày - Nhiệm Vụ] Đã mở Nhiệm Vụ; đang tải trạng thái nhiệm vụ và rương.", "info");
+                sendLog("ℹ️ [Nhận Cuối Ngày - Nhiệm Vụ] Đã mở Nhiệm Vụ; đang tải trạng thái nhiệm vụ và rương.", "info");
                 return true;
             }
 
@@ -363,12 +363,12 @@
                     const task = acvCtrl.taskDt.find((entry) => entry && entry.task_id === pending.taskId);
                     if (task && Number(task.status) === taskState.gain) {
                         state.tasks.taskClaims++;
-                        sendLog(`✅ [M8 - Cuối Ngày - Nhiệm Vụ] Máy chủ xác nhận đã nhận nhiệm vụ #${pending.taskId}.`, "action");
+                        sendLog(`✅ [Nhận Cuối Ngày - Nhiệm Vụ] Máy chủ xác nhận đã nhận nhiệm vụ #${pending.taskId}.`, "action");
                         state.tasks.pending = null;
                     }
                 } else if (acvCtrl.tskStateLs[pending.index] === taskState.gain) {
                     state.tasks.chestClaims++;
-                    sendLog(`✅ [M8 - Cuối Ngày - Rương] Máy chủ xác nhận đã nhận rương năng động #${pending.index + 1}.`, "result");
+                    sendLog(`✅ [Nhận Cuối Ngày - Rương] Máy chủ xác nhận đã nhận rương năng động #${pending.index + 1}.`, "result");
                     state.tasks.pending = null;
                 }
 
@@ -391,7 +391,7 @@
                 };
                 acvCtrl.send30503(task.task_id);
                 cuoiNgayDidSend = true;
-                sendLog(`ℹ️ [M8 - Cuối Ngày - Nhiệm Vụ] Đã yêu cầu nhận nhiệm vụ #${task.task_id}; đang chờ máy chủ xác nhận.`, "info");
+                sendLog(`ℹ️ [Nhận Cuối Ngày - Nhiệm Vụ] Đã yêu cầu nhận nhiệm vụ #${task.task_id}; đang chờ máy chủ xác nhận.`, "info");
                 return true;
             }
 
@@ -406,7 +406,7 @@
                 };
                 acvCtrl.send30504(chestIndex);
                 cuoiNgayDidSend = true;
-                sendLog(`ℹ️ [M8 - Cuối Ngày - Rương] Đã yêu cầu nhận rương năng động #${chestIndex + 1}; đang chờ máy chủ xác nhận.`, "info");
+                sendLog(`ℹ️ [Nhận Cuối Ngày - Rương] Đã yêu cầu nhận rương năng động #${chestIndex + 1}; đang chờ máy chủ xác nhận.`, "info");
                 return true;
             }
 
@@ -502,7 +502,7 @@
                 ? ctx.WelfareCtrl.gInst()
                 : null;
             if (!welfareController || typeof welfareController.getCurlModel !== 'function') {
-                sendLog("⚠️ [M8 - Tâm Tiên Đài] Không tìm thấy bộ điều khiển quà miễn phí.", "err");
+                sendLog("⚠️ [Tâm Tiên Đài] Không tìm thấy bộ điều khiển quà miễn phí.", "err");
                 return true;
             }
 
@@ -514,7 +514,7 @@
                 typeof welfareController.send30120 !== 'function' ||
                 typeof welfareController.send30121 !== 'function' ||
                 typeof welfareController.getLimitGiftBuyNetVo !== 'function') {
-                sendLog("⚠️ [M8 - Tâm Tiên Đài] API nhận quà miễn phí chưa sẵn sàng.", "err");
+                sendLog("⚠️ [Tâm Tiên Đài] API nhận quà miễn phí chưa sẵn sàng.", "err");
                 return true;
             }
 
@@ -529,7 +529,7 @@
                         updateEvent
                     );
                 } catch (error) {
-                    sendLog(`⚠️ [M8 - Tâm Tiên Đài] Không thể theo dõi trạng thái quà: ${error.message || error}`, "err");
+                    sendLog(`⚠️ [Tâm Tiên Đài] Không thể theo dõi trạng thái quà: ${error.message || error}`, "err");
                     return true;
                 }
             }
@@ -543,15 +543,15 @@
                     const category = TAM_TIEN_GIFT_CATEGORIES[state.giftCategoryIndex];
                     if (pending.confirmed) {
                         if (Number(pending.gift.gold) > 0) {
-                            sendLog(`✅ [M8 - Tâm Tiên Đài - ${category.label}] Đã mua quà #${pending.gift.gift_id} bằng ${Number(pending.gift.gold)} Tiên Ngọc.`, "result");
+                            sendLog(`✅ [Tâm Tiên Đài - ${category.label}] Đã mua quà #${pending.gift.gift_id} bằng ${Number(pending.gift.gold)} Tiên Ngọc.`, "result");
                         } else {
-                            sendLog(`✅ [M8 - Tâm Tiên Đài - ${category.label}] Đã nhận quà miễn phí #${pending.gift.gift_id}.`, "result");
+                            sendLog(`✅ [Tâm Tiên Đài - ${category.label}] Đã nhận quà miễn phí #${pending.gift.gift_id}.`, "result");
                         }
                         state.pendingGiftClaim = null;
                         state.giftRowIndex++;
                     } else if (now - pending.startedAt >= TAM_TIEN_REQUEST_TIMEOUT_MS) {
                         const action = Number(pending.gift.gold) > 0 ? 'mua quà Tiên Ngọc' : 'nhận quà miễn phí';
-                        sendLog(`⚠️ [M8 - Tâm Tiên Đài - ${category.label}] Chưa xác nhận được việc ${action} #${pending.gift.gift_id} từ máy chủ.`, "err");
+                        sendLog(`⚠️ [Tâm Tiên Đài - ${category.label}] Chưa xác nhận được việc ${action} #${pending.gift.gift_id} từ máy chủ.`, "err");
                         state.pendingGiftClaim = null;
                         state.giftRowIndex++;
                     }
@@ -566,7 +566,7 @@
                     state.waitingGiftList = null;
                     if (!waiting.ready) {
                         const category = TAM_TIEN_GIFT_CATEGORIES[state.giftCategoryIndex];
-                        sendLog(`⚠️ [M8 - Tâm Tiên Đài - ${category.label}] Không nhận được trạng thái quà từ máy chủ.`, "err");
+                        sendLog(`⚠️ [Tâm Tiên Đài - ${category.label}] Không nhận được trạng thái quà từ máy chủ.`, "err");
                         state.giftCategoryIndex++;
                         return true;
                     }
@@ -580,7 +580,7 @@
                     state.giftRowIndex = 0;
 
                     if (state.giftRows.length === 0) {
-                        sendLog(`ℹ️ [M8 - Tâm Tiên Đài - ${category.label}] Không có quà miễn phí để nhận.`, "info");
+                        sendLog(`ℹ️ [Tâm Tiên Đài - ${category.label}] Không có quà miễn phí để nhận.`, "info");
                         state.giftCategoryIndex++;
                         state.giftRows = null;
                     }
@@ -596,7 +596,7 @@
                 if (!state.giftRows) {
                     const giftType = welfareConst.LimitGiftType[category.typeKey];
                     if (!Number.isInteger(giftType)) {
-                        sendLog(`⚠️ [M8 - Tâm Tiên Đài - ${category.label}] Không xác định được loại quà.`, "err");
+                        sendLog(`⚠️ [Tâm Tiên Đài - ${category.label}] Không xác định được loại quà.`, "err");
                         state.giftCategoryIndex++;
                         return true;
                     }
@@ -607,7 +607,7 @@
                         tamTienDidSend = true;
                     } catch (error) {
                         state.waitingGiftList = null;
-                        sendLog(`⚠️ [M8 - Tâm Tiên Đài - ${category.label}] Không thể kiểm tra quà: ${error.message || error}`, "err");
+                        sendLog(`⚠️ [Tâm Tiên Đài - ${category.label}] Không thể kiểm tra quà: ${error.message || error}`, "err");
                         state.giftCategoryIndex++;
                     }
                     return true;
@@ -623,7 +623,7 @@
                 const gift = state.giftRows[state.giftRowIndex];
                 const tienNgocCost = Number(gift.gold);
                 if (tienNgocCost > 0 && !CONFIG.buyTamTienGifts) {
-                    sendLog(`ℹ️ [M8 - Tâm Tiên Đài - ${category.label}] Bỏ qua quà Tiên Ngọc #${gift.gift_id} vì tùy chọn mua đang tắt.`, "info");
+                    sendLog(`ℹ️ [Tâm Tiên Đài - ${category.label}] Bỏ qua quà Tiên Ngọc #${gift.gift_id} vì tùy chọn mua đang tắt.`, "info");
                     state.giftRowIndex++;
                     return true;
                 }
@@ -635,7 +635,7 @@
                     const giftDescription = tienNgocCost > 0
                         ? `Quà Tiên Ngọc #${gift.gift_id}`
                         : `Quà miễn phí #${gift.gift_id}`;
-                    sendLog(`ℹ️ [M8 - Tâm Tiên Đài - ${category.label}] ${giftDescription} đã mua đủ hôm nay.`, "info");
+                    sendLog(`ℹ️ [Tâm Tiên Đài - ${category.label}] ${giftDescription} đã mua đủ hôm nay.`, "info");
                     state.giftRowIndex++;
                     return true;
                 }
@@ -652,7 +652,7 @@
                 } catch (error) {
                     state.pendingGiftClaim = null;
                     const action = tienNgocCost > 0 ? 'mua quà Tiên Ngọc' : 'nhận quà miễn phí';
-                    sendLog(`⚠️ [M8 - Tâm Tiên Đài - ${category.label}] Không thể ${action} #${gift.gift_id}: ${error.message || error}`, "err");
+                    sendLog(`⚠️ [Tâm Tiên Đài - ${category.label}] Không thể ${action} #${gift.gift_id}: ${error.message || error}`, "err");
                     state.giftRowIndex++;
                 }
                 return true;
@@ -664,7 +664,7 @@
                     : null;
                 const recruitConst = ctx.RecruitConst;
                 if (!recruitController || !recruitConst || typeof recruitController.freeRecruit !== 'function') {
-                    sendLog("⚠️ [M8 - Tâm Tiên Đài - Chiêu Mộ] Không tìm thấy bộ điều khiển chiêu mộ miễn phí.", "err");
+                    sendLog("⚠️ [Tâm Tiên Đài - Chiêu Mộ] Không tìm thấy bộ điều khiển chiêu mộ miễn phí.", "err");
                     state.phase = 'done';
                     return true;
                 }
@@ -676,11 +676,11 @@
                             recruitController.reqRecruitInfo();
                             tamTienDidSend = true;
                         } catch (error) {
-                            sendLog(`⚠️ [M8 - Tâm Tiên Đài - Chiêu Mộ] Không thể kiểm tra lượt miễn phí: ${error.message || error}`, "err");
+                            sendLog(`⚠️ [Tâm Tiên Đài - Chiêu Mộ] Không thể kiểm tra lượt miễn phí: ${error.message || error}`, "err");
                             state.phase = 'done';
                         }
                     } else if (now - state.recruitInfoRequestedAt >= TAM_TIEN_REQUEST_TIMEOUT_MS) {
-                        sendLog("⚠️ [M8 - Tâm Tiên Đài - Chiêu Mộ] Không nhận được trạng thái lượt miễn phí từ máy chủ.", "err");
+                        sendLog("⚠️ [Tâm Tiên Đài - Chiêu Mộ] Không nhận được trạng thái lượt miễn phí từ máy chủ.", "err");
                         state.phase = 'done';
                     }
                     return true;
@@ -695,12 +695,12 @@
                     const pending = state.pendingRecruit;
                     const remaining = Number(recruitController.m_recruitBaseInfo[pending.key]) || 0;
                     if (remaining < pending.previousCount) {
-                        sendLog(`✅ [M8 - Tâm Tiên Đài - Chiêu Mộ] Đã nhận lượt miễn phí: ${pending.label}.`, "result");
+                        sendLog(`✅ [Tâm Tiên Đài - Chiêu Mộ] Đã nhận lượt miễn phí: ${pending.label}.`, "result");
                         state.pendingRecruit = null;
                         state.recruitIndex++;
                     } else if (!recruitController.m_isRecruiting &&
                         now - pending.startedAt >= TAM_TIEN_REQUEST_TIMEOUT_MS) {
-                        sendLog(`⚠️ [M8 - Tâm Tiên Đài - Chiêu Mộ] Máy chủ chưa xác nhận lượt miễn phí: ${pending.label}.`, "err");
+                        sendLog(`⚠️ [Tâm Tiên Đài - Chiêu Mộ] Máy chủ chưa xác nhận lượt miễn phí: ${pending.label}.`, "err");
                         state.pendingRecruit = null;
                         state.recruitIndex++;
                     }
@@ -710,7 +710,7 @@
                 if (recruitController.m_isRecruiting) {
                     if (!state.recruitBusySince) state.recruitBusySince = now;
                     if (now - state.recruitBusySince >= TAM_TIEN_REQUEST_TIMEOUT_MS) {
-                        sendLog("⚠️ [M8 - Tâm Tiên Đài - Chiêu Mộ] Đang chờ một lượt chiêu mộ khác hoàn tất.", "err");
+                        sendLog("⚠️ [Tâm Tiên Đài - Chiêu Mộ] Đang chờ một lượt chiêu mộ khác hoàn tất.", "err");
                         state.phase = 'done';
                     }
                     return true;
@@ -719,14 +719,14 @@
 
                 if (state.recruitIndex >= recruitTypes.length) {
                     state.phase = 'done';
-                    sendLog("✨ [M8 - Tâm Tiên Đài] Đã kiểm tra xong quà miễn phí, quà Tiên Ngọc theo tùy chọn và Chiêu Mộ.", "action");
+                    sendLog("✨ [Tâm Tiên Đài] Đã kiểm tra xong quà miễn phí, quà Tiên Ngọc theo tùy chọn và Chiêu Mộ.", "action");
                     return true;
                 }
 
                 const recruitType = recruitTypes[state.recruitIndex];
                 const available = Number(recruitController.m_recruitBaseInfo[recruitType.key]) || 0;
                 if (available <= 0) {
-                    sendLog(`ℹ️ [M8 - Tâm Tiên Đài - Chiêu Mộ] ${recruitType.label}: hiện không có lượt miễn phí (đã dùng hoặc đang hồi).`, "info");
+                    sendLog(`ℹ️ [Tâm Tiên Đài - Chiêu Mộ] ${recruitType.label}: hiện không có lượt miễn phí (đã dùng hoặc đang hồi).`, "info");
                     state.recruitIndex++;
                     return true;
                 }
@@ -743,7 +743,7 @@
                     tamTienDidSend = true;
                 } catch (error) {
                     state.pendingRecruit = null;
-                    sendLog(`⚠️ [M8 - Tâm Tiên Đài - Chiêu Mộ] Không thể nhận lượt miễn phí ${recruitType.label}: ${error.message || error}`, "err");
+                    sendLog(`⚠️ [Tâm Tiên Đài - Chiêu Mộ] Không thể nhận lượt miễn phí ${recruitType.label}: ${error.message || error}`, "err");
                     state.recruitIndex++;
                 }
                 return true;
@@ -776,7 +776,7 @@
             if (state.phase === 'done' || state.phase === 'error') return true;
 
             if (!friendCtrl) {
-                sendLog("⚠️ [M8 - Tiên Hữu] Không tìm thấy bộ điều khiển bạn bè.", "err");
+                sendLog("⚠️ [Tiên Hữu] Không tìm thấy bộ điều khiển bạn bè.", "err");
                 state.phase = 'error';
                 return true;
             }
@@ -784,13 +784,13 @@
             if (!friendCtrl.m_friend_data) {
                 if (state.phase === 'loading') {
                     if (now - state.startedAt >= TIEN_HUU_REQUEST_TIMEOUT_MS) {
-                        sendLog("⚠️ [M8 - Tiên Hữu] Hết thời gian chờ danh sách bạn bè từ máy chủ.", "err");
+                        sendLog("⚠️ [Tiên Hữu] Hết thời gian chờ danh sách bạn bè từ máy chủ.", "err");
                         state.phase = 'error';
                     }
                     return true;
                 }
                 if (typeof friendCtrl.send11801Msg !== 'function') {
-                    sendLog("⚠️ [M8 - Tiên Hữu] API tải danh sách bạn bè chưa sẵn sàng.", "err");
+                    sendLog("⚠️ [Tiên Hữu] API tải danh sách bạn bè chưa sẵn sàng.", "err");
                     state.phase = 'error';
                     return true;
                 }
@@ -798,9 +798,9 @@
                     friendCtrl.send11801Msg();
                     state.phase = 'loading';
                     state.startedAt = now;
-                    sendLog("ℹ️ [M8 - Tiên Hữu] Đang tải danh sách bạn bè để kiểm tra Tặng nhanh.", "info");
+                    sendLog("ℹ️ [Tiên Hữu] Đang tải danh sách bạn bè để kiểm tra Tặng nhanh.", "info");
                 } catch (error) {
-                    sendLog(`⚠️ [M8 - Tiên Hữu] Không thể tải danh sách bạn bè: ${error.message || error}`, "err");
+                    sendLog(`⚠️ [Tiên Hữu] Không thể tải danh sách bạn bè: ${error.message || error}`, "err");
                     state.phase = 'error';
                 }
                 return true;
@@ -830,10 +830,10 @@
                     const results = [];
                     if (confirmedGifts > 0) results.push(`đã tặng ${confirmedGifts} bạn bè`);
                     if (confirmedAccepts > 0) results.push(`đã nhận thể lực từ ${confirmedAccepts} bạn bè`);
-                    sendLog(`✅ [M8 - Tiên Hữu] Máy chủ xác nhận Tặng nhanh: ${results.join(', ')}.`, "result");
+                    sendLog(`✅ [Tiên Hữu] Máy chủ xác nhận Tặng nhanh: ${results.join(', ')}.`, "result");
                     state.phase = 'done';
                 } else if (now - state.startedAt >= TIEN_HUU_REQUEST_TIMEOUT_MS) {
-                    sendLog("⚠️ [M8 - Tiên Hữu] Máy chủ chưa xác nhận thao tác Tặng nhanh.", "err");
+                    sendLog("⚠️ [Tiên Hữu] Máy chủ chưa xác nhận thao tác Tặng nhanh.", "err");
                     state.phase = 'error';
                 }
                 return true;
@@ -842,7 +842,7 @@
             if (typeof friendCtrl.getFriendListByType !== 'function' ||
                 typeof friendCtrl.getAndSendLove !== 'function' ||
                 !ctx.FriendConst || !ctx.FriendConst.friendRelationType) {
-                sendLog("⚠️ [M8 - Tiên Hữu] API Tặng nhanh chưa sẵn sàng.", "err");
+                sendLog("⚠️ [Tiên Hữu] API Tặng nhanh chưa sẵn sàng.", "err");
                 state.phase = 'error';
                 return true;
             }
@@ -851,12 +851,12 @@
             try {
                 friends = friendCtrl.getFriendListByType(ctx.FriendConst.friendRelationType.friend);
             } catch (error) {
-                sendLog(`⚠️ [M8 - Tiên Hữu] Không thể đọc danh sách bạn bè: ${error.message || error}`, "err");
+                sendLog(`⚠️ [Tiên Hữu] Không thể đọc danh sách bạn bè: ${error.message || error}`, "err");
                 state.phase = 'error';
                 return true;
             }
             if (!Array.isArray(friends)) {
-                sendLog("⚠️ [M8 - Tiên Hữu] Danh sách bạn bè không hợp lệ.", "err");
+                sendLog("⚠️ [Tiên Hữu] Danh sách bạn bè không hợp lệ.", "err");
                 state.phase = 'error';
                 return true;
             }
@@ -872,7 +872,7 @@
                 : [];
 
             if (pendingGifts.length === 0 && pendingAccepts.length === 0) {
-                sendLog("ℹ️ [M8 - Tiên Hữu] Đã Tặng nhanh hoặc không có bạn bè cần gửi/nhận thể lực.", "info");
+                sendLog("ℹ️ [Tiên Hữu] Đã Tặng nhanh hoặc không có bạn bè cần gửi/nhận thể lực.", "info");
                 state.phase = 'done';
                 return true;
             }
@@ -886,7 +886,7 @@
             try {
                 friendCtrl.getAndSendLove();
             } catch (error) {
-                sendLog(`⚠️ [M8 - Tiên Hữu] Không thể thực hiện Tặng nhanh: ${error.message || error}`, "err");
+                sendLog(`⚠️ [Tiên Hữu] Không thể thực hiện Tặng nhanh: ${error.message || error}`, "err");
                 state.phase = 'error';
             }
             return true;
@@ -947,13 +947,13 @@
 
         function failTienMinhStep(state, key, message, nextPhase) {
             state.failed = true;
-            logTienMinh(state, key, `⚠️ [M8 - Tiên Minh] ${message}`, "err");
+            logTienMinh(state, key, `⚠️ [Tiên Minh] ${message}`, "err");
             state.phase = nextPhase;
         }
 
         function skipTienMinhStep(state, key, message, nextPhase) {
             state.skippedSteps++;
-            logTienMinh(state, key, `ℹ️ [M8 - Tiên Minh] ${message}`, "info");
+            logTienMinh(state, key, `ℹ️ [Tiên Minh] ${message}`, "info");
             state.phase = nextPhase;
         }
 
@@ -1004,11 +1004,11 @@
                         bargain.step = 'check';
                     } else if (pending.kind === 'offer') {
                         state.confirmedActions++;
-                        logTienMinh(state, 'bargain-offer-confirmed', "✅ [M8 - Tiên Minh - Shop Tiên Giới] Máy chủ xác nhận đã Trả Giá.", "result");
+                        logTienMinh(state, 'bargain-offer-confirmed', "✅ [Tiên Minh - Shop Tiên Giới] Máy chủ xác nhận đã Trả Giá.", "result");
                         bargain.step = 'check-buy';
                     } else {
                         state.confirmedActions++;
-                        logTienMinh(state, 'bargain-buy-confirmed', "✅ [M8 - Tiên Minh - Shop Tiên Giới] Máy chủ xác nhận đã Mua vật phẩm sau khi Trả Giá.", "result");
+                        logTienMinh(state, 'bargain-buy-confirmed', "✅ [Tiên Minh - Shop Tiên Giới] Máy chủ xác nhận đã Mua vật phẩm sau khi Trả Giá.", "result");
                         state.phase = 'dungeon';
                     }
                 } else if (pending.kind === 'load' && now - pending.startedAt >= 1500) {
@@ -1039,7 +1039,7 @@
                         startedAt: now
                     };
                     bargain.opened = true;
-                    logTienMinh(state, 'bargain-loading', "ℹ️ [M8 - Tiên Minh - Shop Tiên Giới] Đang tải trạng thái Trả Giá.", "info");
+                    logTienMinh(state, 'bargain-loading', "ℹ️ [Tiên Minh - Shop Tiên Giới] Đang tải trạng thái Trả Giá.", "info");
                 } catch (error) {
                     failTienMinhStep(state, 'bargain-open-error', `Không thể mở Shop Tiên Giới: ${error.message || error}`, 'dungeon');
                 }
@@ -1170,7 +1170,7 @@
                     if (Number.isFinite(buyCount) && buyCount > pending.beforeBuyCount) {
                         dungeon.pending = null;
                         state.confirmedActions++;
-                        logTienMinh(state, `dungeon-buy-${buyCount}`, `✅ [M8 - Tiên Minh - Bí Cảnh Tông Môn] Máy chủ xác nhận đã mua thêm 1 lượt với giá 20 Tiên Ngọc (${buyCount} lượt đã mua).`, "result");
+                        logTienMinh(state, `dungeon-buy-${buyCount}`, `✅ [Tiên Minh - Bí Cảnh Tông Môn] Máy chủ xác nhận đã mua thêm 1 lượt với giá 20 Tiên Ngọc (${buyCount} lượt đã mua).`, "result");
                         dungeon.stage = 'decide';
                     } else if (now - pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
                         dungeon.pending = null;
@@ -1182,7 +1182,7 @@
                     dungeon.pending = null;
                     dungeon.fightsDone++;
                     state.confirmedActions++;
-                    logTienMinh(state, `dungeon-fight-${fightCount}`, `✅ [M8 - Tiên Minh - Bí Cảnh Tông Môn] Máy chủ xác nhận trận ${fightCount}/${limit}.`, "action");
+                    logTienMinh(state, `dungeon-fight-${fightCount}`, `✅ [Tiên Minh - Bí Cảnh Tông Môn] Máy chủ xác nhận trận ${fightCount}/${limit}.`, "action");
                     dungeon.stage = 'decide';
                 } else if (now - pending.startedAt >= TIEN_MINH_DUNGEON_FIGHT_TIMEOUT_MS) {
                     dungeon.pending = null;
@@ -1244,7 +1244,7 @@
 
             if (fightCount >= limit) {
                 if (dungeon.fightsDone > 0) {
-                    logTienMinh(state, 'dungeon-limit-reached', `✅ [M8 - Tiên Minh - Bí Cảnh Tông Môn] Đã hoàn thành ${fightCount}/${limit} trận trong ngày.`, "action");
+                    logTienMinh(state, 'dungeon-limit-reached', `✅ [Tiên Minh - Bí Cảnh Tông Môn] Đã hoàn thành ${fightCount}/${limit} trận trong ngày.`, "action");
                     state.phase = 'war';
                 } else {
                     skipTienMinhStep(state, 'dungeon-limit-already', `Bí Cảnh Tông Môn đã đánh ${fightCount}/${limit} trận; không đánh thêm.`, 'war');
@@ -1399,7 +1399,7 @@
                         : state.war.targetType === 'neutral'
                             ? 'thành trung lập'
                             : 'thành trì đang chiếm';
-                    logTienMinh(state, `war-fight-${Number(base.doneNums)}`, `✅ [M8 - Tiên Minh - Tỉ Thí Tông Môn] Máy chủ xác nhận lượt Khiêu Chiến ${Number(base.doneNums)}/${maxCount} tại ${targetType}.`, "action");
+                    logTienMinh(state, `war-fight-${Number(base.doneNums)}`, `✅ [Tiên Minh - Tỉ Thí Tông Môn] Máy chủ xác nhận lượt Khiêu Chiến ${Number(base.doneNums)}/${maxCount} tại ${targetType}.`, "action");
                     state.war.fightsDone++;
                     // Chọn lại mục tiêu ngẫu nhiên cho lượt kế tiếp.
                     state.war.city = null;
@@ -1426,7 +1426,7 @@
 
             if (doneCount >= maxCount) {
                 if (state.war.fightsDone > 0) {
-                    logTienMinh(state, 'war-limit-reached', `✅ [M8 - Tiên Minh - Tỉ Thí Tông Môn] Đã hoàn thành ${doneCount}/${maxCount} lượt Khiêu Chiến trong ngày.`, "action");
+                    logTienMinh(state, 'war-limit-reached', `✅ [Tiên Minh - Tỉ Thí Tông Môn] Đã hoàn thành ${doneCount}/${maxCount} lượt Khiêu Chiến trong ngày.`, "action");
                     state.phase = 'asked';
                 } else {
                     skipTienMinhStep(state, 'war-no-turns', 'Tỉ Thí Tông Môn đã hết lượt Khiêu Chiến trong ngày.', 'asked');
@@ -1520,7 +1520,7 @@
                     asked.pending = null;
                     asked.count++;
                     state.confirmedActions++;
-                    logTienMinh(state, `asked-fight-${asked.count}`, `✅ [M8 - Tiên Minh - Tông Môn Vấn Đạo] Máy chủ xác nhận lượt Khiêu Chiến ${asked.count}/${TIEN_MINH_ASKED_FIGHTS}.`, "action");
+                    logTienMinh(state, `asked-fight-${asked.count}`, `✅ [Tiên Minh - Tông Môn Vấn Đạo] Máy chủ xác nhận lượt Khiêu Chiến ${asked.count}/${TIEN_MINH_ASKED_FIGHTS}.`, "action");
                 } else if (now - pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
                     asked.pending = null;
                     failTienMinhStep(state, 'asked-fight-timeout', 'Máy chủ chưa xác nhận trận Tông Môn Vấn Đạo; không gửi lại để tránh lặp trận.', 'help');
@@ -1571,7 +1571,7 @@
             }
 
             if (asked.count >= TIEN_MINH_ASKED_FIGHTS) {
-                logTienMinh(state, 'asked-done', `ℹ️ [M8 - Tiên Minh - Tông Môn Vấn Đạo] Đã hoàn thành ${asked.count}/${TIEN_MINH_ASKED_FIGHTS} lượt Khiêu Chiến.`, "info");
+                logTienMinh(state, 'asked-done', `ℹ️ [Tiên Minh - Tông Môn Vấn Đạo] Đã hoàn thành ${asked.count}/${TIEN_MINH_ASKED_FIGHTS} lượt Khiêu Chiến.`, "info");
                 state.phase = 'askedClaim';
                 return true;
             }
@@ -1660,7 +1660,7 @@
                     const got = claim.pending.before - claimable.length;
                     claim.pending = null;
                     state.confirmedActions++;
-                    logTienMinh(state, `asked-claim-confirmed-${claim.sends}`, `✅ [M8 - Tiên Minh - Tông Môn Vấn Đạo] Máy chủ xác nhận đã nhận thưởng ${got} mốc sát thương.`, "result");
+                    logTienMinh(state, `asked-claim-confirmed-${claim.sends}`, `✅ [Tiên Minh - Tông Môn Vấn Đạo] Máy chủ xác nhận đã nhận thưởng ${got} mốc sát thương.`, "result");
                 } else if (now - claim.pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
                     claim.pending = null;
                     failTienMinhStep(state, 'asked-claim-timeout', 'Máy chủ chưa xác nhận nhận thưởng Tông Môn Vấn Đạo; không gửi lại.', 'help');
@@ -1670,7 +1670,7 @@
                 }
             }
             if (!claimable.length) {
-                logTienMinh(state, 'asked-claim-none', "ℹ️ [M8 - Tiên Minh - Tông Môn Vấn Đạo] Không có mốc thưởng sát thương nào để nhận.", "info");
+                logTienMinh(state, 'asked-claim-none', "ℹ️ [Tiên Minh - Tông Môn Vấn Đạo] Không có mốc thưởng sát thương nào để nhận.", "info");
                 state.phase = 'help';
                 return true;
             }
@@ -1763,7 +1763,7 @@
                     if (placed) {
                         help.pending = null;
                         state.confirmedActions++;
-                        logTienMinh(state, `help-box-${pending.slot}`, `✅ [M8 - Tiên Minh - Viện Trợ] Máy chủ xác nhận đã chọn vật phẩm Xin Giúp cho ô ${pending.slot}.`, "action");
+                        logTienMinh(state, `help-box-${pending.slot}`, `✅ [Tiên Minh - Viện Trợ] Máy chủ xác nhận đã chọn vật phẩm Xin Giúp cho ô ${pending.slot}.`, "action");
                     } else if (now - pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
                         help.pending = null;
                         help.boxFailed = true;
@@ -1777,7 +1777,7 @@
                     help.pending = null;
                     help.assisted++;
                     state.confirmedActions++;
-                    logTienMinh(state, `help-assist-${help.assisted}`, `✅ [M8 - Tiên Minh - Viện Trợ] Máy chủ xác nhận đã Viện trợ thành viên (${count}/${Number(data.max_count)} lượt miễn phí hôm nay).`, "action");
+                    logTienMinh(state, `help-assist-${help.assisted}`, `✅ [Tiên Minh - Viện Trợ] Máy chủ xác nhận đã Viện trợ thành viên (${count}/${Number(data.max_count)} lượt miễn phí hôm nay).`, "action");
                 } else if (data !== pending.dataRef) {
                     // Máy chủ từ chối và game tải lại danh sách (rv18042 → send18040Msg).
                     help.pending = null;
@@ -1819,7 +1819,7 @@
             if (!help.boxesLogged) {
                 help.boxesLogged = true;
                 if (!help.boxFailed) {
-                    logTienMinh(state, 'help-boxes-ready', `ℹ️ [M8 - Tiên Minh - Xin Giúp] Cả ${boxCount} ô Xin Giúp đã được cấu hình.`, "info");
+                    logTienMinh(state, 'help-boxes-ready', `ℹ️ [Tiên Minh - Xin Giúp] Cả ${boxCount} ô Xin Giúp đã được cấu hình.`, "info");
                 }
             }
 
@@ -1839,7 +1839,7 @@
                 Number(entry.be_count) < Number(entry.max_count));
             if (!target) {
                 if (help.assisted > 0) {
-                    logTienMinh(state, 'help-assist-done', `ℹ️ [M8 - Tiên Minh - Viện Trợ] Đã Viện trợ ${help.assisted} lượt, hết yêu cầu có thể giúp (${count}/${maxCount} lượt miễn phí).`, "info");
+                    logTienMinh(state, 'help-assist-done', `ℹ️ [Tiên Minh - Viện Trợ] Đã Viện trợ ${help.assisted} lượt, hết yêu cầu có thể giúp (${count}/${maxCount} lượt miễn phí).`, "info");
                     state.phase = 'fete';
                 } else if (help.assistRejected > 0) {
                     skipTienMinhStep(state, 'help-all-rejected', `Máy chủ không nhận ${help.assistRejected} yêu cầu Viện trợ (có thể đã giúp trước đó); không thử lại.`, 'fete');
@@ -1887,7 +1887,7 @@
                     (button && button.visible === false)) {
                     fete.pending = null;
                     state.confirmedActions++;
-                    logTienMinh(state, 'fete-confirmed', "✅ [M8 - Tiên Minh - Tổ Sư Đường] Máy chủ xác nhận đã Cung phụng Dâng Tôn Sư.", "result");
+                    logTienMinh(state, 'fete-confirmed', "✅ [Tiên Minh - Tổ Sư Đường] Máy chủ xác nhận đã Cung phụng Dâng Tôn Sư.", "result");
                     fete.claiming = true;
                 } else if (now - pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
                     failTienMinhStep(state, 'fete-timeout', 'Máy chủ chưa xác nhận Cung phụng Dâng Tôn Sư.', 'done');
@@ -1921,7 +1921,7 @@
             }
             if (button.visible !== true || button.enabled === false || button.touchEnabled === false) {
                 state.skippedSteps++;
-                logTienMinh(state, 'fete-already-done', "ℹ️ [M8 - Tiên Minh] Cung phụng Dâng Tôn Sư không còn khả dụng hoặc đã hoàn tất; kiểm tra thưởng tiến độ.", "info");
+                logTienMinh(state, 'fete-already-done', "ℹ️ [Tiên Minh] Cung phụng Dâng Tôn Sư không còn khả dụng hoặc đã hoàn tất; kiểm tra thưởng tiến độ.", "info");
                 fete.claiming = true;
                 return true;
             }
@@ -1957,7 +1957,7 @@
                 if (claimedNums().includes(pending.count)) {
                     fete.claimPending = null;
                     state.confirmedActions++;
-                    logTienMinh(state, `fete-claim-${pending.count}`, `✅ [M8 - Tiên Minh - Tổ Sư Đường] Máy chủ xác nhận đã nhận thưởng mốc Cung Phụng ${pending.count}.`, "result");
+                    logTienMinh(state, `fete-claim-${pending.count}`, `✅ [Tiên Minh - Tổ Sư Đường] Máy chủ xác nhận đã nhận thưởng mốc Cung Phụng ${pending.count}.`, "result");
                 } else if (now - pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
                     fete.claimPending = null;
                     failTienMinhStep(state, 'fete-claim-timeout', `Máy chủ chưa xác nhận nhận thưởng mốc Cung Phụng ${pending.count}; không gửi lại.`, 'done');
@@ -1973,7 +1973,7 @@
                 .sort((a, b) => Number(a.count) - Number(b.count))
                 .find((cfg) => !done.includes(Number(cfg.count)) && fateNum >= Number(cfg.count));
             if (!next) {
-                logTienMinh(state, 'fete-claim-none', `ℹ️ [M8 - Tiên Minh - Tổ Sư Đường] Tiến độ cung phụng ${fateNum}; không có mốc thưởng nào để nhận.`, "info");
+                logTienMinh(state, 'fete-claim-none', `ℹ️ [Tiên Minh - Tổ Sư Đường] Tiến độ cung phụng ${fateNum}; không có mốc thưởng nào để nhận.`, "info");
                 state.phase = 'done';
                 return true;
             }
@@ -2020,11 +2020,11 @@
             state.phase = 'done';
             state.finalized = true;
             if (state.failed) {
-                sendLog(`⚠️ [M8 - Tiên Minh] Đã kiểm tra xong; ${state.confirmedActions} thao tác được xác nhận, ${state.skippedSteps} bước đã bỏ qua. Có bước chưa được máy chủ xác nhận.`, "err");
+                sendLog(`⚠️ [Tiên Minh] Đã kiểm tra xong; ${state.confirmedActions} thao tác được xác nhận, ${state.skippedSteps} bước đã bỏ qua. Có bước chưa được máy chủ xác nhận.`, "err");
             } else if (state.confirmedActions > 0) {
-                sendLog(`✅ [M8 - Tiên Minh] Đã kiểm tra xong; máy chủ xác nhận ${state.confirmedActions} thao tác, ${state.skippedSteps} bước đã hoàn tất/không khả dụng.`, "result");
+                sendLog(`✅ [Tiên Minh] Đã kiểm tra xong; máy chủ xác nhận ${state.confirmedActions} thao tác, ${state.skippedSteps} bước đã hoàn tất/không khả dụng.`, "result");
             } else {
-                sendLog(`ℹ️ [M8 - Tiên Minh] Đã kiểm tra trạng thái; không có thao tác nào cần thực hiện (${state.skippedSteps} bước đã hoàn tất/không khả dụng).`, "info");
+                sendLog(`ℹ️ [Tiên Minh] Đã kiểm tra trạng thái; không có thao tác nào cần thực hiện (${state.skippedSteps} bước đã hoàn tất/không khả dụng).`, "info");
             }
         }
 
@@ -2050,7 +2050,7 @@
                 if (leftoverVm && typeof leftoverVm.viewIsVisible === 'function' &&
                     !isTienMinhFighting(ctx) && leftoverVm.viewIsVisible('embattleUi')) {
                     leftoverVm.closeView('embattleUi');
-                    logTienMinh(state, 'battle-embattle-leftover', "ℹ️ [M8 - Tiên Minh] Đã đóng bảng đội hình còn mở sau khi hết lượt Khiêu Chiến.", "info");
+                    logTienMinh(state, 'battle-embattle-leftover', "ℹ️ [Tiên Minh] Đã đóng bảng đội hình còn mở sau khi hết lượt Khiêu Chiến.", "info");
                     return true;
                 }
                 return false;
@@ -2059,7 +2059,7 @@
             if (isTienMinhFighting(ctx)) {
                 if (!state.fightingSince) {
                     state.fightingSince = now;
-                    logTienMinh(state, `battle-start-${state.confirmedActions}-${now}`, "ℹ️ [M8 - Tiên Minh] Đang trong trận đánh; chờ trận kết thúc (tự bỏ qua hoạt ảnh).", "info");
+                    logTienMinh(state, `battle-start-${state.confirmedActions}-${now}`, "ℹ️ [Tiên Minh] Đang trong trận đánh; chờ trận kết thúc (tự bỏ qua hoạt ảnh).", "info");
                 }
                 if (now - state.fightingSince < TIEN_MINH_FIGHT_MAX_WAIT_MS) {
                     // Thời gian đánh không tính vào thời gian chờ xác nhận của máy chủ.
@@ -2088,18 +2088,18 @@
                             embattleUi.cBtnH2();
                             state.lastEmbattleAt = now;
                             state.embattleClicks = (state.embattleClicks || 0) + 1;
-                            logTienMinh(state, `battle-embattle-${state.embattleClicks}`, "ℹ️ [M8 - Tiên Minh] Đã tự chọn đội hình và bấm Bắt Đầu.", "info");
+                            logTienMinh(state, `battle-embattle-${state.embattleClicks}`, "ℹ️ [Tiên Minh] Đã tự chọn đội hình và bấm Bắt Đầu.", "info");
                             acted = true;
                         } else if (step === 'failed') {
                             const diag = embattleDiagnose(embattleUi, state.emb);
                             state.emb = null;
                             state.lastEmbattleAt = now;
                             try { vm.closeView('embattleUi'); } catch (e) { }
-                            logTienMinh(state, 'battle-embattle-empty', `❌ [M8 - Tiên Minh] Không xếp được đội hình (${diag}); bỏ qua lượt Khiêu Chiến này.`, "error");
+                            logTienMinh(state, 'battle-embattle-empty', `❌ [Tiên Minh] Không xếp được đội hình (${diag}); bỏ qua lượt Khiêu Chiến này.`, "error");
                             acted = true;
                         }
                     } catch (error) {
-                        logTienMinh(state, 'battle-embattle-error', `⚠️ [M8 - Tiên Minh] Không thể bấm Bắt Đầu ở bảng đội hình: ${error.message || error}`, "err");
+                        logTienMinh(state, 'battle-embattle-error', `⚠️ [Tiên Minh] Không thể bấm Bắt Đầu ở bảng đội hình: ${error.message || error}`, "err");
                     }
                 }
             }
@@ -2124,7 +2124,7 @@
             if (!gc) {
                 if (!tienMinhControllerUnavailableLogged) {
                     tienMinhControllerUnavailableLogged = true;
-                    sendLog("⚠️ [M8 - Tiên Minh] Không tìm thấy bộ điều khiển Bang Hội; chưa thể chạy các công việc.", "err");
+                    sendLog("⚠️ [Tiên Minh] Không tìm thấy bộ điều khiển Bang Hội; chưa thể chạy các công việc.", "err");
                 }
                 return true;
             }
@@ -2134,7 +2134,7 @@
             if (!tienMinhState || tienMinhState.dayKey !== dayKey ||
                 tienMinhState.guildCtrl !== gc) {
                 if (tienMinhState && tienMinhState.dayKey === dayKey && tienMinhState.guildCtrl !== gc) {
-                    sendLog("ℹ️ [M8 - Tiên Minh] Game đã khởi động lại/kết nối lại; kiểm tra lại trạng thái từ máy chủ trước khi tiếp tục (không lặp thao tác đã hoàn tất).", "info");
+                    sendLog("ℹ️ [Tiên Minh] Game đã khởi động lại/kết nối lại; kiểm tra lại trạng thái từ máy chủ trước khi tiếp tục (không lặp thao tác đã hoàn tất).", "info");
                 }
                 tienMinhState = createTienMinhState(gc, wr);
             }
@@ -2176,7 +2176,7 @@
             closeTroChienView(ctx);
             if (state.loggedErrors.has(key)) return;
             state.loggedErrors.add(key);
-            sendLog(`⚠️ [M8 - Trợ Chiến] ${message}`, "err");
+            sendLog(`⚠️ [Trợ Chiến Linh Thú] ${message}`, "err");
         }
 
         function closeTroChienView(ctx) {
@@ -2193,7 +2193,7 @@
             if (!ctrl) {
                 if (!troChienControllerUnavailableLogged) {
                     troChienControllerUnavailableLogged = true;
-                    sendLog("⚠️ [M8 - Trợ Chiến] Không tìm thấy bộ điều khiển Linh Thú; chưa thể chạy.", "err");
+                    sendLog("⚠️ [Trợ Chiến Linh Thú] Không tìm thấy bộ điều khiển Linh Thú; chưa thể chạy.", "err");
                 }
                 return true;
             }
@@ -2202,7 +2202,7 @@
             const dayKey = new Date().toDateString();
             if (!troChienState || troChienState.dayKey !== dayKey || troChienState.ctrl !== ctrl) {
                 if (troChienState && troChienState.dayKey === dayKey && troChienState.ctrl !== ctrl) {
-                    sendLog("ℹ️ [M8 - Trợ Chiến] Game đã khởi động lại/kết nối lại; kiểm tra lại trạng thái từ máy chủ trước khi nhận.", "info");
+                    sendLog("ℹ️ [Trợ Chiến Linh Thú] Game đã khởi động lại/kết nối lại; kiểm tra lại trạng thái từ máy chủ trước khi nhận.", "info");
                 }
                 troChienState = {
                     dayKey, ctrl, phase: 'open', failed: false, loggedErrors: new Set(),
@@ -2228,7 +2228,7 @@
                 ctrl.openSpiritAnimalMainUi(indexes.garden);
                 ctrl.send32019();
                 state.phase = 'load';
-                sendLog("ℹ️ [M8 - Trợ Chiến] Đã mở Linh Thú → Hoan Thú Viên; đang tải trạng thái từ máy chủ.", "info");
+                sendLog("ℹ️ [Trợ Chiến Linh Thú] Đã mở Linh Thú → Hoan Thú Viên; đang tải trạng thái từ máy chủ.", "info");
                 return true;
             }
 
@@ -2246,7 +2246,7 @@
 
             if (state.phase === 'claim') {
                 if (!ctrl.isCanGetHomeTypeProduceReward()) {
-                    sendLog("ℹ️ [M8 - Trợ Chiến] Hoan Thú Viên không có tài nguyên chờ nhận; bỏ qua.", "info");
+                    sendLog("ℹ️ [Trợ Chiến Linh Thú] Hoan Thú Viên không có tài nguyên chờ nhận; bỏ qua.", "info");
                     state.phase = 'done';
                     closeTroChienView(ctx);
                     return true;
@@ -2254,14 +2254,14 @@
                 ctrl.send32022();
                 state.claimedAt = state.lastRefreshAt = Date.now();
                 state.phase = 'confirm';
-                sendLog("ℹ️ [M8 - Trợ Chiến] Đã bấm Nhận nhanh ở Hoan Thú Viên; đang chờ máy chủ xác nhận.", "info");
+                sendLog("ℹ️ [Trợ Chiến Linh Thú] Đã bấm Nhận nhanh ở Hoan Thú Viên; đang chờ máy chủ xác nhận.", "info");
                 return true;
             }
 
             if (state.phase === 'confirm') {
                 const now = Date.now();
                 if (!ctrl.isCanGetHomeTypeProduceReward()) {
-                    sendLog("✅ [M8 - Trợ Chiến] Máy chủ xác nhận đã nhận nhanh tài nguyên Hoan Thú Viên.", "result");
+                    sendLog("✅ [Trợ Chiến Linh Thú] Máy chủ xác nhận đã nhận nhanh tài nguyên Hoan Thú Viên.", "result");
                     state.phase = 'done';
                     closeTroChienView(ctx);
                 } else if (now - state.claimedAt >= TRO_CHIEN_REQUEST_TIMEOUT_MS) {
@@ -2307,7 +2307,7 @@
             } catch (error) {
                 const message = error && error.message ? error.message : String(error);
                 if (message !== lastDailyRoutineError) {
-                    sendLog(`⚠️ [M8 - Hoạt động ngày] Lỗi xử lý: ${message}`, "err");
+                    sendLog(`⚠️ [Hoạt động ngày] Lỗi xử lý: ${message}`, "err");
                     lastDailyRoutineError = message;
                 }
                 return false;

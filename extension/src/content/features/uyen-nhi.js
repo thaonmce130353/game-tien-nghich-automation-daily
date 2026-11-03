@@ -18,13 +18,13 @@
 
         function handleUyenNhi(ctx) {
             if (!ctx.MzCtrl || !ctx.MzCtrl.gInst || !ctx.ViewMgr || !ctx.ViewMgr.gInst) {
-                logUnsupportedOnce('uyen-nhi', "⚠️ [M4 - Cửu Uyển Nhi] Game chưa sẵn sàng (MzCtrl); bỏ qua bước này.");
+                logUnsupportedOnce('uyen-nhi', "⚠️ [Cửu Uyển Nhi] Game chưa sẵn sàng (MzCtrl); bỏ qua bước này.");
                 return 'done';
             }
             const dayKey = new Date().toDateString();
             if (!uyenNhiState || uyenNhiState.dayKey !== dayKey) {
                 uyenNhiState = { dayKey, phase: 'open', failed: false, openedAt: 0, sentAt: 0 };
-                sendLog("🧩 [M4 - Cửu Uyển Nhi] Bắt đầu/khởi động lại: mở màn Cửu Uyển Nhi và kiểm tra nút Quét nhanh từ game.", "action");
+                sendLog("🧩 [Cửu Uyển Nhi] Bắt đầu/khởi động lại: mở màn Cửu Uyển Nhi và kiểm tra nút Quét nhanh từ game.", "action");
             }
             const state = uyenNhiState;
             if (state.phase === 'done') return 'done';
@@ -36,8 +36,8 @@
 
             if (state.phase === 'open') {
                 if (!mzVisible) {
-                    if (!tryAttemptTarget('uyen-nhi-open', "[M4 - Cửu Uyển Nhi] Mở màn Cửu Uyển Nhi")) {
-                        uyenNhiFinish(state, "❌ [M4 - Cửu Uyển Nhi] Không mở được màn Cửu Uyển Nhi (chưa mở khóa hoặc game bận); bỏ qua.", "error", true);
+                    if (!tryAttemptTarget('uyen-nhi-open', "[Cửu Uyển Nhi] Mở màn Cửu Uyển Nhi")) {
+                        uyenNhiFinish(state, "❌ [Cửu Uyển Nhi] Không mở được màn Cửu Uyển Nhi (chưa mở khóa hoặc game bận); bỏ qua.", "error", true);
                         return 'done';
                     }
                     ctrl.opMzUi();
@@ -48,19 +48,19 @@
                 const ui = vm.getViewByName('mzUi');
                 if (!ctrl.baseDt || !ui || !ui.saoDangBtn) {
                     if (now - state.openedAt > UYEN_NHI_TIMEOUT_MS) {
-                        uyenNhiFinish(state, "❌ [M4 - Cửu Uyển Nhi] Máy chủ chưa trả dữ liệu Cửu Uyển Nhi; bỏ qua.", "error", true);
+                        uyenNhiFinish(state, "❌ [Cửu Uyển Nhi] Máy chủ chưa trả dữ liệu Cửu Uyển Nhi; bỏ qua.", "error", true);
                         vm.closeView('mzUi');
                         return 'done';
                     }
                     return 'wait';
                 }
                 if (!ctrl.baseDt.isOp) {
-                    uyenNhiFinish(state, "ℹ️ [M4 - Cửu Uyển Nhi] Hoạt động hiện chưa mở; không có gì để quét.", "info");
+                    uyenNhiFinish(state, "ℹ️ [Cửu Uyển Nhi] Hoạt động hiện chưa mở; không có gì để quét.", "info");
                     ctrl.clsMz();
                     return 'done';
                 }
                 if (!ui.saoDangBtn.visible) {
-                    uyenNhiFinish(state, "ℹ️ [M4 - Cửu Uyển Nhi] Nút Quét nhanh chưa khả dụng (chưa đủ điều kiện); bỏ qua.", "info");
+                    uyenNhiFinish(state, "ℹ️ [Cửu Uyển Nhi] Nút Quét nhanh chưa khả dụng (chưa đủ điều kiện); bỏ qua.", "info");
                     ctrl.clsMz();
                     return 'done';
                 }
@@ -69,20 +69,20 @@
                 ctrl.sd20221();
                 state.phase = 'confirm';
                 state.sentAt = now;
-                sendLog("🧩 [M4 - Cửu Uyển Nhi] Nút Quét nhanh khả dụng; đã gửi yêu cầu Quét nhanh, chờ máy chủ xác nhận.", "action");
+                sendLog("🧩 [Cửu Uyển Nhi] Nút Quét nhanh khả dụng; đã gửi yêu cầu Quét nhanh, chờ máy chủ xác nhận.", "action");
                 return 'acted';
             }
 
             if (state.phase === 'confirm') {
                 if (ctrl.isCAwrd === true) {
-                    uyenNhiFinish(state, "✅ [M4 - Cửu Uyển Nhi] Máy chủ xác nhận Quét nhanh thành công.", "result");
+                    uyenNhiFinish(state, "✅ [Cửu Uyển Nhi] Máy chủ xác nhận Quét nhanh thành công.", "result");
                     if (vm.viewIsVisible('mzFinish')) vm.closeView('mzFinish');
                     try { ctrl.sd20201(); } catch (e) { }
                     ctrl.clsMz();
                     return 'acted';
                 }
                 if (now - state.sentAt > UYEN_NHI_TIMEOUT_MS) {
-                    uyenNhiFinish(state, "❌ [M4 - Cửu Uyển Nhi] Máy chủ chưa xác nhận Quét nhanh (có thể hôm nay đã quét hoặc chưa đủ điều kiện); không gửi lại.", "error", true);
+                    uyenNhiFinish(state, "❌ [Cửu Uyển Nhi] Máy chủ chưa xác nhận Quét nhanh (có thể hôm nay đã quét hoặc chưa đủ điều kiện); không gửi lại.", "error", true);
                     ctrl.clsMz();
                     return 'done';
                 }

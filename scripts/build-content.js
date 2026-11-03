@@ -42,6 +42,7 @@ const allSourceFiles = [
     'features/exposure-probe.js',
     'features/banner-gifts.js',
     'features/banner-workflow.js',
+    'features/quick-run.js',
     'features/scheduler.js'
 ];
 

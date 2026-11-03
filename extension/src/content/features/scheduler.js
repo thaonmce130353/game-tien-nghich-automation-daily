@@ -48,12 +48,13 @@
                 case 'autoMinigameMemory': return done(memoryState);
                 case 'autoMinigameDragon': return done(dragonState);
                 case 'autoMaDao': return done(maDaoState);
+                case 'autoTongTian': return CONFIG.towerSweepOnly && towerDailyState && towerDailyState.phase === 'done' ? { failed: Boolean(towerDailyState.failed) } : null;
                 case 'autoSweepDungeons': return sweptDayKey === today && !sweepPending ? { failed: false } : null;
                 case 'autoExtremeYin': return extremeYinSettled();
                 case 'autoOtherTrials': return done(uyenNhiState) && done(coThanState) ? extremeYinSettled() : null;
                 case 'autoDailyDungeon': return sweptDayKey === today && !sweepPending && done(biCanhState) ? { failed: false } : null;
                 case 'autoXianYuan': return xianYuanIdleCycles >= 2 ? { failed: false } : null;
-                case 'autoClimbYMAbyss': return abyssGaveUp ? { failed: true, reason: `không qua được tầng #${abyssGaveUp} sau nhiều lần thử` } : null;
+                case 'autoClimbYMAbyss': return abyssGaveUp ? { failed: false, reason: `chưa đủ sức qua tầng #${abyssGaveUp} (đã thử ${MAX_TARGET_ATTEMPTS} lần, bình thường khi lực chiến chưa đủ)` } : null;
                 case 'autoArena': return arenaRunState.limitReachedLogged || arenaRunState.noAttemptsLogged ? { failed: false } : null;
                 default: return null;
             }
@@ -62,7 +63,7 @@
         function checkRunFinished() {
             const info = runInfo;
             if (!CONFIG.running || !info || bannerGiftBusy) return false;
-            if (info.key === 'autoTongTian' || info.key === 'autoBanner') return false;
+            if ((info.key === 'autoTongTian' && !CONFIG.towerSweepOnly) || info.key === 'autoBanner') return false;
             let probe = null;
             try { probe = runFinishProbe(info.key); } catch (e) { }
             if (probe) {
@@ -108,6 +109,7 @@
                 return;
             }
             if (isExecuting || bannerGiftBusy) return;
+            if (CONFIG.running && typeof quickRunTick === 'function' && quickRunTick()) return;
 
             if (CONFIG.running && !wasAutoRunning) {
                 wasAutoRunning = true;
@@ -115,54 +117,54 @@
                     if (towerDailyState && towerDailyState.phase === 'done' && towerDailyState.failed &&
                         towerDailyState.dayKey === new Date().toDateString()) {
                         towerDailyState = null;
-                        sendLog("ℹ️ [M1 - Quét mỗi ngày] Lần chạy trước có bước chưa hoàn tất; bắt đầu lại và kiểm tra trạng thái game.", "info");
+                        sendLog("ℹ️ [Thông Thiên Tháp - Quét mỗi ngày] Lần chạy trước có bước chưa hoàn tất; bắt đầu lại và kiểm tra trạng thái game.", "info");
                     } else if (towerDailyState && towerDailyState.phase === 'done' &&
                         towerDailyState.dayKey === new Date().toDateString()) {
-                        sendLog("ℹ️ [M1 - Quét mỗi ngày] Hôm nay đã hoàn tất; không lặp lại, chỉ chạy bỏ qua Thông Thiên Tháp.", "info");
+                        sendLog("ℹ️ [Thông Thiên Tháp - Quét mỗi ngày] Hôm nay đã hoàn tất; không lặp lại, chỉ chạy bỏ qua Thông Thiên Tháp.", "info");
                     } else {
-                        sendLog("ℹ️ [M1 - Quét mỗi ngày] Auto đã bắt đầu/khởi động lại; đang kiểm tra số lượt từ game trước khi quét.", "info");
+                        sendLog("ℹ️ [Thông Thiên Tháp - Quét mỗi ngày] Auto đã bắt đầu/khởi động lại; đang kiểm tra số lượt từ game trước khi quét.", "info");
                     }
                 }
                 if (CONFIG.activeFeature === 'autoTamTienDai' &&
                     tamTienDaiState && tamTienDaiState.phase === 'done') {
-                    sendLog("ℹ️ [M8 - Tâm Tiên Đài] Lượt xử lý hôm nay đã hoàn tất trước đó; không nhận hoặc mua lại quà.", "info");
+                    sendLog("ℹ️ [Tâm Tiên Đài] Lượt xử lý hôm nay đã hoàn tất trước đó; không nhận hoặc mua lại quà.", "info");
                 }
                 if (CONFIG.activeFeature === 'autoTienHuu' &&
                     tienHuuState && tienHuuState.phase === 'done' &&
                     tienHuuState.dayKey === new Date().toDateString()) {
-                    sendLog("ℹ️ [M8 - Tiên Hữu] Tặng nhanh hôm nay đã hoàn tất; không gửi lại.", "info");
+                    sendLog("ℹ️ [Tiên Hữu] Tặng nhanh hôm nay đã hoàn tất; không gửi lại.", "info");
                 }
                 if (CONFIG.activeFeature === 'autoTienMinh') {
                     if (tienMinhState && tienMinhState.phase === 'done' && tienMinhState.failed &&
                         tienMinhState.dayKey === new Date().toDateString()) {
                         // Lần chạy trước có bước lỗi/chưa xác nhận: kiểm tra lại từ máy chủ (bước đã xong sẽ tự bỏ qua).
                         tienMinhState = null;
-                        sendLog("ℹ️ [M8 - Tiên Minh] Lần chạy trước có bước chưa hoàn tất; bắt đầu lại và kiểm tra trạng thái game.", "info");
+                        sendLog("ℹ️ [Tiên Minh] Lần chạy trước có bước chưa hoàn tất; bắt đầu lại và kiểm tra trạng thái game.", "info");
                     } else if (tienMinhState && tienMinhState.phase === 'done' &&
                         tienMinhState.dayKey === new Date().toDateString()) {
-                        sendLog("ℹ️ [M8 - Tiên Minh] Trạng thái hôm nay đã được kiểm tra; không lặp lại thao tác.", "info");
+                        sendLog("ℹ️ [Tiên Minh] Trạng thái hôm nay đã được kiểm tra; không lặp lại thao tác.", "info");
                     } else {
-                        sendLog("ℹ️ [M8 - Tiên Minh] Auto đã bắt đầu/khởi động lại; đang kiểm tra trạng thái game trước khi tiếp tục.", "info");
+                        sendLog("ℹ️ [Tiên Minh] Auto đã bắt đầu/khởi động lại; đang kiểm tra trạng thái game trước khi tiếp tục.", "info");
                     }
                 }
                 if (CONFIG.activeFeature === 'autoTroChien') {
                     if (troChienState && troChienState.phase === 'done' && troChienState.failed &&
                         troChienState.dayKey === new Date().toDateString()) {
                         troChienState = null;
-                        sendLog("ℹ️ [M8 - Trợ Chiến] Lần chạy trước chưa hoàn tất; bắt đầu lại và kiểm tra trạng thái game.", "info");
+                        sendLog("ℹ️ [Trợ Chiến Linh Thú] Lần chạy trước chưa hoàn tất; bắt đầu lại và kiểm tra trạng thái game.", "info");
                     } else if (troChienState && troChienState.phase === 'done' &&
                         troChienState.dayKey === new Date().toDateString()) {
-                        sendLog("ℹ️ [M8 - Trợ Chiến] Hôm nay đã kiểm tra/nhận; không gửi lại thao tác.", "info");
+                        sendLog("ℹ️ [Trợ Chiến Linh Thú] Hôm nay đã kiểm tra/nhận; không gửi lại thao tác.", "info");
                     } else {
-                        sendLog("ℹ️ [M8 - Trợ Chiến] Auto đã bắt đầu/khởi động lại; đang kiểm tra trạng thái game trước khi nhận.", "info");
+                        sendLog("ℹ️ [Trợ Chiến Linh Thú] Auto đã bắt đầu/khởi động lại; đang kiểm tra trạng thái game trước khi nhận.", "info");
                     }
                 }
                 if (CONFIG.activeFeature === 'autoCuoiNgay') {
                     if (cuoiNgayState && cuoiNgayState.phase === 'done' &&
                         cuoiNgayState.dayKey === new Date().toDateString()) {
-                        sendLog("ℹ️ [M8 - Cuối Ngày] Trạng thái hôm nay đã được kiểm tra; không lặp lại thao tác.", "info");
+                        sendLog("ℹ️ [Nhận Cuối Ngày] Trạng thái hôm nay đã được kiểm tra; không lặp lại thao tác.", "info");
                     } else {
-                        sendLog("ℹ️ [M8 - Cuối Ngày] Auto đã bắt đầu/khởi động lại; đang kiểm tra trạng thái game trước khi nhận.", "info");
+                        sendLog("ℹ️ [Nhận Cuối Ngày] Auto đã bắt đầu/khởi động lại; đang kiểm tra trạng thái game trước khi nhận.", "info");
                     }
                 }
             }

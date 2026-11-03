@@ -47,7 +47,7 @@
             if (!biCanhState || biCanhState.dayKey !== dayKey) {
                 biCanhState = { dayKey, phase: 'open', failed: false, refreshing: null, pending: null,
                     selected: 0, newFloors: {}, blocked: {}, sweeps: 0, emb: null, listedOpen: false };
-                sendLog("🏯 [M2 - Bí Cảnh Tứ Quốc] Bắt đầu: mở Bí Cảnh, đánh ải mới từng tháp đang mở rồi quét ải cuối bằng lượt miễn phí.", "action");
+                sendLog("🏯 [Bí Cảnh Tứ Quốc] Bắt đầu: mở Bí Cảnh, đánh ải mới từng tháp đang mở rồi quét ải cuối bằng lượt miễn phí.", "action");
             }
             const state = biCanhState;
             if (state.phase === 'done') return false;
@@ -66,7 +66,7 @@
             try {
                 if (ctx.FunOpenCtrl && ctx.FunOpenType && ctx.FunOpenType.FAIRYLAND !== undefined &&
                     !ctx.FunOpenCtrl.gInst().check(ctx.FunOpenType.FAIRYLAND, false)) {
-                    biCanhFinish(state, "ℹ️ [M2 - Bí Cảnh Tứ Quốc] Chức năng chưa mở khóa (chưa đủ cấp độ); bỏ qua.", "info");
+                    biCanhFinish(state, "ℹ️ [Bí Cảnh Tứ Quốc] Chức năng chưa mở khóa (chưa đủ cấp độ); bỏ qua.", "info");
                     return false;
                 }
             } catch (e) { }
@@ -85,7 +85,7 @@
                         const step = embattleStep(embUi, state.emb, now);
                         if (step === 'wait') return false;
                         if (step === 'arranged') {
-                            sendLog(`🏯 [M2 - Bí Cảnh Tứ Quốc] Đã bấm Lên trận nhanh (lần ${state.emb.clicked}); kiểm tra đội hình.`, "action");
+                            sendLog(`🏯 [Bí Cảnh Tứ Quốc] Đã bấm Lên trận nhanh (lần ${state.emb.clicked}); kiểm tra đội hình.`, "action");
                             return true;
                         }
                         if (step === 'failed') {
@@ -93,17 +93,17 @@
                             state.pending = null;
                             state.emb = null;
                             try { vm.closeView('embattleUi'); } catch (e) { }
-                            return stop(false, "❌ [M2 - Bí Cảnh Tứ Quốc] Không xếp được đội hình sau " + EMBATTLE_ARRANGE_TRIES + " lần Lên trận nhanh (" + diag + "); không khiêu chiến, dừng.");
+                            return stop(false, "❌ [Bí Cảnh Tứ Quốc] Không xếp được đội hình sau " + EMBATTLE_ARRANGE_TRIES + " lần Lên trận nhanh (" + diag + "); không khiêu chiến, dừng.");
                         }
                         if (typeof embUi.cBtnH2 !== 'function') {
                             state.pending = null;
-                            return stop(false, "❌ [M2 - Bí Cảnh Tứ Quốc] Bảng đội hình không có nút Khiêu Chiến (bản game đổi); dừng.");
+                            return stop(false, "❌ [Bí Cảnh Tứ Quốc] Bảng đội hình không có nút Khiêu Chiến (bản game đổi); dừng.");
                         }
                         embattleMarkStarted(state.emb);
                         embUi.cBtnH2();
                         p.started = true;          // đã bấm: chỉ chờ kết quả, không bấm lại dù bảng còn hiện dưới bảng kết quả
                         p.startedAt = now;
-                        sendLog("⚔️ [M2 - Bí Cảnh Tứ Quốc] Đã bấm Khiêu Chiến; chờ máy chủ xác nhận.", "action");
+                        sendLog("⚔️ [Bí Cảnh Tứ Quốc] Đã bấm Khiêu Chiến; chờ máy chủ xác nhận.", "action");
                         return true;
                     }
                 }
@@ -113,7 +113,7 @@
                     if (r === 'wait') return false;
                     if (r === 'timeout' || r === 'error') {
                         state.pending = null;
-                        return stop(false, "❌ [M2 - Bí Cảnh Tứ Quốc] Không tải lại được dữ liệu Bí Cảnh sau khi đánh/quét; dừng, không gửi lại.");
+                        return stop(false, "❌ [Bí Cảnh Tứ Quốc] Không tải lại được dữ liệu Bí Cảnh sau khi đánh/quét; dừng, không gửi lại.");
                     }
                     state.pending = null;
                     const nd = data();
@@ -121,20 +121,20 @@
                     const item = ((nd && nd.dungeon_data_list) || []).find((it) => it.dungeon_id === p.id);
                     if (p.kind === 'sweep') {
                         state.sweeps++;
-                        sendLog(`✅ [M2 - Bí Cảnh Tứ Quốc] Máy chủ xác nhận đã quét ải #${p.id} (lần ${state.sweeps}; còn ${free} lượt miễn phí).`, "result");
+                        sendLog(`✅ [Bí Cảnh Tứ Quốc] Máy chủ xác nhận đã quét ải #${p.id} (lần ${state.sweeps}; còn ${free} lượt miễn phí).`, "result");
                     } else if (item && item.is_pass) {
                         state.newFloors[p.k] = (state.newFloors[p.k] || 0) + 1;
-                        sendLog(`✅ [M2 - Bí Cảnh Tứ Quốc] Máy chủ xác nhận đã vượt ải #${p.id} (tháp ${p.k}, ải mới ${state.newFloors[p.k]}/${BICANH_MAX_NEW_FLOORS}; còn ${free} lượt miễn phí).`, "action");
+                        sendLog(`✅ [Bí Cảnh Tứ Quốc] Máy chủ xác nhận đã vượt ải #${p.id} (tháp ${p.k}, ải mới ${state.newFloors[p.k]}/${BICANH_MAX_NEW_FLOORS}; còn ${free} lượt miễn phí).`, "action");
                     } else {
-                        sendLog(`⚠️ [M2 - Bí Cảnh Tứ Quốc] Đã đánh ải #${p.id} (tháp ${p.k}) nhưng chưa vượt (thua?); còn ${free} lượt miễn phí.`, "warn");
+                        sendLog(`⚠️ [Bí Cảnh Tứ Quốc] Đã đánh ải #${p.id} (tháp ${p.k}) nhưng chưa vượt (thua?); còn ${free} lượt miễn phí.`, "warn");
                     }
                     return true;
                 }
                 if (now - p.startedAt >= BICANH_FIGHT_TIMEOUT_MS) {
                     state.pending = null;
                     if (p.kind === 'fight') state.blocked[p.k] = true;
-                    sendLog(`❌ [M2 - Bí Cảnh Tứ Quốc] Máy chủ chưa xác nhận ${p.kind === 'fight' ? 'trận đánh' : 'lượt quét'} ải #${p.id}; không gửi lại.`, "error");
-                    if (p.kind === 'sweep') return stop(false, "❌ [M2 - Bí Cảnh Tứ Quốc] Dừng quét vì máy chủ không xác nhận.");
+                    sendLog(`❌ [Bí Cảnh Tứ Quốc] Máy chủ chưa xác nhận ${p.kind === 'fight' ? 'trận đánh' : 'lượt quét'} ải #${p.id}; không gửi lại.`, "error");
+                    if (p.kind === 'sweep') return stop(false, "❌ [Bí Cảnh Tứ Quốc] Dừng quét vì máy chủ không xác nhận.");
                     return true;
                 }
                 if (now - p.startedAt >= 3000 && now - p.lastPoll >= 2000) {
@@ -147,8 +147,8 @@
             // --- mở màn và tải dữ liệu ---
             if (state.phase === 'open') {
                 if (!vm.viewIsVisible('faMainUi') && !vm.viewIsVisible('faSelectUi')) {
-                    if (!tryAttemptTarget('bicanh-open', "[M2 - Bí Cảnh Tứ Quốc] Mở màn Bí Cảnh")) {
-                        return stop(false, "❌ [M2 - Bí Cảnh Tứ Quốc] Không mở được màn Bí Cảnh; bỏ qua.");
+                    if (!tryAttemptTarget('bicanh-open', "[Bí Cảnh Tứ Quốc] Mở màn Bí Cảnh")) {
+                        return stop(false, "❌ [Bí Cảnh Tứ Quốc] Không mở được màn Bí Cảnh; bỏ qua.");
                     }
                     dd.openFaMainUi();
                     return true;
@@ -159,22 +159,22 @@
             if (state.phase === 'load') {
                 const r = pollTowerDailyRefresh(state, 'refreshing', now, () => { dd.send11008(); dd.send11004(FL); }, tokenOf);
                 if (r === 'ready') state.phase = 'run';
-                else if (r === 'timeout' || r === 'error') return stop(false, "❌ [M2 - Bí Cảnh Tứ Quốc] Không tải được dữ liệu Bí Cảnh từ máy chủ; bỏ qua.");
+                else if (r === 'timeout' || r === 'error') return stop(false, "❌ [Bí Cảnh Tứ Quốc] Không tải được dữ liệu Bí Cảnh từ máy chủ; bỏ qua.");
                 return r !== 'wait';
             }
 
             // --- phase 'run': chọn việc kế tiếp ---
             const d = data();
-            if (!d || !Array.isArray(d.dungeon_data_list)) return stop(false, "❌ [M2 - Bí Cảnh Tứ Quốc] Thiếu dữ liệu danh sách ải; dừng.");
+            if (!d || !Array.isArray(d.dungeon_data_list)) return stop(false, "❌ [Bí Cảnh Tứ Quốc] Thiếu dữ liệu danh sách ải; dừng.");
             const towers = biCanhTowers(d);
             const keys = Object.keys(towers).map(Number).sort((a, b) => a - b);
-            if (!keys.length) return stop(true, "ℹ️ [M2 - Bí Cảnh Tứ Quốc] Hôm nay không có tháp nào đang mở; bỏ qua.");
+            if (!keys.length) return stop(true, "ℹ️ [Bí Cảnh Tứ Quốc] Hôm nay không có tháp nào đang mở; bỏ qua.");
             const free = biCanhFree(dd, d);
             if (!state.listedOpen) {
                 state.listedOpen = true;
-                sendLog(`🏯 [M2 - Bí Cảnh Tứ Quốc] Tháp đang mở: ${keys.map((k) => '#' + k).join(', ')}; lượt miễn phí ${free}.`, "info");
+                sendLog(`🏯 [Bí Cảnh Tứ Quốc] Tháp đang mở: ${keys.map((k) => '#' + k).join(', ')}; lượt miễn phí ${free}.`, "info");
             }
-            if (free <= 0) return stop(true, "✅ [M2 - Bí Cảnh Tứ Quốc] Đã dùng hết lượt miễn phí hôm nay.");
+            if (free <= 0) return stop(true, "✅ [Bí Cảnh Tứ Quốc] Đã dùng hết lượt miễn phí hôm nay.");
 
             const send = (k, item, kind) => {
                 if (state.selected !== k) { dd.openFaSelUi(k); state.selected = k; return true; }
@@ -183,18 +183,18 @@
                 const model = typeof dd.getCurlModel === 'function' ? dd.getCurlModel() : dd.m_curModel;
                 const baseVo = model && typeof model.getDungeonBaseConfigVo === 'function' ? model.getDungeonBaseConfigVo(item.dungeon_id) : null;
                 if (!baseVo || baseVo.id === undefined) {
-                    return stop(false, `❌ [M2 - Bí Cảnh Tứ Quốc] Không đọc được cấu hình ải #${item.dungeon_id}; dừng.`);
+                    return stop(false, `❌ [Bí Cảnh Tứ Quốc] Không đọc được cấu hình ải #${item.dungeon_id}; dừng.`);
                 }
                 const fightCtrl = ctx.FightCtrl && ctx.FightCtrl.gInst && ctx.FightCtrl.gInst();
                 if (fightCtrl && typeof fightCtrl.gCanFight === 'function' && !fightCtrl.gCanFight()) return false;
                 const tries = kind === 'fight' ? 2 : BICANH_MAX_SWEEPS;
-                if (!tryAttemptTarget(`bicanh-${kind}-${item.dungeon_id}`, `[M2 - Bí Cảnh Tứ Quốc] ${kind === 'fight' ? 'Khiêu chiến' : 'Quét'} ải #${item.dungeon_id}`, tries)) {
+                if (!tryAttemptTarget(`bicanh-${kind}-${item.dungeon_id}`, `[Bí Cảnh Tứ Quốc] ${kind === 'fight' ? 'Khiêu chiến' : 'Quét'} ải #${item.dungeon_id}`, tries)) {
                     if (kind === 'fight') { state.blocked[k] = true; return true; }
-                    return stop(false, "❌ [M2 - Bí Cảnh Tứ Quốc] Quét quá số lần thử; dừng.");
+                    return stop(false, "❌ [Bí Cảnh Tứ Quốc] Quét quá số lần thử; dừng.");
                 }
                 state.emb = null;
                 state.pending = { kind, id: item.dungeon_id, k, beforeEnter: Number(d.enter_count) || 0, startedAt: now, lastPoll: now };
-                sendLog(`${kind === 'fight' ? '⚔️' : '🔁'} [M2 - Bí Cảnh Tứ Quốc] ${kind === 'fight' ? 'Khiêu chiến ải mới' : 'Quét ải cuối'} #${item.dungeon_id} (tháp ${k}; còn ${free} lượt miễn phí).`, "action");
+                sendLog(`${kind === 'fight' ? '⚔️' : '🔁'} [Bí Cảnh Tứ Quốc] ${kind === 'fight' ? 'Khiêu chiến ải mới' : 'Quét ải cuối'} #${item.dungeon_id} (tháp ${k}; còn ${free} lượt miễn phí).`, "action");
                 dd.cliFaSelItem({ label: '' }, baseVo, item);
                 return true;
             };
@@ -207,7 +207,7 @@
             // Không còn ải mới: quét ải đã vượt cao nhất của tháp mở cuối cùng.
             const lastK = keys[keys.length - 1];
             const passed = towers[lastK].filter((it) => it.is_pass);
-            if (!passed.length) return stop(true, "ℹ️ [M2 - Bí Cảnh Tứ Quốc] Không có ải đã vượt để quét; kết thúc.");
-            if (state.sweeps >= BICANH_MAX_SWEEPS) return stop(false, "❌ [M2 - Bí Cảnh Tứ Quốc] Quét quá số lần cho phép trong một lượt; dừng.");
+            if (!passed.length) return stop(true, "ℹ️ [Bí Cảnh Tứ Quốc] Không có ải đã vượt để quét; kết thúc.");
+            if (state.sweeps >= BICANH_MAX_SWEEPS) return stop(false, "❌ [Bí Cảnh Tứ Quốc] Quét quá số lần cho phép trong một lượt; dừng.");
             return send(lastK, passed[passed.length - 1], 'sweep');
         }

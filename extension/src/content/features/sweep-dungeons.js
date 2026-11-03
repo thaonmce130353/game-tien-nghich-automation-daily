@@ -16,7 +16,7 @@
                 const free = sweepFreeCount(ddCtrl);
                 const age = Date.now() - sweepPending.at;
                 if (free >= 0 && free < sweepPending.before) {
-                    sendLog(`✅ [Quét Phụ Bản] Máy chủ xác nhận đã quét miễn phí (lượt miễn phí ${sweepPending.before} → ${free}).`, "result");
+                    sendLog(`✅ [Phụ Bản Ngày] Máy chủ xác nhận đã quét miễn phí (lượt miễn phí ${sweepPending.before} → ${free}).`, "result");
                     sweepPending = null;
                     return;
                 }
@@ -26,7 +26,7 @@
                     types.forEach((t) => { try { if (typeof ddCtrl.send11004 === 'function') ddCtrl.send11004(t); } catch (e) { } });
                 }
                 if (age >= 12000) {
-                    sendLog("ℹ️ [Quét Phụ Bản] Đã gửi quét miễn phí nhưng số lượt miễn phí chưa đổi (có thể hôm nay đã quét từ trước hoặc game chưa cập nhật); không gửi lại.", "info");
+                    sendLog("ℹ️ [Phụ Bản Ngày] Đã gửi quét miễn phí nhưng số lượt miễn phí chưa đổi (có thể hôm nay đã quét từ trước hoặc game chưa cập nhật); không gửi lại.", "info");
                     sweepPending = null;
                 }
             } catch (e) { sweepPending = null; }
@@ -34,31 +34,31 @@
 
         // 6. QUÉT PHỤ BẢN NGÀY: CHỈ lượt MIỄN PHÍ (send11002(0)), tối đa một lần mỗi ngày. KHÔNG bao giờ gửi send11002(1)
         // (đó là quét bằng Tiên Ngọc trong hộp thoại xác nhận của game). Hết lượt miễn phí là bình thường, không phải lỗi.
-        function handleSweepDungeons(ctx, isManual = false) {
+        function handleSweepDungeons(ctx) {
             try {
-                if (!isManual) sweepConfirmTick(ctx);
+                sweepConfirmTick(ctx);
                 const dayKey = new Date().toDateString();
-                if (!isManual && sweptDayKey === dayKey) return false;
+                if (sweptDayKey === dayKey) return false;
                 const ddCtrl = ctx.DailyDungeonCtrl.gInst();
                 if (!ddCtrl) return false;
                 if (ctx.FightCtrl && ctx.FightCtrl.gInst && !ctx.FightCtrl.gInst().gCanFight()) return false;
 
                 const free = sweepFreeCount(ddCtrl);
                 if (free < 0) {
-                    logUnsupportedOnce('sweep-free-api', "⚠️ [Quét Phụ Bản] Bản game không có hàm đếm lượt quét miễn phí; không quét (tránh quét bằng Tiên Ngọc).");
+                    logUnsupportedOnce('sweep-free-api', "⚠️ [Phụ Bản Ngày] Bản game không có hàm đếm lượt quét miễn phí; không quét (tránh quét bằng Tiên Ngọc).");
                     sweptDayKey = dayKey;
                     return false;
                 }
                 if (free === 0) {
                     sweptDayKey = dayKey;
-                    logOnce('sweep-none-free', "ℹ️ [Quét Phụ Bản] Hôm nay không còn lượt quét miễn phí (đã quét từ trước); không quét, không mua lượt bằng Tiên Ngọc.", "info");
+                    logOnce('sweep-none-free', "ℹ️ [Phụ Bản Ngày] Hôm nay không còn lượt quét miễn phí (đã quét từ trước); không quét, không mua lượt bằng Tiên Ngọc.", "info");
                     return false;
                 }
                 if (typeof ddCtrl.send11002 === 'function') {
                     ddCtrl.send11002(0);
                     sweptDayKey = dayKey;
-                    if (!isManual) sweepPending = { before: free, at: Date.now(), refreshed: false };
-                    sendLog(`⚡ [Quét Phụ Bản] Đã gửi quét miễn phí (còn ${free} lượt miễn phí; không mua lượt bằng Tiên Ngọc).`, "action");
+                    sweepPending = { before: free, at: Date.now(), refreshed: false };
+                    sendLog(`⚡ [Phụ Bản Ngày] Đã gửi quét miễn phí (còn ${free} lượt miễn phí; không mua lượt bằng Tiên Ngọc).`, "action");
                     return true;
                 }
             } catch (e) { }
