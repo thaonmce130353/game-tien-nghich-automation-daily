@@ -11,6 +11,8 @@
             'autoCuoiNgay'             // luôn cuối cùng
         ];
         const QUICK_STEP_MAX_MS = 10 * 60 * 1000;     // một bước kẹt quá lâu thì bỏ qua, chạy bước kế tiếp
+const QUICK_STEP_MAX_MS_BY_KEY = {};            // giới hạn riêng theo bước (mặc định mọi bước 10 phút)
+function quickStepMaxMs(key) { return QUICK_STEP_MAX_MS_BY_KEY[key] || QUICK_STEP_MAX_MS; }
         const QUICK_STEP_GAP_MS = 1500;               // nghỉ giữa hai bước (đóng bảng còn mở, chờ game ổn định)
         // Cờ CONFIG.<khóa tính năng> cũng phải khớp: nhiều tính năng tự kiểm tra cờ của mình (ví dụ `if (!CONFIG.autoClimbYMAbyss) return false`);
         // khi bấm BẮT ĐẦU thường thì checkbox đặt cờ này, nên Quét nhanh phải tự đặt theo từng bước.
@@ -20,6 +22,7 @@
         // ---- Lưu tiến độ để dừng giữa chừng rồi TIẾP TỤC (hoặc chạy lại từ đầu). sessionStorage: sống qua lần tải lại trang
         // (tự vào lại game), chỉ hợp lệ trong ngày. idx = bước sẽ chạy tiếp theo; results = các bước đã xong.
         const QUICK_SAVE_KEY = 'tn-quick-run-saved';
+const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang bị tải lại (tự vào lại game) -> tiếp tục dãy
         function quickSaveLoad() {
             try {
                 const o = JSON.parse(sessionStorage.getItem(QUICK_SAVE_KEY) || 'null');
@@ -35,15 +38,22 @@
             } catch (e) { }
         }
         function quickSaveClear() { try { sessionStorage.removeItem(QUICK_SAVE_KEY); } catch (e) { } }
+        function quickActiveFlag(on) { try { if (on) sessionStorage.setItem(QUICK_ACTIVE_KEY, '1'); else sessionStorage.removeItem(QUICK_ACTIVE_KEY); } catch (e) { } }
+        // Sau khi tự vào lại game: dãy Quét nhanh đang chạy dở thì chạy tiếp từ bước đã lưu (không chạy nhầm tính năng đang chọn trên HUD).
+        function quickRunShouldResumeAfterReload() {
+            try { return sessionStorage.getItem(QUICK_ACTIVE_KEY) === '1' && Boolean(quickSaveLoad()); } catch (e) { return false; }
+        }
 
-        // Báo cho HUD biết có tiến độ đã lưu (null = không có hoặc đang chạy) để đổi nút thành "TIẾP TỤC".
-        function quickReportSaved() {
-            let saved = null;
-            if (!quickRun) {
+        // Báo cho HUD biết trạng thái Quét nhanh: saved = tiến độ đã lưu (null = không có hoặc đang chạy), active = đang chạy bước nào.
+        function quickReportSaved(completed) {
+            let saved = null, active = null;
+            if (quickRun) {
+                active = { idx: quickRun.idx, total: QUICK_RUN_QUEUE.length, label: RUN_LABELS[QUICK_RUN_QUEUE[quickRun.idx]] || QUICK_RUN_QUEUE[quickRun.idx] };
+            } else {
                 const o = quickSaveLoad();
                 if (o) saved = { idx: o.idx, total: o.total, label: RUN_LABELS[QUICK_RUN_QUEUE[o.idx]] || QUICK_RUN_QUEUE[o.idx], done: o.results.length };
             }
-            try { window.top.postMessage({ source: 'TIEN_NGHICH_AUTO_GAME', action: 'QUICK_RUN_SAVED', saved }, '*'); } catch (e) { }
+            try { window.top.postMessage({ source: 'TIEN_NGHICH_AUTO_GAME', action: 'QUICK_RUN_SAVED', saved, active, completed: Boolean(completed) }, '*'); } catch (e) { }
         }
 
         function quickRunActive() { return Boolean(quickRun); }
@@ -106,6 +116,7 @@
             nextActionAt = 0;
             if (typeof resetArenaRun === 'function') resetArenaRun(false);
             runBegin(key);
+            quickReportSaved();
             sendLog(`▶️ [Quét nhanh] Bước ${index + 1}/${QUICK_RUN_QUEUE.length}: ${RUN_LABELS[key] || key}`, 'run');
             if (key === 'autoBanner') bannerRunOnce();
         }
@@ -115,6 +126,7 @@
             const open = quickVisibleViews();
             const saved = mode === 'resume' ? quickSaveLoad() : null;
             quickSaveClear();
+            quickActiveFlag(true);
             quickRun = {
                 idx: saved ? saved.idx : 0, results: saved ? saved.results : [], startedAt: Date.now(), stepStartedAt: Date.now(), gapUntil: 0,
                 savedActive: CONFIG.activeFeature, savedTowerDaily: CONFIG.towerDailyRoutine,
@@ -146,7 +158,8 @@
             quickRestoreConfig();
             quickRun = null;
             quickSaveClear();
-            quickReportSaved();
+            quickActiveFlag(false);
+            quickReportSaved(true);     // xong cả dãy: HUD bỏ nút TIẾP TỤC / CHẠY LẠI TỪ ĐẦU
             const badSteps = r.results.filter((x) => x.bad);
             sendLog(`${badSteps.length ? '⚠️' : '✅'} [Quét nhanh] Hoàn tất ${r.results.length}/${QUICK_RUN_QUEUE.length} bước (${runFormatDuration((r.priorMs || 0) + Date.now() - r.startedAt)})` +
                 `${badSteps.length ? '; cần xem lại: ' + badSteps.map((x) => x.label).join(', ') : ''}.`, 'result');
@@ -161,6 +174,7 @@
             const nextIdx = r.gapUntil ? r.idx + 1 : r.idx;
             quickRestoreConfig();
             quickRun = null;
+            quickActiveFlag(false);
             quickSaveWrite(nextIdx, r.results);
             quickReportSaved();
             sendLog(`⏸ [Quét nhanh] Đã dừng sau ${r.results.length}/${QUICK_RUN_QUEUE.length} bước.` +
@@ -178,8 +192,8 @@
                 quickRunBeginStep(quickRun.idx + 1);
                 return true;
             }
-            if (runInfo && now - quickRun.stepStartedAt > QUICK_STEP_MAX_MS) {
-                sendLog(`⚠️ [Quét nhanh] Bước "${runInfo.label}" quá ${Math.round(QUICK_STEP_MAX_MS / 60000)} phút chưa xong; bỏ qua, chạy bước kế tiếp.`, 'warn');
+            if (runInfo && now - quickRun.stepStartedAt > quickStepMaxMs(runInfo.key)) {
+                sendLog(`⚠️ [Quét nhanh] Bước "${runInfo.label}" quá ${Math.round(quickStepMaxMs(runInfo.key) / 60000)} phút chưa xong; bỏ qua, chạy bước kế tiếp.`, 'warn');
                 if (typeof resetUnfinishedRunStates === 'function') resetUnfinishedRunStates();
                 runFinish('quá thời gian tối đa của bước', true);
                 return true;

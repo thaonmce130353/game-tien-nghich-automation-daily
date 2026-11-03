@@ -379,6 +379,8 @@
                 const vm = ctx.ViewMgr.gInst();
                 const now = Date.now();
                 const close = (name) => { try { if (vm.viewIsVisible(name)) vm.closeView(name); } catch (e) { } };
+                // Kiếm Hành: đi hết đường thì game bật bảng thưởng/đặt lại đường (cần đóng, không bấm đặt lại).
+                if (s.phase === 'dice-roll' || s.phase === 'dice-war') closeStrayPopups();
                 switch (s.phase) {
                     case 'dice-open':
                     case 'dice-roll': {
@@ -388,7 +390,7 @@
                     }
                     case 'dice-war': {
                         const r = warOrderClaimStep(ctx, vm, s.warOrder, { label: 'Kiếm Hành', typeKey: 'zhanLingType_8', fallbackType: 8, termId: 1 }, now);
-                        if (r.status === 'done') { s.phase = 'long-open'; s.refreshing = null; close('diceUi'); return true; }
+                        if (r.status === 'done') { s.phase = 'long-open'; s.refreshing = null; closeStrayPopups(); close('diceUi'); return true; }
                         return r.status === 'acted';
                     }
                     case 'long-open': return dragonStepLongOpen(ctx, vm, s, now);

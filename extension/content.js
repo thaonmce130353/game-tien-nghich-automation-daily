@@ -165,7 +165,7 @@
 
         // Tiến độ QUÉT NHANH đã lưu (null = không có): nút chính thành TIẾP TỤC, hiện thêm nút CHẠY LẠI TỪ ĐẦU.
         let quickSavedInfo = null;
-        function updateQuickButtons(saved) {
+        function updateQuickButtons(saved, active) {
             quickSavedInfo = saved || null;
             const btn = document.getElementById('tn-btn-sweep');
             const fresh = document.getElementById('tn-btn-quick-fresh');
@@ -173,10 +173,12 @@
             if (btn) {
                 const main = btn.querySelector('.tn-qb-main');
                 const sub = btn.querySelector('.tn-qb-sub');
-                if (main) main.textContent = quickSavedInfo ? '⏯ TIẾP TỤC' : '⚡ QUÉT NHANH';
-                if (sub) sub.textContent = quickSavedInfo
-                    ? 'Bước ' + (quickSavedInfo.idx + 1) + '/' + quickSavedInfo.total + ' · ' + quickSavedInfo.label
-                    : '1 chạm · ' + QUICK_RUN_QUEUE.length + ' bước';
+                if (main) main.textContent = active ? '⏳ ĐANG QUÉT' : (quickSavedInfo ? '⏯ TIẾP TỤC' : '⚡ QUÉT NHANH');
+                if (sub) sub.textContent = active
+                    ? 'Bước ' + (active.idx + 1) + '/' + active.total + ' · ' + active.label
+                    : (quickSavedInfo
+                        ? 'Bước ' + (quickSavedInfo.idx + 1) + '/' + quickSavedInfo.total + ' · ' + quickSavedInfo.label
+                        : '1 chạm · ' + QUICK_RUN_QUEUE.length + ' bước');
                 btn.title = quickSavedInfo ? 'Tiếp tục QUÉT NHANH từ bước: ' + quickSavedInfo.label + ' (đã xong ' + quickSavedInfo.done + ' bước)' : (btn.dataset.baseTitle || btn.title);
             }
             if (fresh) fresh.style.display = quickSavedInfo ? 'flex' : 'none';
@@ -246,11 +248,13 @@
             } else if (data.action === 'LOG') {
                 addLogToUI(data.message, data.logType);
             } else if (data.action === 'QUICK_RUN_SAVED') {
-                updateQuickButtons(data.saved);
+                updateQuickButtons(data.completed ? null : data.saved, data.completed ? null : data.active);
             } else if (data.action === 'AUTO_FINISHED') {
                 // Tính năng đã hoàn tất: trả nút về trạng thái dừng (dòng kết quả đã được game ghi log).
                 CONFIG.running = false;
                 updateBadge(false);
+                // Nút Quét nhanh không còn ở trạng thái "đang quét" (trạng thái chính xác tới ngay sau từ QUICK_RUN_SAVED).
+                updateQuickButtons(quickSavedInfo, null);   // tiến độ đã lưu (nếu còn) do QUICK_RUN_SAVED quyết định
                 if (data.message) addLogToUI(data.message, 'run');
             } else if (data.action === 'AUTO_RECONNECT_RELOAD') {
                 if (!reconnectTopPrepare(data.reason, data.resume)) return;
@@ -2184,7 +2188,32 @@
             autoMaDao: 'Ma Đạo Tổng Hợp', autoXianYuan: 'Quà Tiên Duyên', autoBanner: 'Tướng Thần Lâm / Đạp Thiên'
         };
 
+        // Bảng xác nhận/thông báo/phần thưởng còn sót (hộp thoại, tips, nhận quà) chặn thao tác của tính năng kế tiếp.
+        // Chỉ đóng bảng có tên dạng popup; không đụng màn hình chính, mất kết nối, trận đánh.
+        const STRAY_POPUP_RE = /(Tips?|Alert|Confirm|Notice|Prompt|Rward|Reward|GOver)Ui$/i;
+        const STRAY_POPUP_KEEP_RE = /disconnect|loading|guide|fight|login|reconnect/i;
+        function closeStrayPopups() {
+            let closed = 0;
+            try {
+                const vm = window.ViewMgr && window.ViewMgr.gInst && window.ViewMgr.gInst();
+                if (!vm) return 0;
+                const scan = (cache, close) => {
+                    if (!cache || typeof close !== 'function') return;
+                    Object.keys(cache).forEach((name) => {
+                        if (!STRAY_POPUP_RE.test(name) || STRAY_POPUP_KEEP_RE.test(name)) return;
+                        const v = cache[name];
+                        if (!v || !v.visible) return;
+                        try { close.call(vm, name); closed++; } catch (e) { }
+                    });
+                };
+                scan(vm.m_viewCacheGroup || (window.ViewMgr.gViewMgr && window.ViewMgr.gViewMgr.m_viewCacheGroup), vm.closeView);
+                scan(vm.m_upViewCacheGroup, vm.closeUpView);
+            } catch (e) { }
+            return closed;
+        }
+
         function runBegin(key) {
+            closeStrayPopups();     // bước dọn đầu tiên: đóng bảng xác nhận/thông báo còn mở từ tính năng trước
             runInfo = { key, label: RUN_LABELS[key] || key || 'Auto', startedAt: Date.now(), lastActAt: Date.now(), acts: 0, problems: 0 };
         }
 
@@ -2430,13 +2459,15 @@
                 const wasRunning = CONFIG.running;
                 CONFIG.running = data.running;
                 if (data.config) Object.assign(CONFIG, quickRunFilterConfig(data.config));
-                if (CONFIG.running && data.quick && !wasRunning) {
+                const quickResumeAfterReload = CONFIG.running && !wasRunning && data.resumed && !data.quick &&
+                    typeof quickRunShouldResumeAfterReload === 'function' && quickRunShouldResumeAfterReload();
+                if (CONFIG.running && !wasRunning && (data.quick || quickResumeAfterReload)) {
                     // QUÉT NHANH: dãy nhiều bước (features/quick-run.js), mỗi bước như bấm BẮT ĐẦU cho một tính năng.
                     wasAutoRunning = true;
                     resetRunGuards();
                     isTowerChallenging = false;
                     waitingForFloorUpdate = false;
-                    quickRunStart(data.quickMode);
+                    quickRunStart(quickResumeAfterReload ? 'resume' : data.quickMode);
                     executeCycle(false);
                 } else if (CONFIG.running) {
                     // resumed: Auto được bật lại sau khi tự vào lại game (không phải người dùng bấm BẮT ĐẦU).
@@ -2519,6 +2550,7 @@
                     if (n) {
                         const isSkippable = (CONFIG.autoSkipFight && (
                             t.type === n.dungeon ||
+                            t.type === n.endlessTrial ||     // Thủ Vệ Tứ Phái (ETCtrl)
                             t.type === n.runningMan ||
                             t.type === n.ymAbyss ||
                             t.type === n.adventure ||
@@ -4262,6 +4294,7 @@
         const TOWER_DAILY_MAX_BUYS = 1;
         const TOWER_DAILY_DEFAULT_NEW_BATTLES = 10;
         let towerDailyState = null;
+let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật tới máy chủ (nếu không: chỉ chờ, scheduler kiểm tra lại ngay)
         let towerDailyUnavailableLogged = false;
         let lastTowerAndTuLinhError = '';
 
@@ -4323,6 +4356,7 @@
         function pollTowerDailyRefresh(holder, key, now, send, tokenOf) {
             if (!holder[key]) {
                 holder[key] = { token: tokenOf(), startedAt: now };
+                towerDailyDidSend = true;
                 try { send(); } catch (e) { holder[key] = null; return 'error'; }
                 return 'wait';
             }
@@ -4366,6 +4400,7 @@
                     failTowerDaily(state, 'tower-pending-timeout', `Máy chủ chưa xác nhận ${pending.kind === 'buy' ? 'lượt mua' : 'lượt quét'} Thông Thiên Tháp${detail}; không gửi lại để tránh mua/đánh trùng. `, 'camp');
                 } else if (now - pending.startedAt >= 3000 && now - pending.lastRefreshAt >= 2000) {
                     pending.lastRefreshAt = now;
+                    towerDailyDidSend = true;
                     try { dd.send11004(type); } catch (e) { }
                 }
                 return true;
@@ -4400,6 +4435,7 @@
                     t.attempts++;
                     t.pending = { kind: 'buy', before: counts.buy, beforeEnter: counts.enter, token: counts.token, startedAt: now, lastRefreshAt: now };
                     sendLog(`🗼 [Thông Thiên Tháp] Hết lượt quét miễn phí; mua thêm 1 lượt quét (${cost.gold} Tiên Ngọc)...`, "result");
+                    towerDailyDidSend = true;
                     try {
                         // Giống nút Quét của game: mua rồi máy chủ tự quét ải đã vượt.
                         dd.send11007(lastId, type, ctx.DailyDungeonConst.buyType.saodang);
@@ -4426,6 +4462,7 @@
             t.attempts++;
             t.pending = { kind: 'sweep', before: counts.enter, beforeEnter: counts.enter, token: counts.token, startedAt: now, lastRefreshAt: now };
             sendLog(`🗼 [Thông Thiên Tháp] Quét lượt ${counts.enter + 1}/${counts.dayCount + counts.buy} (tầng đã vượt #${lastId})...`, "action");
+            towerDailyDidSend = true;
             try {
                 dd.send11005(lastId);
             } catch (e) {
@@ -4514,6 +4551,7 @@
                     return finishCamp(false, `camp-${label}-timeout`, `Máy chủ chưa xác nhận ${p.kind === 'fight' ? 'ải mới' : 'lượt quét'} Tứ Linh Tháp ${label}; chuyển tháp tiếp theo, không gửi lại.`);
                 } else if (now - p.startedAt >= 3000 && now - p.lastRefreshAt >= 2000) {
                     p.lastRefreshAt = now;
+                    towerDailyDidSend = true;
                     try { dd.send11004(cur.type); } catch (e) { }
                 }
                 return true;
@@ -4541,6 +4579,7 @@
                     cur.attempts++;
                     cur.pending = { kind: 'fight', before: counts.todayPass, token: counts.token, startedAt: now, lastRefreshAt: now };
                     sendLog(`🛡️ [Tứ Linh Tháp ${label}] Khiêu chiến ải mới ${counts.todayPass + 1}/${limit} (#${nextId})...`, "action");
+                    towerDailyDidSend = true;
                     try {
                         if (typeof dd.saveScId === 'function') dd.saveScId(nextId);
                         dd.send11020(nextId);
@@ -4563,6 +4602,7 @@
                 cur.attempts++;
                 cur.pending = { kind: 'sweep', before: counts.enter, token: counts.token, startedAt: now, lastRefreshAt: now };
                 sendLog(`🛡️ [Tứ Linh Tháp ${label}] Quét ải #${lastId} (còn ${counts.free} lượt miễn phí)...`, "action");
+                towerDailyDidSend = true;
                 try {
                     dd.send11005(lastId);
                 } catch (e) {
@@ -4613,15 +4653,18 @@
             if (state.phase === 'done') return false;
 
             const now = Date.now();
+            towerDailyDidSend = false;
             if (state.phase === 'tower') handleTowerDailyTower(ctx, state, types, now);
             else if (state.phase === 'camp') handleTowerDailyCamp(ctx, state, types, now);
-            if (state.phase === 'done') finishTowerDaily(state);
-            return true;
+            if (state.phase === 'done') { finishTowerDaily(state); return true; }
+            // 'wait' = chỉ chờ máy chủ/chuyển bước (chưa gửi gì): scheduler kiểm tra lại sau ~40ms, không nghỉ kiểu người chơi.
+            return towerDailyDidSend ? true : 'wait';
         }
 
         function handleTowerAndTuLinh(ctx) {
             try {
-                if (handleTowerDailyRoutine(ctx)) return true;
+                const daily = handleTowerDailyRoutine(ctx);
+                if (daily) return daily;
                 // Chế độ quét (Quét nhanh): chỉ quét/đánh ải mỗi ngày, xong là thôi, không leo tháp.
                 if (CONFIG.towerSweepOnly) return false;
                 return handleTongTianTower(ctx) || handleClimbCamp(ctx);
@@ -6614,6 +6657,8 @@
                 const vm = ctx.ViewMgr.gInst();
                 const now = Date.now();
                 const close = (name) => { try { if (vm.viewIsVisible(name)) vm.closeView(name); } catch (e) { } };
+                // Kiếm Hành: đi hết đường thì game bật bảng thưởng/đặt lại đường (cần đóng, không bấm đặt lại).
+                if (s.phase === 'dice-roll' || s.phase === 'dice-war') closeStrayPopups();
                 switch (s.phase) {
                     case 'dice-open':
                     case 'dice-roll': {
@@ -6623,7 +6668,7 @@
                     }
                     case 'dice-war': {
                         const r = warOrderClaimStep(ctx, vm, s.warOrder, { label: 'Kiếm Hành', typeKey: 'zhanLingType_8', fallbackType: 8, termId: 1 }, now);
-                        if (r.status === 'done') { s.phase = 'long-open'; s.refreshing = null; close('diceUi'); return true; }
+                        if (r.status === 'done') { s.phase = 'long-open'; s.refreshing = null; closeStrayPopups(); close('diceUi'); return true; }
                         return r.status === 'acted';
                     }
                     case 'long-open': return dragonStepLongOpen(ctx, vm, s, now);
@@ -9881,6 +9926,8 @@
             'autoCuoiNgay'             // luôn cuối cùng
         ];
         const QUICK_STEP_MAX_MS = 10 * 60 * 1000;     // một bước kẹt quá lâu thì bỏ qua, chạy bước kế tiếp
+const QUICK_STEP_MAX_MS_BY_KEY = {};            // giới hạn riêng theo bước (mặc định mọi bước 10 phút)
+function quickStepMaxMs(key) { return QUICK_STEP_MAX_MS_BY_KEY[key] || QUICK_STEP_MAX_MS; }
         const QUICK_STEP_GAP_MS = 1500;               // nghỉ giữa hai bước (đóng bảng còn mở, chờ game ổn định)
         // Cờ CONFIG.<khóa tính năng> cũng phải khớp: nhiều tính năng tự kiểm tra cờ của mình (ví dụ `if (!CONFIG.autoClimbYMAbyss) return false`);
         // khi bấm BẮT ĐẦU thường thì checkbox đặt cờ này, nên Quét nhanh phải tự đặt theo từng bước.
@@ -9890,6 +9937,7 @@
         // ---- Lưu tiến độ để dừng giữa chừng rồi TIẾP TỤC (hoặc chạy lại từ đầu). sessionStorage: sống qua lần tải lại trang
         // (tự vào lại game), chỉ hợp lệ trong ngày. idx = bước sẽ chạy tiếp theo; results = các bước đã xong.
         const QUICK_SAVE_KEY = 'tn-quick-run-saved';
+const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang bị tải lại (tự vào lại game) -> tiếp tục dãy
         function quickSaveLoad() {
             try {
                 const o = JSON.parse(sessionStorage.getItem(QUICK_SAVE_KEY) || 'null');
@@ -9905,15 +9953,22 @@
             } catch (e) { }
         }
         function quickSaveClear() { try { sessionStorage.removeItem(QUICK_SAVE_KEY); } catch (e) { } }
+        function quickActiveFlag(on) { try { if (on) sessionStorage.setItem(QUICK_ACTIVE_KEY, '1'); else sessionStorage.removeItem(QUICK_ACTIVE_KEY); } catch (e) { } }
+        // Sau khi tự vào lại game: dãy Quét nhanh đang chạy dở thì chạy tiếp từ bước đã lưu (không chạy nhầm tính năng đang chọn trên HUD).
+        function quickRunShouldResumeAfterReload() {
+            try { return sessionStorage.getItem(QUICK_ACTIVE_KEY) === '1' && Boolean(quickSaveLoad()); } catch (e) { return false; }
+        }
 
-        // Báo cho HUD biết có tiến độ đã lưu (null = không có hoặc đang chạy) để đổi nút thành "TIẾP TỤC".
-        function quickReportSaved() {
-            let saved = null;
-            if (!quickRun) {
+        // Báo cho HUD biết trạng thái Quét nhanh: saved = tiến độ đã lưu (null = không có hoặc đang chạy), active = đang chạy bước nào.
+        function quickReportSaved(completed) {
+            let saved = null, active = null;
+            if (quickRun) {
+                active = { idx: quickRun.idx, total: QUICK_RUN_QUEUE.length, label: RUN_LABELS[QUICK_RUN_QUEUE[quickRun.idx]] || QUICK_RUN_QUEUE[quickRun.idx] };
+            } else {
                 const o = quickSaveLoad();
                 if (o) saved = { idx: o.idx, total: o.total, label: RUN_LABELS[QUICK_RUN_QUEUE[o.idx]] || QUICK_RUN_QUEUE[o.idx], done: o.results.length };
             }
-            try { window.top.postMessage({ source: 'TIEN_NGHICH_AUTO_GAME', action: 'QUICK_RUN_SAVED', saved }, '*'); } catch (e) { }
+            try { window.top.postMessage({ source: 'TIEN_NGHICH_AUTO_GAME', action: 'QUICK_RUN_SAVED', saved, active, completed: Boolean(completed) }, '*'); } catch (e) { }
         }
 
         function quickRunActive() { return Boolean(quickRun); }
@@ -9976,6 +10031,7 @@
             nextActionAt = 0;
             if (typeof resetArenaRun === 'function') resetArenaRun(false);
             runBegin(key);
+            quickReportSaved();
             sendLog(`▶️ [Quét nhanh] Bước ${index + 1}/${QUICK_RUN_QUEUE.length}: ${RUN_LABELS[key] || key}`, 'run');
             if (key === 'autoBanner') bannerRunOnce();
         }
@@ -9985,6 +10041,7 @@
             const open = quickVisibleViews();
             const saved = mode === 'resume' ? quickSaveLoad() : null;
             quickSaveClear();
+            quickActiveFlag(true);
             quickRun = {
                 idx: saved ? saved.idx : 0, results: saved ? saved.results : [], startedAt: Date.now(), stepStartedAt: Date.now(), gapUntil: 0,
                 savedActive: CONFIG.activeFeature, savedTowerDaily: CONFIG.towerDailyRoutine,
@@ -10016,7 +10073,8 @@
             quickRestoreConfig();
             quickRun = null;
             quickSaveClear();
-            quickReportSaved();
+            quickActiveFlag(false);
+            quickReportSaved(true);     // xong cả dãy: HUD bỏ nút TIẾP TỤC / CHẠY LẠI TỪ ĐẦU
             const badSteps = r.results.filter((x) => x.bad);
             sendLog(`${badSteps.length ? '⚠️' : '✅'} [Quét nhanh] Hoàn tất ${r.results.length}/${QUICK_RUN_QUEUE.length} bước (${runFormatDuration((r.priorMs || 0) + Date.now() - r.startedAt)})` +
                 `${badSteps.length ? '; cần xem lại: ' + badSteps.map((x) => x.label).join(', ') : ''}.`, 'result');
@@ -10031,6 +10089,7 @@
             const nextIdx = r.gapUntil ? r.idx + 1 : r.idx;
             quickRestoreConfig();
             quickRun = null;
+            quickActiveFlag(false);
             quickSaveWrite(nextIdx, r.results);
             quickReportSaved();
             sendLog(`⏸ [Quét nhanh] Đã dừng sau ${r.results.length}/${QUICK_RUN_QUEUE.length} bước.` +
@@ -10048,8 +10107,8 @@
                 quickRunBeginStep(quickRun.idx + 1);
                 return true;
             }
-            if (runInfo && now - quickRun.stepStartedAt > QUICK_STEP_MAX_MS) {
-                sendLog(`⚠️ [Quét nhanh] Bước "${runInfo.label}" quá ${Math.round(QUICK_STEP_MAX_MS / 60000)} phút chưa xong; bỏ qua, chạy bước kế tiếp.`, 'warn');
+            if (runInfo && now - quickRun.stepStartedAt > quickStepMaxMs(runInfo.key)) {
+                sendLog(`⚠️ [Quét nhanh] Bước "${runInfo.label}" quá ${Math.round(quickStepMaxMs(runInfo.key) / 60000)} phút chưa xong; bỏ qua, chạy bước kế tiếp.`, 'warn');
                 if (typeof resetUnfinishedRunStates === 'function') resetUnfinishedRunStates();
                 runFinish('quá thời gian tối đa của bước', true);
                 return true;
@@ -10063,6 +10122,12 @@
         // Các tính năng là chuỗi nhiều bước nhỏ, mỗi bước chờ máy chủ: nhịp nhanh, không nghỉ dài ngẫu nhiên.
         const FAST_ROUTINE_FEATURES = ['autoCuoiNgay', 'autoTamTienDai', 'autoExtremeYin'];
         const OTHER_TRIALS_ACTION_INTERVAL_MS = 600;
+
+        // Thông Thiên + Tứ Linh ở chế độ quét (Quét nhanh) cũng là chuỗi bước nhỏ chờ máy chủ.
+        function isFastRoutineActive() {
+            const a = CONFIG.activeFeature;
+            return FAST_ROUTINE_FEATURES.includes(a) || (a === 'autoTongTian' && Boolean(CONFIG.towerSweepOnly));
+        }
 
         let disconnectPauseLogged = false;
 
@@ -10234,7 +10299,7 @@
             // Chuỗi thao tác dài, mỗi bước chờ xác nhận từ máy chủ: nhịp ngắn hơn (vẫn ngẫu nhiên).
             const actionInterval = active === 'autoCuoiNgay'
                 ? CUOI_NGAY_ACTION_INTERVAL_MS
-                : (active === 'autoTamTienDai' || active === 'autoExtremeYin' ? TAM_TIEN_ACTION_INTERVAL_MS
+                : (active === 'autoTamTienDai' || active === 'autoExtremeYin' || isFastRoutineActive() ? TAM_TIEN_ACTION_INTERVAL_MS
                     : (active === 'autoOtherTrials' ? OTHER_TRIALS_ACTION_INTERVAL_MS : (CONFIG.intervalMs || 1200)));
             if (now < nextActionAt) return;
 
@@ -10289,7 +10354,9 @@
                 // --- ĐIỀU PHỐI 8 MODULE ƯU TIÊN VÀ CÁC HOẠT ĐỘNG ---
                 // [Module 1] Thông Thiên Tháp & Tứ Linh Tháp
                 else if (active === 'autoTongTian' || (CONFIG.autoTongTian && !active)) {
-                    if (handleTowerAndTuLinh(ctx)) { markActed(actionInterval); return; }
+                    const tw = handleTowerAndTuLinh(ctx);
+                    if (tw === 'wait') { nextActionAt = Date.now() + 40; runNoteActed(true); return; }
+                    if (tw) { markActed(actionInterval, isFastRoutineActive()); return; }
                 }
                 // [Module 2] Phụ Bản Ngày & Bí Cảnh Tứ Quốc
                 else if (active === 'autoDailyDungeon' || (CONFIG.autoDailyDungeon && !active)) {
@@ -10373,7 +10440,7 @@
         // Nhịp kiểm tra lệch ngẫu nhiên 450-750ms thay vì đúng một nhịp cố định.
         (function scheduleTick() {
             // Nhịp kiểm tra nhanh hơn khi chạy Nhận Cuối Ngày (chuỗi nhiều bước nhỏ, mỗi bước chờ máy chủ xác nhận).
-            const fast = CONFIG.running && FAST_ROUTINE_FEATURES.includes(CONFIG.activeFeature);
+            const fast = CONFIG.running && isFastRoutineActive();
             setTimeout(() => {
                 try { executeCycle(false); } catch (e) { }
                 scheduleTick();

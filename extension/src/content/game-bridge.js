@@ -137,7 +137,32 @@
             autoMaDao: 'Ma Đạo Tổng Hợp', autoXianYuan: 'Quà Tiên Duyên', autoBanner: 'Tướng Thần Lâm / Đạp Thiên'
         };
 
+        // Bảng xác nhận/thông báo/phần thưởng còn sót (hộp thoại, tips, nhận quà) chặn thao tác của tính năng kế tiếp.
+        // Chỉ đóng bảng có tên dạng popup; không đụng màn hình chính, mất kết nối, trận đánh.
+        const STRAY_POPUP_RE = /(Tips?|Alert|Confirm|Notice|Prompt|Rward|Reward|GOver)Ui$/i;
+        const STRAY_POPUP_KEEP_RE = /disconnect|loading|guide|fight|login|reconnect/i;
+        function closeStrayPopups() {
+            let closed = 0;
+            try {
+                const vm = window.ViewMgr && window.ViewMgr.gInst && window.ViewMgr.gInst();
+                if (!vm) return 0;
+                const scan = (cache, close) => {
+                    if (!cache || typeof close !== 'function') return;
+                    Object.keys(cache).forEach((name) => {
+                        if (!STRAY_POPUP_RE.test(name) || STRAY_POPUP_KEEP_RE.test(name)) return;
+                        const v = cache[name];
+                        if (!v || !v.visible) return;
+                        try { close.call(vm, name); closed++; } catch (e) { }
+                    });
+                };
+                scan(vm.m_viewCacheGroup || (window.ViewMgr.gViewMgr && window.ViewMgr.gViewMgr.m_viewCacheGroup), vm.closeView);
+                scan(vm.m_upViewCacheGroup, vm.closeUpView);
+            } catch (e) { }
+            return closed;
+        }
+
         function runBegin(key) {
+            closeStrayPopups();     // bước dọn đầu tiên: đóng bảng xác nhận/thông báo còn mở từ tính năng trước
             runInfo = { key, label: RUN_LABELS[key] || key || 'Auto', startedAt: Date.now(), lastActAt: Date.now(), acts: 0, problems: 0 };
         }
 
@@ -383,13 +408,15 @@
                 const wasRunning = CONFIG.running;
                 CONFIG.running = data.running;
                 if (data.config) Object.assign(CONFIG, quickRunFilterConfig(data.config));
-                if (CONFIG.running && data.quick && !wasRunning) {
+                const quickResumeAfterReload = CONFIG.running && !wasRunning && data.resumed && !data.quick &&
+                    typeof quickRunShouldResumeAfterReload === 'function' && quickRunShouldResumeAfterReload();
+                if (CONFIG.running && !wasRunning && (data.quick || quickResumeAfterReload)) {
                     // QUÉT NHANH: dãy nhiều bước (features/quick-run.js), mỗi bước như bấm BẮT ĐẦU cho một tính năng.
                     wasAutoRunning = true;
                     resetRunGuards();
                     isTowerChallenging = false;
                     waitingForFloorUpdate = false;
-                    quickRunStart(data.quickMode);
+                    quickRunStart(quickResumeAfterReload ? 'resume' : data.quickMode);
                     executeCycle(false);
                 } else if (CONFIG.running) {
                     // resumed: Auto được bật lại sau khi tự vào lại game (không phải người dùng bấm BẮT ĐẦU).

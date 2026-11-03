@@ -6,6 +6,12 @@
         const FAST_ROUTINE_FEATURES = ['autoCuoiNgay', 'autoTamTienDai', 'autoExtremeYin'];
         const OTHER_TRIALS_ACTION_INTERVAL_MS = 600;
 
+        // Thông Thiên + Tứ Linh ở chế độ quét (Quét nhanh) cũng là chuỗi bước nhỏ chờ máy chủ.
+        function isFastRoutineActive() {
+            const a = CONFIG.activeFeature;
+            return FAST_ROUTINE_FEATURES.includes(a) || (a === 'autoTongTian' && Boolean(CONFIG.towerSweepOnly));
+        }
+
         let disconnectPauseLogged = false;
 
         function isGameDisconnected(ctx) {
@@ -176,7 +182,7 @@
             // Chuỗi thao tác dài, mỗi bước chờ xác nhận từ máy chủ: nhịp ngắn hơn (vẫn ngẫu nhiên).
             const actionInterval = active === 'autoCuoiNgay'
                 ? CUOI_NGAY_ACTION_INTERVAL_MS
-                : (active === 'autoTamTienDai' || active === 'autoExtremeYin' ? TAM_TIEN_ACTION_INTERVAL_MS
+                : (active === 'autoTamTienDai' || active === 'autoExtremeYin' || isFastRoutineActive() ? TAM_TIEN_ACTION_INTERVAL_MS
                     : (active === 'autoOtherTrials' ? OTHER_TRIALS_ACTION_INTERVAL_MS : (CONFIG.intervalMs || 1200)));
             if (now < nextActionAt) return;
 
@@ -231,7 +237,9 @@
                 // --- ĐIỀU PHỐI 8 MODULE ƯU TIÊN VÀ CÁC HOẠT ĐỘNG ---
                 // [Module 1] Thông Thiên Tháp & Tứ Linh Tháp
                 else if (active === 'autoTongTian' || (CONFIG.autoTongTian && !active)) {
-                    if (handleTowerAndTuLinh(ctx)) { markActed(actionInterval); return; }
+                    const tw = handleTowerAndTuLinh(ctx);
+                    if (tw === 'wait') { nextActionAt = Date.now() + 40; runNoteActed(true); return; }
+                    if (tw) { markActed(actionInterval, isFastRoutineActive()); return; }
                 }
                 // [Module 2] Phụ Bản Ngày & Bí Cảnh Tứ Quốc
                 else if (active === 'autoDailyDungeon' || (CONFIG.autoDailyDungeon && !active)) {
@@ -315,7 +323,7 @@
         // Nhịp kiểm tra lệch ngẫu nhiên 450-750ms thay vì đúng một nhịp cố định.
         (function scheduleTick() {
             // Nhịp kiểm tra nhanh hơn khi chạy Nhận Cuối Ngày (chuỗi nhiều bước nhỏ, mỗi bước chờ máy chủ xác nhận).
-            const fast = CONFIG.running && FAST_ROUTINE_FEATURES.includes(CONFIG.activeFeature);
+            const fast = CONFIG.running && isFastRoutineActive();
             setTimeout(() => {
                 try { executeCycle(false); } catch (e) { }
                 scheduleTick();

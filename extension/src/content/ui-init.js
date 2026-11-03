@@ -56,7 +56,7 @@
 
         // Tiến độ QUÉT NHANH đã lưu (null = không có): nút chính thành TIẾP TỤC, hiện thêm nút CHẠY LẠI TỪ ĐẦU.
         let quickSavedInfo = null;
-        function updateQuickButtons(saved) {
+        function updateQuickButtons(saved, active) {
             quickSavedInfo = saved || null;
             const btn = document.getElementById('tn-btn-sweep');
             const fresh = document.getElementById('tn-btn-quick-fresh');
@@ -64,10 +64,12 @@
             if (btn) {
                 const main = btn.querySelector('.tn-qb-main');
                 const sub = btn.querySelector('.tn-qb-sub');
-                if (main) main.textContent = quickSavedInfo ? '⏯ TIẾP TỤC' : '⚡ QUÉT NHANH';
-                if (sub) sub.textContent = quickSavedInfo
-                    ? 'Bước ' + (quickSavedInfo.idx + 1) + '/' + quickSavedInfo.total + ' · ' + quickSavedInfo.label
-                    : '1 chạm · ' + QUICK_RUN_QUEUE.length + ' bước';
+                if (main) main.textContent = active ? '⏳ ĐANG QUÉT' : (quickSavedInfo ? '⏯ TIẾP TỤC' : '⚡ QUÉT NHANH');
+                if (sub) sub.textContent = active
+                    ? 'Bước ' + (active.idx + 1) + '/' + active.total + ' · ' + active.label
+                    : (quickSavedInfo
+                        ? 'Bước ' + (quickSavedInfo.idx + 1) + '/' + quickSavedInfo.total + ' · ' + quickSavedInfo.label
+                        : '1 chạm · ' + QUICK_RUN_QUEUE.length + ' bước');
                 btn.title = quickSavedInfo ? 'Tiếp tục QUÉT NHANH từ bước: ' + quickSavedInfo.label + ' (đã xong ' + quickSavedInfo.done + ' bước)' : (btn.dataset.baseTitle || btn.title);
             }
             if (fresh) fresh.style.display = quickSavedInfo ? 'flex' : 'none';
@@ -137,11 +139,13 @@
             } else if (data.action === 'LOG') {
                 addLogToUI(data.message, data.logType);
             } else if (data.action === 'QUICK_RUN_SAVED') {
-                updateQuickButtons(data.saved);
+                updateQuickButtons(data.completed ? null : data.saved, data.completed ? null : data.active);
             } else if (data.action === 'AUTO_FINISHED') {
                 // Tính năng đã hoàn tất: trả nút về trạng thái dừng (dòng kết quả đã được game ghi log).
                 CONFIG.running = false;
                 updateBadge(false);
+                // Nút Quét nhanh không còn ở trạng thái "đang quét" (trạng thái chính xác tới ngay sau từ QUICK_RUN_SAVED).
+                updateQuickButtons(quickSavedInfo, null);   // tiến độ đã lưu (nếu còn) do QUICK_RUN_SAVED quyết định
                 if (data.message) addLogToUI(data.message, 'run');
             } else if (data.action === 'AUTO_RECONNECT_RELOAD') {
                 if (!reconnectTopPrepare(data.reason, data.resume)) return;

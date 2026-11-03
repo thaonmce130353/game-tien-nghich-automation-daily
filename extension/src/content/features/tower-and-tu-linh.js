@@ -15,6 +15,7 @@
         const TOWER_DAILY_MAX_BUYS = 1;
         const TOWER_DAILY_DEFAULT_NEW_BATTLES = 10;
         let towerDailyState = null;
+let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật tới máy chủ (nếu không: chỉ chờ, scheduler kiểm tra lại ngay)
         let towerDailyUnavailableLogged = false;
         let lastTowerAndTuLinhError = '';
 
@@ -76,6 +77,7 @@
         function pollTowerDailyRefresh(holder, key, now, send, tokenOf) {
             if (!holder[key]) {
                 holder[key] = { token: tokenOf(), startedAt: now };
+                towerDailyDidSend = true;
                 try { send(); } catch (e) { holder[key] = null; return 'error'; }
                 return 'wait';
             }
@@ -119,6 +121,7 @@
                     failTowerDaily(state, 'tower-pending-timeout', `Máy chủ chưa xác nhận ${pending.kind === 'buy' ? 'lượt mua' : 'lượt quét'} Thông Thiên Tháp${detail}; không gửi lại để tránh mua/đánh trùng. `, 'camp');
                 } else if (now - pending.startedAt >= 3000 && now - pending.lastRefreshAt >= 2000) {
                     pending.lastRefreshAt = now;
+                    towerDailyDidSend = true;
                     try { dd.send11004(type); } catch (e) { }
                 }
                 return true;
@@ -153,6 +156,7 @@
                     t.attempts++;
                     t.pending = { kind: 'buy', before: counts.buy, beforeEnter: counts.enter, token: counts.token, startedAt: now, lastRefreshAt: now };
                     sendLog(`🗼 [Thông Thiên Tháp] Hết lượt quét miễn phí; mua thêm 1 lượt quét (${cost.gold} Tiên Ngọc)...`, "result");
+                    towerDailyDidSend = true;
                     try {
                         // Giống nút Quét của game: mua rồi máy chủ tự quét ải đã vượt.
                         dd.send11007(lastId, type, ctx.DailyDungeonConst.buyType.saodang);
@@ -179,6 +183,7 @@
             t.attempts++;
             t.pending = { kind: 'sweep', before: counts.enter, beforeEnter: counts.enter, token: counts.token, startedAt: now, lastRefreshAt: now };
             sendLog(`🗼 [Thông Thiên Tháp] Quét lượt ${counts.enter + 1}/${counts.dayCount + counts.buy} (tầng đã vượt #${lastId})...`, "action");
+            towerDailyDidSend = true;
             try {
                 dd.send11005(lastId);
             } catch (e) {
@@ -267,6 +272,7 @@
                     return finishCamp(false, `camp-${label}-timeout`, `Máy chủ chưa xác nhận ${p.kind === 'fight' ? 'ải mới' : 'lượt quét'} Tứ Linh Tháp ${label}; chuyển tháp tiếp theo, không gửi lại.`);
                 } else if (now - p.startedAt >= 3000 && now - p.lastRefreshAt >= 2000) {
                     p.lastRefreshAt = now;
+                    towerDailyDidSend = true;
                     try { dd.send11004(cur.type); } catch (e) { }
                 }
                 return true;
@@ -294,6 +300,7 @@
                     cur.attempts++;
                     cur.pending = { kind: 'fight', before: counts.todayPass, token: counts.token, startedAt: now, lastRefreshAt: now };
                     sendLog(`🛡️ [Tứ Linh Tháp ${label}] Khiêu chiến ải mới ${counts.todayPass + 1}/${limit} (#${nextId})...`, "action");
+                    towerDailyDidSend = true;
                     try {
                         if (typeof dd.saveScId === 'function') dd.saveScId(nextId);
                         dd.send11020(nextId);
@@ -316,6 +323,7 @@
                 cur.attempts++;
                 cur.pending = { kind: 'sweep', before: counts.enter, token: counts.token, startedAt: now, lastRefreshAt: now };
                 sendLog(`🛡️ [Tứ Linh Tháp ${label}] Quét ải #${lastId} (còn ${counts.free} lượt miễn phí)...`, "action");
+                towerDailyDidSend = true;
                 try {
                     dd.send11005(lastId);
                 } catch (e) {
@@ -366,15 +374,18 @@
             if (state.phase === 'done') return false;
 
             const now = Date.now();
+            towerDailyDidSend = false;
             if (state.phase === 'tower') handleTowerDailyTower(ctx, state, types, now);
             else if (state.phase === 'camp') handleTowerDailyCamp(ctx, state, types, now);
-            if (state.phase === 'done') finishTowerDaily(state);
-            return true;
+            if (state.phase === 'done') { finishTowerDaily(state); return true; }
+            // 'wait' = chỉ chờ máy chủ/chuyển bước (chưa gửi gì): scheduler kiểm tra lại sau ~40ms, không nghỉ kiểu người chơi.
+            return towerDailyDidSend ? true : 'wait';
         }
 
         function handleTowerAndTuLinh(ctx) {
             try {
-                if (handleTowerDailyRoutine(ctx)) return true;
+                const daily = handleTowerDailyRoutine(ctx);
+                if (daily) return daily;
                 // Chế độ quét (Quét nhanh): chỉ quét/đánh ải mỗi ngày, xong là thôi, không leo tháp.
                 if (CONFIG.towerSweepOnly) return false;
                 return handleTongTianTower(ctx) || handleClimbCamp(ctx);

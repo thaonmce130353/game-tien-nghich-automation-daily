@@ -43,6 +43,7 @@
                     if (n) {
                         const isSkippable = (CONFIG.autoSkipFight && (
                             t.type === n.dungeon ||
+                            t.type === n.endlessTrial ||     // Thủ Vệ Tứ Phái (ETCtrl)
                             t.type === n.runningMan ||
                             t.type === n.ymAbyss ||
                             t.type === n.adventure ||
