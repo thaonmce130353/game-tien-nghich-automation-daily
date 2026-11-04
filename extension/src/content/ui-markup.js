@@ -66,10 +66,18 @@
                             <!-- TAB 1: ĐẠO THÀNH -->
                             <div id="tn-tab-panel-dao-thanh" class="tn-tab-panel active">
                                 <div class="tn-opt-list">
+                                    <label class="tn-opt-item" style="border-left: 3px solid #fab387;">
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#fab387;"><span class="tn-feat-name">🎁 Nhận Thưởng Ngày</span></div>
+                                            <div class="tn-feat-desc">Điểm danh hôm nay, Tiên Ngọc thẻ tháng Hào Hoa / Chí Tôn, quà ngày miễn phí, quà tuần / tháng miễn phí và điểm VIP hằng ngày (Tiên Sư tăng bật). Chỉ nhận phần miễn phí, không mua gì.</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoDailyReward"></div>
+                                        </div>
+                                        <input type="checkbox" class="tn-mutex-feature" data-key="autoDailyReward" ${CONFIG.activeFeature === 'autoDailyReward' ? 'checked' : ''}>
+                                    </label>
                                     <label class="tn-opt-item" style="border-left: 3px solid #89dceb;">
                                         <div style="min-width:0; flex:1;">
-                                            <div class="tn-feat-title" style="color:#89dceb;"><span class="tn-feat-name">✨ Tâm Tiên Đài</span><button type="button" class="tn-gear-btn" data-gear="autoTamTienDai" title="Cài đặt">⚙</button></div>
-                                            <div class="tn-feat-desc">Nhận quà miễn phí 4 tab và Chiêu Mộ ngày; có thể mua thêm quà bằng Tiên Ngọc.</div>
+                                            <div class="tn-feat-title" style="color:#89dceb;"><span class="tn-feat-name">✨ Tâm Tiên Đài</span></div>
+                                            <div class="tn-feat-desc">Nhận quà miễn phí 4 tab và Chiêu Mộ ngày; luôn tự mua thêm quà bằng Tiên Ngọc (không mua quà tiền thật).</div>
                                             <div class="tn-feat-cfg" data-cfg-for="autoTamTienDai"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoTamTienDai" ${CONFIG.activeFeature === 'autoTamTienDai' ? 'checked' : ''}>
@@ -137,8 +145,8 @@
                                     <!-- MODULE 1 -->
                                     <label class="tn-opt-item" style="border-left: 3px solid #f5c2e7;">
                                         <div style="min-width:0; flex:1;">
-                                            <div class="tn-feat-title" style="color:#f5c2e7;"><span class="tn-feat-name">🗼 Thông Thiên Tháp & Tứ Linh Tháp</span><button type="button" class="tn-gear-btn" data-gear="autoTongTian" title="Cài đặt">⚙</button></div>
-                                            <div class="tn-feat-desc">Quét Thông Thiên Tháp (miễn phí + mua bằng Tiên Ngọc), cử trợ trận tướng 1, leo 4 tháp Tứ Linh và quét 2 lần.</div>
+                                            <div class="tn-feat-title" style="color:#f5c2e7;"><span class="tn-feat-name">🗼 Tự Động Leo Thông Thiên Tháp</span></div>
+                                            <div class="tn-feat-desc">Tự động khiêu chiến lần lượt từng tầng Thông Thiên Tháp (bỏ qua hoạt ảnh) cho tới khi bấm tạm dừng.</div>
                                             <div class="tn-feat-cfg" data-cfg-for="autoTongTian"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoTongTian" ${CONFIG.activeFeature === 'autoTongTian' ? 'checked' : ''}>
@@ -192,7 +200,7 @@
                                     <label class="tn-opt-item" style="border-left: 3px solid #cba6f7;">
                                         <div style="min-width:0; flex:1;">
                                             <div class="tn-feat-title" style="color:#cba6f7;"><span class="tn-feat-name">🧩 Ảo Cảnh Pháp Trận</span></div>
-                                            <div class="tn-feat-desc">Bắt đầu, chờ xem thẻ, ghép 8 cặp trong ~8-10s, chơi lại khi còn lượt thưởng, nhận thưởng mốc điểm.</div>
+                                            <div class="tn-feat-desc">Bắt đầu, chờ xem thẻ, ghép 8 cặp trong ~8-10s, chơi lại khi còn lượt thưởng, nhận thưởng mốc điểm, rồi nhận thưởng nhiệm vụ hằng ngày và nhiệm vụ thành tựu.</div>
                                             <div class="tn-feat-cfg" data-cfg-for="autoMinigameMemory"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoMinigameMemory" ${CONFIG.activeFeature === 'autoMinigameMemory' ? 'checked' : ''}>
@@ -230,6 +238,14 @@
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoBanner" ${CONFIG.activeFeature === 'autoBanner' ? 'checked' : ''}>
                                     </label>
                                     <div id="tn-banner-extra"></div>
+                                    <label class="tn-opt-item" style="border-left: 3px solid #f5c2e7;">
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#f5c2e7;"><span class="tn-feat-name">👘 Banner Skin Ảo Hình</span></div>
+                                            <div class="tn-feat-desc">Sự kiện skin đang mở: nhận Quà Ảo Hình (1 miễn phí + 1 mua Tiên Ngọc, tối đa ${CONFIG.bannerGoldPrice || 300}) → Chiêu mộ 1 lần → nhận điểm nhiệm vụ → Chiến Lệnh Nhận nhanh. Chạy một lượt rồi tự dừng. Không mua quà tiền thật.</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoSkinBanner"></div>
+                                        </div>
+                                        <input type="checkbox" class="tn-mutex-feature" data-key="autoSkinBanner" ${CONFIG.activeFeature === 'autoSkinBanner' ? 'checked' : ''}>
+                                    </label>
                                 </div>
                             </div>
 
@@ -253,7 +269,7 @@
                 <div id="tn-hud-footer">
                     <button id="tn-btn-main" class="tn-action-btn tn-btn-start">▶ BẮT ĐẦU AUTO</button>
                     <div id="tn-quick-group">
-                        <button id="tn-btn-sweep" class="tn-action-btn tn-btn-sweep" title="Chạy lần lượt: Tâm Tiên Đài, Tiên Hữu, Thái Cổ Thu Hà, Trợ Chiến, Tiên Minh, Thông Thiên (quét 3 lần) + Tứ Linh (10 ải), Phụ Bản Ngày & Bí Cảnh, Thủ Vệ, Cửu Uyển Nhi & Cổ Thần, Cực Âm, Di Tích, Ảo Cảnh, Kiếm Hành & Điêu Long, Vực U Minh, Đấu Tiên Đài, Ma Đạo, Banner; cuối cùng Nhận Cuối Ngày."><span class="tn-qb-main">⚡ QUÉT NHANH</span><span class="tn-qb-sub">1 chạm · 17 bước</span></button>
+                        <button id="tn-btn-sweep" class="tn-action-btn tn-btn-sweep" title="Chạy lần lượt: Nhận Thưởng Ngày, Tâm Tiên Đài, Tiên Hữu, Thái Cổ Thu Hà, Trợ Chiến, Tiên Minh, Thông Thiên (quét 3 lần) + Tứ Linh (10 ải), Phụ Bản Ngày & Bí Cảnh, Thủ Vệ, Cửu Uyển Nhi & Cổ Thần, Cực Âm, Di Tích, Ảo Cảnh, Kiếm Hành & Điêu Long, Vực U Minh, Đấu Tiên Đài, Ma Đạo, Banner, Banner Skin; cuối cùng Nhận Cuối Ngày."><span class="tn-qb-main">⚡ QUÉT NHANH</span><span class="tn-qb-sub">1 chạm · 17 bước</span></button>
                         <button id="tn-btn-quick-fresh" class="tn-action-btn tn-btn-sweep" style="display:none;" title="Chạy lại từ đầu (bỏ tiến độ đã lưu)">↺</button>
                         <button id="tn-btn-quick-cfg" class="tn-action-btn tn-btn-sweep" title="Chọn các bước của QUÉT NHANH">⚙</button>
                     </div>

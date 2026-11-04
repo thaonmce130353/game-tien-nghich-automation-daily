@@ -3,13 +3,14 @@
         const CUOI_NGAY_ACTION_INTERVAL_MS = 450;
         const TAM_TIEN_ACTION_INTERVAL_MS = 450;
         // Các tính năng là chuỗi nhiều bước nhỏ, mỗi bước chờ máy chủ: nhịp nhanh, không nghỉ dài ngẫu nhiên.
-        const FAST_ROUTINE_FEATURES = ['autoCuoiNgay', 'autoTamTienDai', 'autoExtremeYin', 'autoThaiCo', 'autoTienMinh'];
+        const FAST_ROUTINE_FEATURES = ['autoCuoiNgay', 'autoTamTienDai', 'autoExtremeYin', 'autoThaiCo', 'autoTienMinh', 'autoDailyReward'];
         const OTHER_TRIALS_ACTION_INTERVAL_MS = 600;
 
         // Thông Thiên + Tứ Linh ở chế độ quét (Quét nhanh) cũng là chuỗi bước nhỏ chờ máy chủ.
         function isFastRoutineActive() {
             const a = CONFIG.activeFeature;
-            return FAST_ROUTINE_FEATURES.includes(a) || (a === 'autoTongTian' && Boolean(CONFIG.towerSweepOnly));
+            return FAST_ROUTINE_FEATURES.includes(a) || (a === 'autoTongTian' && Boolean(CONFIG.towerSweepOnly)) ||
+                (a === 'autoSectDefense' && Boolean(sectDefenseState) && (sectDefenseState.phase === 'stageReward' || sectDefenseState.phase === 'claim'));
         }
 
         let disconnectPauseLogged = false;
@@ -32,7 +33,7 @@
         // Các tính năng khác: xong khi tính năng báo trạng thái "done" (runFinishProbe) hoặc không còn thao tác nào
         // trong RUN_IDLE_FINISH_MS (hết lượt, không qua được ải, chỉ còn chờ giờ...).
         const RUN_IDLE_FINISH_MS = 90000;
-        const RUN_NO_IDLE_FEATURES = ['autoTongTian', 'autoBanner', 'autoMinigameMemory', 'autoMinigameDragon'];
+        const RUN_NO_IDLE_FEATURES = ['autoTongTian', 'autoBanner', 'autoSkinBanner', 'autoMinigameMemory', 'autoMinigameDragon'];
 
         function extremeYinSettled() {
             const st = extremeYinState;
@@ -48,6 +49,7 @@
                 case 'autoTamTienDai': return done(tamTienDaiState);
                 case 'autoTienHuu': return done(tienHuuState);
                 case 'autoThaiCo': return done(thaiCoState);
+                case 'autoDailyReward': return done(dailyRewardState);
                 case 'autoTienMinh': return done(tienMinhState);
                 case 'autoCuoiNgay': return done(cuoiNgayState);
                 case 'autoSectDefense': return done(sectDefenseState);
@@ -61,7 +63,7 @@
                 case 'autoOtherTrials': return done(uyenNhiState) && done(coThanState) ? extremeYinSettled() : null;
                 case 'autoDailyDungeon': return sweptDayKey === today && !sweepPending && done(biCanhState) ? { failed: false } : null;
                 case 'autoXianYuan': return xianYuanIdleCycles >= 2 ? { failed: false } : null;
-                case 'autoClimbYMAbyss': return abyssGaveUp ? { failed: false, reason: `chưa đủ sức qua tầng #${abyssGaveUp} (đã thử ${MAX_TARGET_ATTEMPTS} lần, bình thường khi lực chiến chưa đủ)` } : null;
+                case 'autoClimbYMAbyss': return abyssGaveUp ? { failed: false, reason: `chưa đủ sức qua tầng #${abyssGaveUp} (đã thử ${abyssGaveTries || MAX_TARGET_ATTEMPTS} lần, bình thường khi lực chiến chưa đủ)` } : null;
                 case 'autoArena': return arenaRunState.limitReachedLogged || arenaRunState.noAttemptsLogged ? { failed: false } : null;
                 default: return null;
             }
@@ -70,7 +72,7 @@
         function checkRunFinished() {
             const info = runInfo;
             if (!CONFIG.running || !info || bannerGiftBusy) return false;
-            if ((info.key === 'autoTongTian' && !CONFIG.towerSweepOnly) || info.key === 'autoBanner') return false;
+            if ((info.key === 'autoTongTian' && !CONFIG.towerSweepOnly) || info.key === 'autoBanner' || info.key === 'autoSkinBanner') return false;
             let probe = null;
             try { probe = runFinishProbe(info.key); } catch (e) { }
             if (probe) {
@@ -121,7 +123,7 @@
 
             if (CONFIG.running && !wasAutoRunning) {
                 wasAutoRunning = true;
-                if (CONFIG.activeFeature === 'autoTongTian' && CONFIG.towerDailyRoutine) {
+                if (CONFIG.activeFeature === 'autoTongTian' && CONFIG.towerSweepOnly && CONFIG.towerDailyRoutine) {
                     if (towerDailyState && towerDailyState.phase === 'done' && towerDailyState.failed &&
                         towerDailyState.dayKey === new Date().toDateString()) {
                         towerDailyState = null;
@@ -249,7 +251,9 @@
                 }
                 // [Module 3] Thủ Vệ Tứ Phái
                 else if (active === 'autoSectDefense' || (CONFIG.autoSectDefense && !active)) {
-                    if (handleSectDefense(ctx)) { markActed(actionInterval); return; }
+                    const sd = handleSectDefense(ctx);
+                    if (sd === 'wait') { nextActionAt = Date.now() + 40; runNoteActed(true); return; }
+                    if (sd) { markActed(actionInterval, isFastRoutineActive()); return; }
                 }
                 // [Module 4] Cửu Uyển Nhi, Cổ Thần Địa, Cực Âm Địa
                 else if (active === 'autoOtherTrials' || (CONFIG.autoOtherTrials && !active)) {
@@ -281,6 +285,13 @@
                     // 'wait' = chỉ chờ máy chủ/chuyển bước (chưa gửi gì): không nghỉ kiểu người chơi, kiểm tra lại ngay nhịp sau.
                     if (routine === 'wait') { nextActionAt = Date.now() + 40; runNoteActed(true); return; }
                     if (routine) { markActed(actionInterval, FAST_ROUTINE_FEATURES.includes(active)); return; }
+                }
+                // Nhận Thưởng Ngày (điểm danh, thẻ tháng, quà ngày/tuần/tháng, điểm VIP)
+                else if (active === 'autoDailyReward') {
+                    const dr = handleDailyReward(ctx);
+                    // 'wait' = chỉ chờ máy chủ/chuyển bước: kiểm tra lại ngay, không nghỉ kiểu người chơi.
+                    if (dr === 'wait') { nextActionAt = Date.now() + 40; runNoteActed(true); return; }
+                    if (dr) { markActed(actionInterval, true); return; }
                 }
                 // Thái Cổ Thu Hà (quét tầng trước + Like BXH)
                 else if (active === 'autoThaiCo') {

@@ -4,10 +4,11 @@
         // Nhận Cuối Ngày luôn là bước cuối để gom hết thư/quà phát sinh. Quy tắc chi tiêu = đúng cài đặt từng tính năng.
         // =====================================================================
         const QUICK_RUN_QUEUE = [
+            'autoDailyReward',         // luôn đầu tiên: nhận thưởng ngày (điểm danh, thẻ tháng, quà, điểm VIP)
             'autoTamTienDai', 'autoTienHuu', 'autoThaiCo', 'autoTroChien', 'autoTienMinh',
             'autoTongTian',            // chế độ quét: Thông Thiên 3 lần (2 free + 1 mua) + Tứ Linh 10 ải mới/tháp, KHÔNG leo
             'autoDailyDungeon', 'autoSectDefense', 'autoOtherTrials', 'autoExtremeYin', 'autoImmortalRelic',
-            'autoMinigameMemory', 'autoMinigameDragon', 'autoClimbYMAbyss', 'autoArena', 'autoMaDao', 'autoBanner',
+            'autoMinigameMemory', 'autoMinigameDragon', 'autoClimbYMAbyss', 'autoArena', 'autoMaDao', 'autoBanner', 'autoSkinBanner',
             'autoCuoiNgay'             // luôn cuối cùng
         ];
         const QUICK_STEP_MAX_MS = 10 * 60 * 1000;     // một bước kẹt quá lâu thì bỏ qua, chạy bước kế tiếp
@@ -141,6 +142,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             quickReportSaved();
             sendLog(`▶️ [Quét nhanh] Bước ${index + 1}/${quickRun.queue.length}: ${RUN_LABELS[key] || key}`, 'run');
             if (key === 'autoBanner') bannerRunOnce();
+            if (key === 'autoSkinBanner') skinBannerRunOnce();
         }
 
         function quickRunStart(mode) {

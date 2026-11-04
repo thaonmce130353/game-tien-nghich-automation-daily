@@ -43,6 +43,8 @@ const allSourceFiles = [
     'features/banner-gifts.js',
     'features/banner-workflow.js',
     'features/thai-co-thu-ha.js',
+    'features/skin-banner.js',
+    'features/daily-reward.js',
     'features/quick-run.js',
     'features/scheduler.js'
 ];

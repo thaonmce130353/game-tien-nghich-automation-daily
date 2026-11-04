@@ -384,11 +384,10 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
 
         function handleTowerAndTuLinh(ctx) {
             try {
-                const daily = handleTowerDailyRoutine(ctx);
-                if (daily) return daily;
-                // Chế độ quét (Quét nhanh): chỉ quét/đánh ải mỗi ngày, xong là thôi, không leo tháp.
-                if (CONFIG.towerSweepOnly) return false;
-                return handleTongTianTower(ctx) || handleClimbCamp(ctx);
+                // Chế độ quét (chỉ Quét nhanh đặt): quét Thông Thiên + đánh/quét Tứ Linh mỗi ngày, xong là thôi, không leo tháp.
+                if (CONFIG.towerSweepOnly) return handleTowerDailyRoutine(ctx) || false;
+                // Tính năng riêng "Tự Động Leo Thông Thiên Tháp": chỉ leo Thông Thiên Tháp (không quét ngày, không Tứ Linh).
+                return handleTongTianTower(ctx);
             } catch(e) {
                 const message = `❌ [Thông Thiên Tháp & Tứ Linh Tháp] Lỗi: ${e && e.message ? e.message : e}`;
                 if (message !== lastTowerAndTuLinhError) {

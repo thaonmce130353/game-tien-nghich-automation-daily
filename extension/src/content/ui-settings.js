@@ -2,13 +2,6 @@
         // Thêm cài đặt mới: khai báo trong FEATURE_SETTINGS (key = data-key của tính năng) + giá trị mặc định trong CONFIG,
         // và thêm nút `<button class="tn-gear-btn" data-gear="<key>">` cạnh tên tính năng trong ui-markup.js.
         const FEATURE_SETTINGS = {
-            autoTamTienDai: {
-                title: 'Tâm Tiên Đài',
-                fields: [
-                    { key: 'buyTamTienGifts', type: 'checkbox', label: '🟢 Mua quà bằng Tiên Ngọc', hint: 'Mua quà Pháp Bảo, Linh Thú, Pháp Trận bằng Tiên Ngọc; không bao giờ mua quà tiền thật.' }
-                ],
-                summary: (c) => `Mua quà bằng Tiên Ngọc: ${c.buyTamTienGifts ? 'BẬT' : 'TẮT'}.`
-            },
             autoArena: {
                 title: 'Đấu Tiên Đài',
                 fields: [
@@ -22,13 +15,6 @@
                     { key: 'tienMinhDungeonLimit', type: 'number', min: 1, max: 6, def: 3, label: 'Số trận Bí Cảnh Tông Môn', hint: '2 trận đầu miễn phí; trận thứ 3 trở đi tự mua lượt (20 Tiên Ngọc/lượt). Tối đa 6.' }
                 ],
                 summary: (c) => `Bí Cảnh Tông Môn ${c.tienMinhDungeonLimit} trận` + (c.tienMinhDungeonLimit > 2 ? ` (mua thêm ${c.tienMinhDungeonLimit - 2} lượt, ${(c.tienMinhDungeonLimit - 2) * 20} Tiên Ngọc).` : ' (chỉ lượt miễn phí).')
-            },
-            autoTongTian: {
-                title: 'Thông Thiên Tháp & Tứ Linh Tháp',
-                fields: [
-                    { key: 'towerDailyRoutine', type: 'checkbox', label: '📅 Nhận thưởng và Quét ải mỗi ngày', hint: 'Thông Thiên Tháp quét 3 lần (2 miễn phí + 1 mua); Tứ Linh Tháp đang mở: 10 ải mới + quét 2 lần miễn phí (không mua).' }
-                ],
-                summary: (c) => `Nhận thưởng & quét ải mỗi ngày: ${c.towerDailyRoutine ? 'BẬT' : 'TẮT (chỉ leo/bỏ qua Thông Thiên Tháp)'}.`
             }
         };
 

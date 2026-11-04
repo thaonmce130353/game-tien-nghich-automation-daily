@@ -6,6 +6,9 @@
         //      khoảng 0,9s để cả ván xong trong ~8-10s; mỗi cặp phải được máy chủ xác nhận (status = 1).
         //   4. Xong ván máy chủ gửi bảng kết quả: đóng lại, chơi tiếp nếu còn lượt thưởng.
         //   5. Nhận thưởng mốc điểm (send32064) khi đủ điểm, xác nhận bằng dữ liệu máy chủ.
+        //   6. Nhận thưởng nhiệm vụ Ảo Cảnh (devilSeaTrialUi, loại FZMFlipTask): cả "Nhiệm vụ hằng ngày" và "Nhiệm vụ thành tựu"
+        //      nằm chung một danh sách nhiệm vụ của máy chủ (send30040); mỗi nhiệm vụ đã hoàn thành (status 1) nhận bằng
+        //      send30041(loại, id) như nút Nhận của game; xác nhận khi status chuyển 2.
         // Chỉ ghi "đã" khi dữ liệu máy chủ xác nhận; thiếu phản hồi thì báo lỗi và không gửi lại.
         const MEMORY_REQUEST_TIMEOUT_MS = 15000;
         const MEMORY_MAX_ROUNDS = 12;
@@ -17,7 +20,7 @@
         function createMemoryState() {
             return {
                 dayKey: new Date().toDateString(),
-                phase: 'open',            // open -> start -> preview -> solve -> finish -> claim -> done
+                phase: 'open',            // open -> start -> preview -> solve -> finish -> claim -> tasks -> done
                 failed: false,
                 refreshing: null,
                 rounds: 0,
@@ -29,7 +32,8 @@
                 roundStartedAt: 0,
                 passBefore: 0,
                 scoreBefore: 0,
-                claimBefore: 0
+                claimBefore: 0,
+                tasks: { stage: 'query', refreshing: null, sent: {}, pending: {}, claimed: 0, rounds: 0, lastSendAt: 0, lastPopupAt: 0, any: false }
             };
         }
 
@@ -56,8 +60,8 @@
             sendLog(`❌ [Ảo Cảnh Pháp Trận] ${message}`, "error");
             state.failed = true;
             // Ván lỗi không được làm mất thưởng mốc điểm đã đủ: thử nhận thưởng một lần rồi mới dừng.
-            if (!state.claimBlocked && !state.claimDone && !state.claimSent) { state.phase = 'claim'; state.claimReturn = 'done'; }
-            else state.phase = 'done';
+            if (!state.claimBlocked && !state.claimDone && !state.claimSent) { state.phase = 'claim'; state.claimReturn = 'tasks'; }
+            else state.phase = 'tasks';
         }
 
         // Chữ ký trạng thái các mốc điểm (score -> status) từ máy chủ; đổi nghĩa là máy chủ đã phản hồi nhận thưởng.
@@ -106,6 +110,83 @@
                 for (let i = 0; i + 1 < list.length; i += 2) pairs.push([list[i], list[i + 1]]);
             }
             return pairs;
+        }
+
+        const MEMORY_TASK_GAP_MS = 250;           // khoảng cách giữa hai lần gửi nhận nhiệm vụ
+        const MEMORY_TASK_MAX_ROUNDS = 3;         // nhận xong có thể mở thêm nhiệm vụ: tải lại tối đa chừng này vòng
+
+        // Nhận thưởng nhiệm vụ Ảo Cảnh (hằng ngày + thành tựu). Mỗi nhịp một việc; chỉ ghi "đã" khi máy chủ đổi status sang 2.
+        function memoryStepTasks(ctx, s, now) {
+            const t = s.tasks;
+            const ds = ctx.DevilSeaCtrl && ctx.DevilSeaCtrl.gInst && ctx.DevilSeaCtrl.gInst();
+            const type = ctx.DevilSeaConst && ctx.DevilSeaConst.TrialTaskType && ctx.DevilSeaConst.TrialTaskType.FZMFlipTask;
+            if (!ds || type === undefined || typeof ds.send30040 !== 'function' || typeof ds.send30041 !== 'function' || typeof ds.getTaskInfo !== 'function') {
+                logUnsupportedOnce('m6-task', "⚠️ [Ảo Cảnh Pháp Trận] Không có DevilSeaCtrl để nhận nhiệm vụ Ảo Cảnh; bỏ qua.");
+                s.phase = 'done';
+                return false;
+            }
+            // Nhận quà làm hiện bảng thưởng: đóng định kỳ.
+            if (now - t.lastPopupAt >= 700) { t.lastPopupAt = now; closeStrayPopups(); }
+            const list = () => ds.getTaskInfo(type) || [];
+
+            if (t.stage === 'query') {
+                const r = pollTowerDailyRefresh(t, 'refreshing', now, () => ds.send30040(type), () => ds.getTaskInfo(type));
+                if (r === 'wait') return true;
+                if (r !== 'ready') {
+                    sendLog("⚠️ [Ảo Cảnh Pháp Trận] Máy chủ chưa trả danh sách nhiệm vụ Ảo Cảnh; bỏ qua nhận nhiệm vụ.", "warn");
+                    s.failed = true;
+                    s.phase = 'done';
+                    return false;
+                }
+                t.queue = list().filter((x) => x.status === 1 && !t.sent[x.id]).map((x) => x.id);
+                t.stage = 'send';
+                t.rounds++;
+                t.roundClaimed = 0;
+                if (t.queue.length) sendLog(`🎁 [Ảo Cảnh Pháp Trận] Có ${t.queue.length} nhiệm vụ đã hoàn thành (hằng ngày/thành tựu); nhận liên tiếp.`, "action");
+                return true;
+            }
+
+            // Xác nhận các nhiệm vụ đã gửi: status của mục trong danh sách máy chủ chuyển sang 2.
+            for (const id of Object.keys(t.pending)) {
+                const entry = list().find((x) => String(x.id) === id);
+                if (entry && entry.status === 2) {
+                    delete t.pending[id];
+                    t.claimed++;
+                    t.roundClaimed++;
+                    t.any = true;
+                } else if (now - t.pending[id] >= MEMORY_REQUEST_TIMEOUT_MS) {
+                    delete t.pending[id];
+                    s.failed = true;
+                    sendLog(`⚠️ [Ảo Cảnh Pháp Trận] Máy chủ chưa xác nhận nhận nhiệm vụ #${id}; không gửi lại.`, "warn");
+                }
+            }
+
+            if (t.stage === 'send') {
+                if (t.queue.length) {
+                    if (now - t.lastSendAt < MEMORY_TASK_GAP_MS) return true;
+                    const id = t.queue.shift();
+                    t.lastSendAt = now;
+                    t.sent[id] = true;
+                    t.pending[id] = now;
+                    ds.send30041(type, id);
+                    return true;
+                }
+                t.stage = 'confirm';
+                return true;
+            }
+
+            // stage === 'confirm': đợi hết nhiệm vụ đang chờ xác nhận.
+            if (Object.keys(t.pending).length) return true;
+            if (t.roundClaimed > 0 && t.rounds < MEMORY_TASK_MAX_ROUNDS) {
+                // Nhận xong có thể mở thêm nhiệm vụ (chuỗi thành tựu): tải lại danh sách một lần nữa.
+                t.stage = 'query';
+                t.refreshing = null;
+                return true;
+            }
+            if (t.claimed) sendLog(`✅ [Ảo Cảnh Pháp Trận] Máy chủ xác nhận đã nhận ${t.claimed} thưởng nhiệm vụ (hằng ngày + thành tựu).`, "result");
+            else if (!Object.keys(t.sent).length) sendLog("ℹ️ [Ảo Cảnh Pháp Trận] Không có thưởng nhiệm vụ Ảo Cảnh nào để nhận.", "info");
+            s.phase = 'done';
+            return false;
         }
 
         function handleMinigameMemory(ctx) {
@@ -163,7 +244,7 @@
                     } else if (left <= 0 || s.rounds >= MEMORY_MAX_ROUNDS) {
                         sendLog(`ℹ️ [Ảo Cảnh Pháp Trận] Hết ván cần chơi (${d.passTaken}/${d.rewardRuns}); chuyển sang nhận thưởng mốc điểm.`, "info");
                         s.phase = 'claim';
-                        s.claimReturn = 'done';
+                        s.claimReturn = 'tasks';
                         return true;
                     }
                     s.passBefore = d.passTaken;
@@ -230,8 +311,10 @@
                     return false;
                 }
 
+                if (s.phase === 'tasks') return memoryStepTasks(ctx, s, now);
+
                 if (s.phase === 'claim') {
-                    const back = () => { s.claimDone = true; s.claimSent = 0; s.phase = s.claimReturn || 'done'; s.claimReturn = null; if (s.phase === 'open') { s.refreshing = null; s.nextAt = now + humanDelay(1200); } };
+                    const back = () => { s.claimDone = true; s.claimSent = 0; s.phase = s.claimReturn || 'tasks'; s.claimReturn = null; if (s.phase === 'open') { s.refreshing = null; s.nextAt = now + humanDelay(1200); } };
                     if (s.claimSent) {
                         if (memoryStatusSig(ctrl) !== s.claimSig) {
                             closeResult();
@@ -248,7 +331,7 @@
                         }
                         return false;
                     }
-                    if (s.claimBlocked || (s.claimDone && s.claimReturn === 'done')) { back(); return false; }   // đã gửi mà máy chủ không xác nhận: không gửi lại
+                    if (s.claimBlocked || (s.claimDone && s.claimReturn === 'tasks')) { back(); return false; }   // đã gửi mà máy chủ không xác nhận: không gửi lại
                     if (!memoryClaimable(ctrl)) {
                         const d = memoryRead(ctrl);
                         sendLog(`ℹ️ [Ảo Cảnh Pháp Trận] Không có thưởng mốc điểm nào để nhận (điểm ${d ? d.scores : '?'}; mốc ${memoryMilestoneText(ctrl)}).`, "info");

@@ -624,12 +624,6 @@
 
                 const gift = state.giftRows[state.giftRowIndex];
                 const tienNgocCost = Number(gift.gold);
-                if (tienNgocCost > 0 && !CONFIG.buyTamTienGifts) {
-                    sendLog(`ℹ️ [Tâm Tiên Đài - ${category.label}] Bỏ qua quà Tiên Ngọc #${gift.gift_id} vì tùy chọn mua đang tắt.`, "info");
-                    state.giftRowIndex++;
-                    return true;
-                }
-
                 const purchase = welfareController.getLimitGiftBuyNetVo(gift.gift_id);
                 const buyTimes = purchase ? Number(purchase.buy_times) || 0 : 0;
                 const purchaseLimit = Number(gift.purchase_times) || 0;

@@ -187,6 +187,21 @@
                 }
                 .tn-badge-ready { background: #585b70; color: #cdd6f4; }
                 .tn-badge-running { background: #a6e3a1; color: #11111b; animation: tnPulse 1.5s infinite; }
+                /* Hiệu ứng tải (danh sách banner hero / skin): vòng xoay nhỏ + khung xương nhấp nháy. */
+                @keyframes tnSpin { to { transform: rotate(360deg); } }
+                @keyframes tnShimmer { 0% { opacity: 0.35; } 50% { opacity: 0.75; } 100% { opacity: 0.35; } }
+                .tn-spin {
+                    display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px;
+                    border: 2px solid rgba(203, 166, 247, 0.28); border-top-color: #cba6f7; border-radius: 50%;
+                    animation: tnSpin 0.8s linear infinite;
+                }
+                .tn-skeleton {
+                    border-left: 3px solid rgba(203, 166, 247, 0.35); border-radius: 6px; padding: 6px 8px;
+                    background: rgba(17, 17, 27, 0.55); animation: tnShimmer 1.2s ease-in-out infinite;
+                }
+                .tn-skeleton i { display: block; height: 8px; border-radius: 4px; background: rgba(166, 173, 200, 0.28); }
+                .tn-skeleton i + i { width: 55%; height: 6px; margin-top: 6px; }
+                @media (prefers-reduced-motion: reduce) { .tn-spin, .tn-skeleton { animation: none; } }
                 @keyframes tnPulse {
                     0% { opacity: 0.8; }
                     50% { opacity: 1; filter: drop-shadow(0 0 5px #a6e3a1); }

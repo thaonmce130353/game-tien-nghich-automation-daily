@@ -266,6 +266,18 @@
                 return;
             }
 
+            await bannerZhanlingTasksAndQuickClaim(ctx, zl);
+
+            // 3) Mua điểm Chiến Lệnh bằng Tiên Ngọc (nếu bật), rồi "Nhận nhanh" lại phần thưởng vừa đủ điểm.
+            if (await bannerZhanlingBuyScore(ctx, zl)) {
+                await bannerSleep(800);
+                await bannerZhanlingQuickClaim(ctx, zl);
+            }
+        }
+
+        // Chiến Lệnh (dùng chung Banner hero và Banner skin): nhận điểm từ nhiệm vụ Thí Luyện đã hoàn thành, rồi "Nhận nhanh".
+        async function bannerZhanlingTasksAndQuickClaim(ctx, zl) {
+            const { tag } = ctx;
             // 1) Nhận điểm từ các nhiệm vụ Thí Luyện đã hoàn thành.
             let claimed = 0;
             const trial = await bannerOpenTrial(ctx, () => zl.onClickTrial());
@@ -296,12 +308,6 @@
             // 2) "Nhận nhanh" ở màn hình Chiến Lệnh.
             await bannerSleep(800);
             await bannerZhanlingQuickClaim(ctx, zl);
-
-            // 3) Mua điểm Chiến Lệnh bằng Tiên Ngọc (nếu bật), rồi "Nhận nhanh" lại phần thưởng vừa đủ điểm.
-            if (await bannerZhanlingBuyScore(ctx, zl)) {
-                await bannerSleep(800);
-                await bannerZhanlingQuickClaim(ctx, zl);
-            }
         }
 
         async function bannerZhanlingQuickClaim(ctx, zl) {

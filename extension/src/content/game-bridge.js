@@ -131,10 +131,10 @@
             autoArena: 'Đấu Tiên Đài', autoTongTian: 'Thông Thiên Tháp & Tứ Linh Tháp', autoDailyDungeon: 'Phụ Bản Ngày & Bí Cảnh Tứ Quốc',
             autoSectDefense: 'Thủ Vệ Tứ Phái', autoOtherTrials: 'Cửu Uyển Nhi & Cổ Thần Địa',
             autoImmortalRelic: 'Di Tích Tiên Giới', autoMinigameMemory: 'Ảo Cảnh Pháp Trận', autoMinigameDragon: 'Kiếm Hành & Điêu Long',
-            autoTroChien: 'Trợ Chiến Linh Thú', autoTamTienDai: 'Tâm Tiên Đài', autoTienHuu: 'Tiên Hữu', autoThaiCo: 'Thái Cổ Thu Hà', autoTienMinh: 'Tiên Minh',
+            autoTroChien: 'Trợ Chiến Linh Thú', autoTamTienDai: 'Tâm Tiên Đài', autoTienHuu: 'Tiên Hữu', autoThaiCo: 'Thái Cổ Thu Hà', autoDailyReward: 'Nhận Thưởng Ngày', autoTienMinh: 'Tiên Minh',
             autoCuoiNgay: 'Nhận Cuối Ngày', autoClimbDailyDungeons: 'Leo Phụ Bản Ngày', autoClimbYMAbyss: 'Vực U Minh',
             autoExtremeYin: 'Cực Âm Địa', autoClimbCamp: 'Leo Tứ Linh Trận', autoSweepDungeons: 'Quét Phụ Bản',
-            autoMaDao: 'Ma Đạo Tổng Hợp', autoXianYuan: 'Quà Tiên Duyên', autoBanner: 'Tướng Thần Lâm / Đạp Thiên'
+            autoMaDao: 'Ma Đạo Tổng Hợp', autoXianYuan: 'Quà Tiên Duyên', autoBanner: 'Tướng Thần Lâm / Đạp Thiên', autoSkinBanner: 'Banner Skin Ảo Hình'
         };
 
         // Bảng xác nhận/thông báo/phần thưởng còn sót (hộp thoại, tips, nhận quà) chặn thao tác của tính năng kế tiếp.
@@ -163,7 +163,7 @@
 
         function runBegin(key) {
             closeStrayPopups();     // bước dọn đầu tiên: đóng bảng xác nhận/thông báo còn mở từ tính năng trước
-            runInfo = { key, label: RUN_LABELS[key] || key || 'Auto', startedAt: Date.now(), lastActAt: Date.now(), acts: 0, problems: 0 };
+            runInfo = { key, label: (key === 'autoTongTian' && !CONFIG.towerSweepOnly) ? 'Tự Động Leo Thông Thiên Tháp' : (RUN_LABELS[key] || key || 'Auto'), startedAt: Date.now(), lastActAt: Date.now(), acts: 0, problems: 0 };
         }
 
         // touch=true: chỉ báo còn sống (game chưa sẵn sàng/đang mất kết nối), không tính là đã làm việc.
@@ -428,7 +428,8 @@
                         if (typeof resetArenaRun === 'function') resetArenaRun(resumed);
                         runBegin(CONFIG.activeFeature);
                         if (!resumed && CONFIG.activeFeature === 'autoBanner') bannerRunOnce();
-                        if (resumed && CONFIG.activeFeature === 'autoBanner') {
+                        if (!resumed && CONFIG.activeFeature === 'autoSkinBanner') skinBannerRunOnce();
+                        if (resumed && (CONFIG.activeFeature === 'autoBanner' || CONFIG.activeFeature === 'autoSkinBanner')) {
                             runFinish('không chạy lại lượt này sau khi vào lại game (chỉ chạy 1 lượt mỗi lần bấm BẮT ĐẦU)');
                             return;
                         }

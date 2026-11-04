@@ -59,6 +59,8 @@
             const cfgs = model && model.baseConfigDic;
             if (!cfgs || !Object.keys(cfgs).length || !deseno || !deseno.activity_status_dic ||
                 typeof deseno.getActDat !== 'function' || !window.NetMgr) return null;
+            // Danh sách hoạt động từ máy chủ chưa về (vừa vào game): chưa biết banner nào mở, đừng báo "không có".
+            if (!Object.keys(deseno.activity_status_dic).length) return null;
 
             const now = window.NetMgr.gInst().getTime();
             const openStatus = window.ComCt && window.ComCt.activityStatus && window.ComCt.activityStatus.open;
@@ -261,7 +263,9 @@
             let error = null;
             try { banners = bannerGetOpenList(); } catch (e) { error = String(e && e.message || e); }
             try {
-                window.top.postMessage({ source: BANNER_RES_SOURCE, ready: Boolean(banners), banners: banners || [], error }, '*');
+                let skin;
+                if (typeof skinHudStatus === 'function') { try { skin = skinHudStatus(); } catch (e) { skin = undefined; } }
+                window.top.postMessage({ source: BANNER_RES_SOURCE, ready: Boolean(banners), banners: banners || [], skin, error }, '*');
             } catch (e) { }
         });
 

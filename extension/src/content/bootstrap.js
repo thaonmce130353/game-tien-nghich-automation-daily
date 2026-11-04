@@ -29,8 +29,8 @@
         activeFeature: null,            // Duy nhất 1 tính năng chính hoạt động khi Auto (Chống xung đột); mặc định chưa chọn
         
         // --- 8 MODULE ƯU TIÊN HOÀN CHỈNH ---
-        // Module 1: Thông Thiên Tháp & Tứ Linh Tháp
-        autoTongTian: false,            // Quét & Leo Thông Thiên Tháp (Hỗ trợ mua thêm bằng Tiên Ngọc)
+        // Module 1: Tự Động Leo Thông Thiên Tháp (riêng); Quét nhanh dùng thêm chế độ quét Thông Thiên + Tứ Linh (towerSweepOnly)
+        autoTongTian: false,            // Tự động leo Thông Thiên Tháp
         buyTowerSweep: true,            // Tự mua thêm lượt quét Thông Thiên Tháp
         towerSweepOnly: false,          // chỉ do Quét nhanh đặt: Thông Thiên/Tứ Linh chỉ quét & đánh ải mỗi ngày, không leo
         towerDailyRoutine: true,        // Nhận thưởng và Quét ải mỗi ngày: Thông Thiên (2 free + 1 mua) & Tứ Linh (10 ải mới + 2 quét free)
@@ -62,8 +62,9 @@
         // Module 8: Hoạt Động Ngày, Tiên Minh & Nhận Cuối Ngày
         autoTroChien: false,            // Trợ Chiến Linh Thú (Tab Hoàn & Nhận nhanh)
         autoTamTienDai: false,          // Nhận quà miễn phí Tâm Tiên Đài và Chiêu Mộ
-        buyTamTienGifts: true,          // Tự mua quà Tiên Ngọc Tâm Tiên Đài (đổi trong cài đặt ⚙ của tính năng)
         autoTienHuu: false,             // Tặng nhanh quà Bạn Bè (Tiên Hữu)
+        autoSkinBanner: false,          // Banner skin (Ảo Hình): Quà Ảo Hình, Chiêu mộ 1 lần, Chiến Lệnh
+        autoDailyReward: false,         // Nhận Thưởng Ngày: điểm danh, thẻ tháng, quà ngày/tuần/tháng, điểm VIP (chỉ phần miễn phí)
         autoThaiCo: false,              // Thái Cổ Thu Hà: quét tầng trước 2 lần miễn phí, Like top 3 BXH
         autoArena: false,               // Đấu Tiên Đài PvP (giới hạn lượt, chọn đối thủ thấp)
         arenaBattleLimit: 5,             // Số trận Đấu Tiên Đài tối đa mỗi lần chạy Auto

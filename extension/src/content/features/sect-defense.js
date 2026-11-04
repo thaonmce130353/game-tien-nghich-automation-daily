@@ -12,7 +12,8 @@
         const SECT_FIGHT_TIMEOUT_MS = 90000;
         const SECT_MAX_BATTLES = 100;
         const SECT_ZL_TERM_ID = 1;
-        const SECT_MAX_STAGE_CLAIMS = 10;
+        const SECT_MAX_STAGE_CLAIMS = 20;
+        let sectDidSend = false;          // nhịp này đã gửi yêu cầu thật (nếu không: chỉ chờ, scheduler kiểm tra lại ngay)
         const SECT_STATE_READY = 1;
         const SECT_STATE_FIGHTING = 2;
         const SECT_STATE_END = 3;
@@ -36,7 +37,7 @@
                 emb: null,
                 idleSince: Date.now(),
                 lastEntryAt: 0,
-                stageReward: { refreshing: null, pending: null, claimed: 0 },
+                stageReward: { claimed: 0, batch: null },
                 claim: { stage: 'open', refreshing: null, before: 0 }
             };
         }
@@ -210,48 +211,82 @@
             return true;
         }
 
-        // Thưởng mốc của màn Thủ Vệ Tứ Phái: nút nhận dùng ctrl.gNextSTRwId(); nhận được khi mốc <= maxId (đã thắng tới đó).
+        // Thưởng mốc của màn Thủ Vệ Tứ Phái: cùng điều kiện với ctrl.gNextSTRwId() của game, nhưng liệt kê TẤT CẢ mốc đã đạt
+        // (id > mốc đã nhận cuối cùng, id <= maxId đã thắng tới). Mỗi mốc nhận bằng sd11032(id); máy chủ trả lời từng cái rồi game tự
+        // tải lại trạng thái, nên có thể gửi liên tiếp rồi xác nhận một lần (nhanh hơn đợi từng mốc).
+        function sectReachedStageRewardIds(ctrl, data) {
+            const model = ctrl.getCurlModel();
+            const cfg = model.getStRwCfg();
+            const ids = Object.keys(cfg).map(Number).sort((x, y) => x - y);
+            const done = data.fAwrdIds || [];
+            const last = done.length ? done[done.length - 1].id : 0;
+            if (done.length && last >= model.getLastGuanKaId()) return [];
+            const maxId = Number(data.maxId) || 0;
+            return ids.filter((id) => id > last && id <= maxId);
+        }
+
+        const SECT_STAGE_CLAIM_GAP_MS = 200;      // khoảng cách giữa hai lần gửi nhận mốc
+        const SECT_STAGE_SETTLE_MS = 3000;        // số mốc còn lại không đổi trong khoảng này sau khi gửi xong -> kết luận
+
         function sectHandleStageReward(ctrl, state, now) {
             const sr = state.stageReward;
-            if (typeof ctrl.gNextSTRwId !== 'function' || typeof ctrl.sd11032 !== 'function') {
+            if (typeof ctrl.getCurlModel !== 'function' || typeof ctrl.sd11032 !== 'function') {
                 failSect(state, 'sr-missing', "Bản game không có hàm nhận thưởng mốc; bỏ qua bước này.", 'claim');
                 return false;
-            }
-            if (sr.pending) {
-                const pending = sr.pending;
-                const r = pollTowerDailyRefresh(sr, 'refreshing', now, () => ctrl.sd11032(pending.id), () => ctrl.endLsData);
-                if (r === 'wait') return true;
-                sr.pending = null;
-                if (r !== 'ready') {
-                    failSect(state, 'sr-timeout', `Máy chủ chưa xác nhận nhận thưởng mốc #${pending.id}; không gửi lại để tránh trùng.`, 'claim');
-                    return true;
-                }
-                if (ctrl.gNextSTRwId() === pending.id) {
-                    failSect(state, 'sr-unconfirmed', `Đã gửi nhận thưởng mốc #${pending.id} nhưng game vẫn chưa ghi nhận; dừng bước này.`, 'claim');
-                    return true;
-                }
-                sr.claimed++;
-                sendLog(`✅ [Thủ Vệ Tứ Phái] Máy chủ xác nhận đã nhận thưởng mốc #${pending.id}.`, "result");
-                return true;
             }
             const data = ctrl.endLsData;
             if (!data) {
                 failSect(state, 'sr-nodata', "Chưa có dữ liệu Thí Luyện để kiểm tra thưởng mốc.", 'claim');
                 return false;
             }
-            const nextId = ctrl.gNextSTRwId();
-            const maxId = Number(data.maxId) || 0;
-            if (nextId === null || nextId === undefined || nextId > maxId || sr.claimed >= SECT_MAX_STAGE_CLAIMS) {
-                const detail = nextId ? ` (đã thắng tới #${maxId}, mốc kế tiếp #${nextId})` : ' (đã nhận hết các mốc)';
-                sendLog(sr.claimed
-                    ? `ℹ️ [Thủ Vệ Tứ Phái] Đã nhận ${sr.claimed} thưởng mốc; không còn mốc nào đủ điều kiện${detail}.`
-                    : `ℹ️ [Thủ Vệ Tứ Phái] Chưa có thưởng mốc nào đủ điều kiện nhận${detail}.`, "info");
+            let ids;
+            try { ids = sectReachedStageRewardIds(ctrl, data); } catch (e) {
+                failSect(state, 'sr-cfg', "Không đọc được danh sách mốc thưởng; bỏ qua bước này.", 'claim');
+                return false;
+            }
+            const b = sr.batch;
+            if (!b) {
+                if (!ids.length || sr.claimed >= SECT_MAX_STAGE_CLAIMS) {
+                    sendLog(sr.claimed
+                        ? `ℹ️ [Thủ Vệ Tứ Phái] Đã nhận ${sr.claimed} thưởng mốc; không còn mốc nào đủ điều kiện (đã thắng tới #${Number(data.maxId) || 0}).`
+                        : `ℹ️ [Thủ Vệ Tứ Phái] Chưa có thưởng mốc nào đủ điều kiện nhận (đã thắng tới #${Number(data.maxId) || 0}).`, "info");
+                    state.phase = 'claim';
+                    return true;
+                }
+                const take = ids.slice(0, SECT_MAX_STAGE_CLAIMS - sr.claimed);
+                sr.batch = { ids: take, sent: 0, lastAt: 0, token: data, remaining: take.length, changedAt: now };
+                sendLog(`🎁 [Thủ Vệ Tứ Phái] Đã chạm ${take.length} mốc thưởng (${take.map((x) => '#' + x).join(', ')}; thắng tới #${Number(data.maxId) || 0}); nhận liên tiếp.`, "action");
+                return true;
+            }
+            // Gửi lần lượt các mốc (không đợi từng phản hồi).
+            if (b.sent < b.ids.length) {
+                if (now - b.lastAt < SECT_STAGE_CLAIM_GAP_MS) return true;
+                b.lastAt = now;
+                sectDidSend = true;
+                ctrl.sd11032(b.ids[b.sent]);
+                b.sent++;
+                b.changedAt = now;
+                return true;
+            }
+            // Đã gửi hết: đợi dữ liệu máy chủ (game tự tải lại sau mỗi phản hồi) cho thấy các mốc đã nhận.
+            const refreshed = ctrl.endLsData !== b.token;
+            const remaining = refreshed ? ids.filter((x) => b.ids.includes(x)).length : b.ids.length;
+            if (remaining !== b.remaining) { b.remaining = remaining; b.changedAt = now; }
+            const settled = now - b.changedAt >= SECT_STAGE_SETTLE_MS;
+            if (refreshed && remaining === 0) {
+                sr.claimed += b.ids.length;
+                sr.batch = null;
+                sendLog(`✅ [Thủ Vệ Tứ Phái] Máy chủ xác nhận đã nhận ${b.ids.length} thưởng mốc.`, "result");
                 state.phase = 'claim';
                 return true;
             }
-            sr.pending = { id: nextId };
-            sr.refreshing = null;
-            sendLog(`🎁 [Thủ Vệ Tứ Phái] Đã chạm mốc thưởng #${nextId} (thắng tới #${maxId}); đang nhận.`, "action");
+            if (now - b.lastAt >= SECT_REQUEST_TIMEOUT_MS || (refreshed && settled)) {
+                const got = b.ids.length - remaining;
+                sr.claimed += got;
+                sr.batch = null;
+                if (got > 0) sendLog(`✅ [Thủ Vệ Tứ Phái] Máy chủ xác nhận đã nhận ${got}/${b.ids.length} thưởng mốc.`, "result");
+                failSect(state, 'sr-unconfirmed', `Còn ${remaining} mốc thưởng chưa được máy chủ xác nhận sau khi gửi; không gửi lại để tránh trùng.`, 'claim');
+            }
             return true;
         }
 
@@ -265,12 +300,13 @@
             }
             // Đóng màn Thủ Vệ Tứ Phái (nút đóng của game) trước khi sang Chiến Lệnh.
             if (c.stage === 'open' && sectViewVisible(vm, 'eTMainUi') && typeof ctrl.clsElessTUi === 'function') {
+                sectDidSend = true;
                 ctrl.clsElessTUi();
                 return true;
             }
             const tokenOf = () => rc.getZlNetVoByType(zlType);
             if (c.stage === 'open') {
-                const r = pollTowerDailyRefresh(c, 'refreshing', now, () => rc.openZhanLingUi(zlType, SECT_ZL_TERM_ID), tokenOf);
+                const r = pollTowerDailyRefresh(c, 'refreshing', now, () => { sectDidSend = true; rc.openZhanLingUi(zlType, SECT_ZL_TERM_ID); }, tokenOf);
                 if (r === 'wait') return true;
                 if (r !== 'ready') {
                     failSect(state, 'zl-open', "Máy chủ chưa trả dữ liệu Chiến Lệnh; bỏ qua bước nhận.", 'done');
@@ -293,7 +329,7 @@
                 return true;
             }
             if (c.stage === 'claim') {
-                const r = pollTowerDailyRefresh(c, 'refreshing', now, () => rc.send12322(zlType, SECT_ZL_TERM_ID), tokenOf);
+                const r = pollTowerDailyRefresh(c, 'refreshing', now, () => { sectDidSend = true; return rc.send12322(zlType, SECT_ZL_TERM_ID); }, tokenOf);
                 if (r === 'wait') return true;
                 if (r !== 'ready') {
                     failSect(state, 'zl-claim', "Máy chủ chưa xác nhận việc nhận Chiến Lệnh; không gửi lại để tránh trùng.", 'done');
@@ -337,8 +373,9 @@
 
                 const now = Date.now();
                 if (state.phase === 'status') return sectHandleStatus(ctx, ctrl, state, now);
-                if (state.phase === 'stageReward') return sectHandleStageReward(ctrl, state, now);
-                if (state.phase === 'claim') return sectHandleClaim(ctx, ctrl, vm, state, now);
+                // Hai bước nhận thưởng toàn là gửi + chờ máy chủ: 'wait' khi chưa gửi gì để scheduler kiểm tra lại ngay.
+                if (state.phase === 'stageReward') { sectDidSend = false; const r = sectHandleStageReward(ctrl, state, now); return r === true && !sectDidSend ? 'wait' : r; }
+                if (state.phase === 'claim') { sectDidSend = false; const r = sectHandleClaim(ctx, ctrl, vm, state, now); return r === true && !sectDidSend ? 'wait' : r; }
 
                 // phase === 'fight'
                 if (sectCheckBattleResult(ctrl, state, now)) return true;
