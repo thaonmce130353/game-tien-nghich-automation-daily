@@ -16,7 +16,6 @@ Lookup order for game-controller questions: read this file, then the single file
 - `data/` raw inputs and machine-readable output.
   - `tn-exposure-probe.json`: export from the HUD **🔍 Probe → Quét → Xuất JSON** (input to the generator). The Probe source and its exports are tracked in git, and every build includes the Probe (there is no `--no-local` option during development).
   - `game-controller-methods.json`: generator output with every method grouped by kind (use `grep`/`node -e` on one controller, not a full read).
-  - `tn-banner-status.json`: export from **Banner hero → Xuất JSON** when saved here.
 - `game-client/` local-only copy of the proprietary game bundle. Never commit or redistribute (see the root README).
 
 ## Rules of thumb

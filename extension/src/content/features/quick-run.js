@@ -26,8 +26,51 @@ function quickStepMaxMs(key) { return QUICK_STEP_MAX_MS_BY_KEY[key] || QUICK_STE
             const q = QUICK_RUN_QUEUE.filter((k) => sel.includes(k));
             return q.length ? q : QUICK_RUN_QUEUE.slice();
         }
-        // Dãy đang áp dụng: dãy đã chốt lúc bắt đầu chạy (không đổi giữa chừng), nếu không thì dãy đang chọn.
-        function quickQueueNow() { return quickRun ? quickRun.queue : quickSelectedQueue(); }
+        // Các bước SỰ KIỆN: tự bỏ qua khi game báo rõ ràng không có sự kiện đang mở (chưa biết = vẫn giữ lại).
+        const QUICK_EVENT_STEPS = ['autoBanner', 'autoSkinBanner'];
+        // true = đang mở, false = game báo không có sự kiện nào, null = chưa biết (game chưa tải dữ liệu).
+        function quickEventOpenState(key) {
+            try {
+                if (key === 'autoBanner') {
+                    const list = typeof bannerGetOpenList === 'function' ? bannerGetOpenList() : null;
+                    return list ? list.length > 0 : null;
+                }
+                if (key === 'autoSkinBanner') {
+                    const st = typeof skinHudStatus === 'function' ? skinHudStatus() : null;
+                    if (!st || st.unknown) return null;
+                    return Boolean(st.open);
+                }
+            } catch (e) { }
+            return null;
+        }
+        // Tên sự kiện đang mở để hiện cạnh bước (hero: "Thần Lâm · <tên tướng>", skin: tên skin mục tiêu).
+        function quickEventDetail(key) {
+            try {
+                if (key === 'autoBanner') {
+                    const list = typeof bannerGetOpenList === 'function' ? bannerGetOpenList() : null;
+                    if (!list || !list.length) return [];
+                    return list.map((b) => b.series + (b.heroName ? ' · ' + b.heroName : ''));
+                }
+                if (key === 'autoSkinBanner') {
+                    const st = typeof skinHudStatus === 'function' ? skinHudStatus() : null;
+                    return st && st.open && st.name ? [String(st.name)] : [];
+                }
+            } catch (e) { }
+            return [];
+        }
+        // Dãy sẽ chạy nếu bắt đầu bây giờ: các bước đã chọn trừ bước sự kiện mà game báo không có.
+        function quickEffectiveQueue() {
+            return quickSelectedQueue().filter((k) => !QUICK_EVENT_STEPS.includes(k) || quickEventOpenState(k) !== false);
+        }
+        // Tiến độ đã lưu còn dùng được: cùng các bước thường đã chọn; bước sự kiện có thể đã bị bỏ qua lúc đó.
+        function quickKeysCompatible(keys) {
+            if (!Array.isArray(keys)) return false;
+            const sel = quickSelectedQueue();
+            const core = (a) => a.filter((k) => !QUICK_EVENT_STEPS.includes(k)).join();
+            return core(keys) === core(sel) && keys.filter((k) => QUICK_EVENT_STEPS.includes(k)).every((k) => sel.includes(k));
+        }
+        // Dãy đang áp dụng: dãy đã chốt lúc bắt đầu chạy (không đổi giữa chừng), nếu không thì dãy sẽ chạy nếu bắt đầu bây giờ.
+        function quickQueueNow() { return quickRun ? quickRun.queue : quickEffectiveQueue(); }
         let quickRun = null;
 const QUICK_ARENA_BATTLES = 3;     // Đấu Tiên Đài trong Quét nhanh: tối đa 3 trận
 
@@ -38,7 +81,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
         function quickSaveLoad() {
             try {
                 const o = JSON.parse(sessionStorage.getItem(QUICK_SAVE_KEY) || 'null');
-                if (o && o.day === new Date().toDateString() && Array.isArray(o.keys) && o.keys.join() === quickSelectedQueue().join() && o.total === o.keys.length &&
+                if (o && o.day === new Date().toDateString() && quickKeysCompatible(o.keys) && o.total === o.keys.length &&
                     Number.isInteger(o.idx) && o.idx > 0 && o.idx < o.total && Array.isArray(o.results)) return o;
             } catch (e) { }
             return null;
@@ -66,7 +109,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
                 const o = quickSaveLoad();
                 if (o) saved = { idx: o.idx, total: o.total, label: RUN_LABELS[o.keys[o.idx]] || o.keys[o.idx], done: o.results.length };
             }
-            try { window.top.postMessage({ source: 'TIEN_NGHICH_AUTO_GAME', action: 'QUICK_RUN_SAVED', saved, active, total: quickQueueNow().length, steps: QUICK_RUN_QUEUE.map((k) => ({ key: k, label: RUN_LABELS[k] || k })), selected: quickSelectedQueue(), completed: Boolean(completed) }, '*'); } catch (e) { }
+            try { window.top.postMessage({ source: 'TIEN_NGHICH_AUTO_GAME', action: 'QUICK_RUN_SAVED', saved, active, total: quickQueueNow().length, steps: QUICK_RUN_QUEUE.map((k) => (QUICK_EVENT_STEPS.includes(k) ? { key: k, label: RUN_LABELS[k] || k, event: true, open: quickEventOpenState(k), detail: quickEventDetail(k) } : { key: k, label: RUN_LABELS[k] || k })), selected: quickSelectedQueue(), completed: Boolean(completed), fromGame: Boolean(window.DailyDungeonCtrl), eventsPending: quickRun ? 0 : quickSelectedQueue().filter((k) => QUICK_EVENT_STEPS.includes(k) && quickEventOpenState(k) === null).length, skippedEvents: quickSelectedQueue().filter((k) => !quickQueueNow().includes(k)).map((k) => RUN_LABELS[k] || k) }, '*'); } catch (e) { }
         }
 
         // Cài đặt chọn bước đổi: tiến độ tạm dừng cũ không còn khớp dãy mới -> xóa (không đụng khi đang chạy; HUD cũng khóa lúc đó).
@@ -74,7 +117,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             if (quickRun) return;
             try {
                 const o = JSON.parse(sessionStorage.getItem(QUICK_SAVE_KEY) || 'null');
-                if (o && (!Array.isArray(o.keys) || o.keys.join() !== quickSelectedQueue().join())) quickSaveClear();
+                if (o && !quickKeysCompatible(o.keys)) quickSaveClear();
             } catch (e) { }
             quickReportSaved();
         }
@@ -152,7 +195,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             quickSaveClear();
             quickActiveFlag(true);
             quickRun = {
-                queue: quickSelectedQueue(),
+                queue: saved ? saved.keys.slice() : quickEffectiveQueue(),
                 idx: saved ? saved.idx : 0, results: saved ? saved.results : [], startedAt: Date.now(), stepStartedAt: Date.now(), gapUntil: 0,
                 savedActive: CONFIG.activeFeature, savedTowerDaily: CONFIG.towerDailyRoutine,
                 savedFlags: QUICK_RUN_QUEUE.map((k) => [k, CONFIG[k]]),
@@ -162,6 +205,8 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
                 quickRun.priorMs = saved.results.reduce((t, x) => t + (x.ms || 0), 0);
                 sendLog(`⏯ [Quét nhanh] Tiếp tục từ bước ${saved.idx + 1}/${quickRun.queue.length} (đã xong ${saved.results.length} bước).`, 'run');
             } else {
+                const skipped = quickSelectedQueue().filter((k) => !quickRun.queue.includes(k));
+                if (skipped.length) sendLog(`⏭ [Quét nhanh] Bỏ qua vì không có sự kiện đang mở: ${skipped.map((k) => RUN_LABELS[k] || k).join(', ')}.`, 'run');
                 sendLog(`⚡ [Quét nhanh] Bắt đầu ${quickRun.queue.length} bước${quickRun.queue.includes('autoCuoiNgay') ? ', Nhận Cuối Ngày là bước cuối' : ''}. Dừng bất cứ lúc nào bằng nút TẠM DỪNG (có thể tiếp tục sau).`, 'run');
             }
             quickReportSaved();

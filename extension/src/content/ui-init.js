@@ -57,6 +57,8 @@
         // Tiến độ QUÉT NHANH đã lưu (null = không có): nút chính thành TIẾP TỤC, hiện thêm nút CHẠY LẠI TỪ ĐẦU.
         let quickSavedInfo = null;
         let quickStepsCatalog = [];  // [{key, label}] các bước Quét nhanh, do game báo
+        let quickEventsPending = 0;    // sự kiện đã chọn mà game chưa báo trạng thái (chưa tải xong)
+        let quickSkippedEvents = [];   // sự kiện đang bị tự bỏ qua (game báo không có sự kiện đang mở)
         let quickTotalSteps = 0;     // số bước của dãy Quét nhanh, do game báo (HUD không có QUICK_RUN_QUEUE)
         function updateQuickButtons(saved, active) {
             quickSavedInfo = saved || null;
@@ -71,8 +73,9 @@
                     ? 'Bước ' + (active.idx + 1) + '/' + active.total + ' · ' + active.label
                     : (quickSavedInfo
                         ? 'Bước ' + (quickSavedInfo.idx + 1) + '/' + quickSavedInfo.total + ' · ' + quickSavedInfo.label
-                        : (quickTotalSteps ? '1 chạm · ' + quickTotalSteps + ' bước' : sub.textContent));
-                btn.title = quickSavedInfo ? 'Tiếp tục QUÉT NHANH từ bước: ' + quickSavedInfo.label + ' (đã xong ' + quickSavedInfo.done + ' bước)' : (btn.dataset.baseTitle || btn.title);
+                        : (quickTotalSteps ? '1 chạm · ' + Math.max(0, quickTotalSteps - quickEventsPending) + ' bước' + (quickEventsPending ? ' (+' + quickEventsPending + ' sự kiện đang tải)' : (quickSkippedEvents.length ? ' (bỏ ' + quickSkippedEvents.length + ' sự kiện)' : '')) : sub.textContent));
+                btn.title = (quickSavedInfo ? 'Tiếp tục QUÉT NHANH từ bước: ' + quickSavedInfo.label + ' (đã xong ' + quickSavedInfo.done + ' bước)' : (btn.dataset.baseTitle || btn.title.split('\u000a')[0]))
+                    + (!active && !quickSavedInfo && quickSkippedEvents.length ? '\nBỏ qua vì không có sự kiện đang mở: ' + quickSkippedEvents.join(', ') : '');
             }
             if (fresh) fresh.style.display = quickSavedInfo ? 'flex' : 'none';
             if (group) group.classList.toggle('has-saved', Boolean(quickSavedInfo));
@@ -141,7 +144,11 @@
             } else if (data.action === 'LOG') {
                 addLogToUI(data.message, data.logType);
             } else if (data.action === 'QUICK_RUN_SAVED') {
+                // Khung HUD cũng chạy cùng script nhưng không có dữ liệu game: bỏ qua báo cáo của nó, chỉ nhận báo cáo của khung game.
+                if (data.fromGame === false) return;
                 if (data.total) quickTotalSteps = data.total;
+                quickSkippedEvents = Array.isArray(data.skippedEvents) ? data.skippedEvents : [];
+                quickEventsPending = Number(data.eventsPending) || 0;
                 if (Array.isArray(data.steps)) quickStepsCatalog = data.steps;
                 updateQuickButtons(data.completed ? null : data.saved, data.completed ? null : data.active);
             } else if (data.action === 'AUTO_FINISHED') {

@@ -345,6 +345,9 @@
                     max-height: calc(100% - 16px);
                     display: flex; flex-direction: column;
                 }
+                #tn-settings-card .tn-set-events { flex: 0 0 auto; }
+                #tn-settings-card .tn-set-btnrow { display: flex; gap: 6px; flex: 0 0 auto; margin-top: 6px; }
+                #tn-settings-card .tn-set-btnrow .tn-action-btn { flex: 1 1 0; width: auto; min-width: 0; margin: 0; padding: 6px 0; }
                 #tn-settings-card .tn-set-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 2px; }
                 #tn-settings-card .tn-set-list::-webkit-scrollbar { width: 4px; }
                 #tn-settings-card .tn-set-list::-webkit-scrollbar-thumb { background: #45475a; border-radius: 4px; }

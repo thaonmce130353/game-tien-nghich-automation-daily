@@ -176,6 +176,8 @@
         // Tiến độ QUÉT NHANH đã lưu (null = không có): nút chính thành TIẾP TỤC, hiện thêm nút CHẠY LẠI TỪ ĐẦU.
         let quickSavedInfo = null;
         let quickStepsCatalog = [];  // [{key, label}] các bước Quét nhanh, do game báo
+        let quickEventsPending = 0;    // sự kiện đã chọn mà game chưa báo trạng thái (chưa tải xong)
+        let quickSkippedEvents = [];   // sự kiện đang bị tự bỏ qua (game báo không có sự kiện đang mở)
         let quickTotalSteps = 0;     // số bước của dãy Quét nhanh, do game báo (HUD không có QUICK_RUN_QUEUE)
         function updateQuickButtons(saved, active) {
             quickSavedInfo = saved || null;
@@ -190,8 +192,9 @@
                     ? 'Bước ' + (active.idx + 1) + '/' + active.total + ' · ' + active.label
                     : (quickSavedInfo
                         ? 'Bước ' + (quickSavedInfo.idx + 1) + '/' + quickSavedInfo.total + ' · ' + quickSavedInfo.label
-                        : (quickTotalSteps ? '1 chạm · ' + quickTotalSteps + ' bước' : sub.textContent));
-                btn.title = quickSavedInfo ? 'Tiếp tục QUÉT NHANH từ bước: ' + quickSavedInfo.label + ' (đã xong ' + quickSavedInfo.done + ' bước)' : (btn.dataset.baseTitle || btn.title);
+                        : (quickTotalSteps ? '1 chạm · ' + Math.max(0, quickTotalSteps - quickEventsPending) + ' bước' + (quickEventsPending ? ' (+' + quickEventsPending + ' sự kiện đang tải)' : (quickSkippedEvents.length ? ' (bỏ ' + quickSkippedEvents.length + ' sự kiện)' : '')) : sub.textContent));
+                btn.title = (quickSavedInfo ? 'Tiếp tục QUÉT NHANH từ bước: ' + quickSavedInfo.label + ' (đã xong ' + quickSavedInfo.done + ' bước)' : (btn.dataset.baseTitle || btn.title.split('\u000a')[0]))
+                    + (!active && !quickSavedInfo && quickSkippedEvents.length ? '\nBỏ qua vì không có sự kiện đang mở: ' + quickSkippedEvents.join(', ') : '');
             }
             if (fresh) fresh.style.display = quickSavedInfo ? 'flex' : 'none';
             if (group) group.classList.toggle('has-saved', Boolean(quickSavedInfo));
@@ -260,7 +263,11 @@
             } else if (data.action === 'LOG') {
                 addLogToUI(data.message, data.logType);
             } else if (data.action === 'QUICK_RUN_SAVED') {
+                // Khung HUD cũng chạy cùng script nhưng không có dữ liệu game: bỏ qua báo cáo của nó, chỉ nhận báo cáo của khung game.
+                if (data.fromGame === false) return;
                 if (data.total) quickTotalSteps = data.total;
+                quickSkippedEvents = Array.isArray(data.skippedEvents) ? data.skippedEvents : [];
+                quickEventsPending = Number(data.eventsPending) || 0;
                 if (Array.isArray(data.steps)) quickStepsCatalog = data.steps;
                 updateQuickButtons(data.completed ? null : data.saved, data.completed ? null : data.active);
             } else if (data.action === 'AUTO_FINISHED') {
@@ -750,6 +757,9 @@
                     max-height: calc(100% - 16px);
                     display: flex; flex-direction: column;
                 }
+                #tn-settings-card .tn-set-events { flex: 0 0 auto; }
+                #tn-settings-card .tn-set-btnrow { display: flex; gap: 6px; flex: 0 0 auto; margin-top: 6px; }
+                #tn-settings-card .tn-set-btnrow .tn-action-btn { flex: 1 1 0; width: auto; min-width: 0; margin: 0; padding: 6px 0; }
                 #tn-settings-card .tn-set-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 2px; }
                 #tn-settings-card .tn-set-list::-webkit-scrollbar { width: 4px; }
                 #tn-settings-card .tn-set-list::-webkit-scrollbar-thumb { background: #45475a; border-radius: 4px; }
@@ -1096,7 +1106,7 @@
                 <div id="tn-hud-footer">
                     <button id="tn-btn-main" class="tn-action-btn tn-btn-start">▶ BẮT ĐẦU AUTO</button>
                     <div id="tn-quick-group">
-                        <button id="tn-btn-sweep" class="tn-action-btn tn-btn-sweep" title="Chạy lần lượt: Nhận Thưởng Ngày, Tâm Tiên Đài, Tiên Hữu, Thái Cổ Thu Hà, Trợ Chiến, Tiên Minh, Thông Thiên (quét 3 lần) + Tứ Linh (10 ải), Phụ Bản Ngày & Bí Cảnh, Thủ Vệ, Cửu Uyển Nhi & Cổ Thần, Cực Âm, Di Tích, Ảo Cảnh, Kiếm Hành & Điêu Long, Vực U Minh, Đấu Tiên Đài, Ma Đạo, Banner, Banner Skin; cuối cùng Nhận Cuối Ngày."><span class="tn-qb-main">⚡ QUÉT NHANH</span><span class="tn-qb-sub">1 chạm · 17 bước</span></button>
+                        <button id="tn-btn-sweep" class="tn-action-btn tn-btn-sweep" title="Chạy lần lượt: Nhận Thưởng Ngày, Tâm Tiên Đài, Tiên Hữu, Thái Cổ Thu Hà, Trợ Chiến, Tiên Minh, Thông Thiên (quét 3 lần) + Tứ Linh (10 ải), Phụ Bản Ngày & Bí Cảnh, Thủ Vệ, Cửu Uyển Nhi & Cổ Thần, Cực Âm, Di Tích, Ảo Cảnh, Kiếm Hành & Điêu Long, Vực U Minh, Đấu Tiên Đài, Ma Đạo, Banner, Banner Skin; cuối cùng Nhận Cuối Ngày."><span class="tn-qb-main">⚡ QUÉT NHANH</span><span class="tn-qb-sub">1 chạm</span></button>
                         <button id="tn-btn-quick-fresh" class="tn-action-btn tn-btn-sweep" style="display:none;" title="Chạy lại từ đầu (bỏ tiến độ đã lưu)">↺</button>
                         <button id="tn-btn-quick-cfg" class="tn-action-btn tn-btn-sweep" title="Chọn các bước của QUÉT NHANH">⚙</button>
                     </div>
@@ -1125,6 +1135,12 @@
             }
         };
 
+        // Popup Quét nhanh đang mở: chữ ký các sự kiện đã hiển thị (null = không mở) và hàm làm mới khi game báo dữ liệu mới.
+        let quickPopupSig = null;
+        let quickPopupRefresh = null;
+        const quickEventSig = () => JSON.stringify(quickStepsCatalog.filter((st) => st.event)
+            .map((st) => [st.key, st.open === undefined ? null : st.open, st.detail]));
+
         function featureSettingNormalize(field, raw) {
             if (field.type === 'checkbox') return Boolean(raw);
             const n = Number(raw);
@@ -1149,7 +1165,7 @@
             overlay.appendChild(card);
             hud.appendChild(overlay);
 
-            const close = () => overlay.classList.remove('open');
+            const close = () => { overlay.classList.remove('open'); quickPopupSig = null; };
             overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) close(); });
             document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
 
@@ -1206,6 +1222,8 @@
 
             // Cài đặt QUÉT NHANH: tick chọn các bước (thứ tự cố định, không đổi được). Đổi lựa chọn thì bỏ tiến độ tạm dừng cũ.
             function openQuickSteps() {
+                const prevScroll = (card.querySelector('.tn-set-list') || {}).scrollTop || 0;
+                quickPopupSig = quickEventSig();
                 card.textContent = '';
                 const head = document.createElement('div');
                 head.className = 'tn-set-head';
@@ -1255,41 +1273,102 @@
                     addLogToUI('⚙ Quét nhanh: chạy ' + keys.length + '/' + quickStepsCatalog.length + ' bước.', 'info');
                 };
                 const selected = new Set(Array.isArray(CONFIG.quickSteps) ? CONFIG.quickSteps : quickStepsCatalog.map((st) => st.key));
-                quickStepsCatalog.forEach((st, i) => {
+                // Hai phần: các bước thường (đánh số) và phần "Sự kiện" riêng (tự bỏ qua khi game báo không có sự kiện đang mở).
+                let evBox = null;     // phần Sự kiện cố định bên dưới, không cuộn theo danh sách bước thường
+                let eventsLoading = false;
+                let stepNo = 0;
+                // Phần thường trước, phần Sự kiện sau (thứ tự chạy thật vẫn theo dãy gốc, Nhận Cuối Ngày luôn cuối).
+                const order = quickStepsCatalog.map((st, i) => i).sort((x, y) => (quickStepsCatalog[x].event ? 1 : 0) - (quickStepsCatalog[y].event ? 1 : 0) || x - y);
+                order.forEach((i) => {
+                    const st = quickStepsCatalog[i];
+                    // Sự kiện chưa có dữ liệu từ game: chưa hiện lựa chọn (giữ nguyên trạng thái đã chọn), hiện khi game đã báo.
+                    const unknown = st.event && (st.open === null || st.open === undefined);
+                    if (st.event && !evBox) {
+                        evBox = document.createElement('div');
+                        evBox.className = 'tn-set-events';
+                        card.appendChild(evBox);
+                        const head2 = document.createElement('div');
+                        head2.className = 'tn-set-hint';
+                        head2.style.cssText = 'margin:8px 0 4px 0;padding-top:6px;border-top:1px solid rgba(203,166,247,0.35);color:#cba6f7;font-weight:bold;';
+                        head2.textContent = '🎴 Sự kiện';
+                        const sub2 = document.createElement('div');
+                        sub2.className = 'tn-set-hint';
+                        sub2.style.margin = '0 0 4px 0';
+                        sub2.textContent = 'Tự bỏ qua khi game báo hiện không có sự kiện đó đang mở (không tính vào số bước).';
+                        evBox.append(head2, sub2);
+                    }
+                    if (unknown) { boxes[i] = { checked: selected.has(st.key) }; eventsLoading = true; return; }
                     const row = document.createElement('label');
                     row.className = 'tn-set-field';
                     const text = document.createElement('div');
                     const label = document.createElement('div');
                     label.className = 'tn-set-label';
-                    label.textContent = (i + 1) + '. ' + st.label;
+                    label.textContent = st.event ? st.label : (++stepNo) + '. ' + st.label;
                     text.appendChild(label);
+                    if (st.event) {
+                        // Trạng thái nằm cạnh tên bước (cùng một dòng).
+                        const state = document.createElement('span');
+                        state.style.cssText = 'margin-left:8px;font-weight:normal;font-size:9.5px;color:' + (st.open === true ? '#a6e3a1' : '#fab387') + ';';
+                        state.textContent = st.open === true ? '● Đang mở' : '○ Hiện không có (sẽ bỏ qua)';
+                        label.appendChild(state);
+                        // Mỗi tên một dòng.
+                        if (st.open === true && st.detail) {
+                            (Array.isArray(st.detail) ? st.detail : [st.detail]).forEach((n) => {
+                                const name = document.createElement('div');
+                                name.className = 'tn-set-hint';
+                                name.style.cssText = 'color:#f5c2e7;font-weight:bold;';
+                                name.textContent = n;
+                                text.appendChild(name);
+                            });
+                        }
+                    }
                     const input = document.createElement('input');
                     input.type = 'checkbox';
                     input.checked = selected.has(st.key);
                     input.disabled = locked;
                     input.addEventListener('change', () => apply(input));
-                    boxes.push(input);
+                    boxes[i] = input;
                     row.append(text, input);
-                    list.appendChild(row);
+                    (st.event ? evBox : list).appendChild(row);
                 });
+                // Còn sự kiện chưa có dữ liệu: hiện hiệu ứng tải bên dưới phần Sự kiện (tự thay bằng lựa chọn khi game báo).
+                if (evBox && eventsLoading) {
+                    const loading = document.createElement('div');
+                    loading.className = 'tn-set-hint';
+                    loading.style.cssText = 'padding:6px 4px;';
+                    const spin = document.createElement('span');
+                    spin.className = 'tn-spin';
+                    loading.append(spin, 'Đang tải thông tin sự kiện...');
+                    evBox.appendChild(loading);
+                }
+                // "Chọn tất cả" và "Xong" cùng một hàng.
+                const btnRow = document.createElement('div');
+                btnRow.className = 'tn-set-btnrow';
                 if (quickStepsCatalog.length && !locked) {
                     const all = document.createElement('button');
                     all.type = 'button';
                     all.className = 'tn-action-btn tn-btn-start';
-                    all.style.cssText = 'margin:6px 0 0 0;padding:6px 0;';
                     all.textContent = 'Chọn tất cả';
                     all.addEventListener('click', () => { boxes.forEach((b) => { b.checked = true; }); apply(boxes[0]); });
-                    card.appendChild(all);
+                    btnRow.appendChild(all);
                 }
                 const done = document.createElement('button');
                 done.type = 'button';
                 done.className = 'tn-action-btn tn-btn-start';
-                done.style.cssText = 'margin:6px 0 0 0;padding:6px 0;';
                 done.textContent = 'Xong';
                 done.addEventListener('click', close);
-                card.appendChild(done);
+                btnRow.appendChild(done);
+                card.appendChild(btnRow);
+                const newList = card.querySelector('.tn-set-list');
+                if (newList) newList.scrollTop = prevScroll;
                 overlay.classList.add('open');
             }
+            // Game báo trạng thái sự kiện mới trong lúc popup đang mở: dựng lại để hiện các sự kiện vừa có dữ liệu.
+            // Tự theo dõi (không phụ thuộc nơi nhận tin nhắn): popup đang mở mà dữ liệu sự kiện đổi thì dựng lại.
+            quickPopupRefresh = () => {
+                if (quickPopupSig !== null && overlay.classList.contains('open') && quickEventSig() !== quickPopupSig) openQuickSteps();
+            };
+            setInterval(() => { try { quickPopupRefresh(); } catch (e) { } }, 700);
             const quickCfgBtn = document.getElementById('tn-btn-quick-cfg');
             if (quickCfgBtn) quickCfgBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openQuickSteps(); });
 
@@ -1564,18 +1643,15 @@
             const bar = document.createElement('div');
             const runBtn = document.createElement('button');
             runBtn.textContent = 'Quét (chỉ đọc)';
-            const bannerBtn = document.createElement('button');
-            bannerBtn.textContent = 'Banner hero';
             const viewsBtn = document.createElement('button');
             viewsBtn.textContent = 'Màn hình mở';
             const dlBtn = document.createElement('button');
             dlBtn.textContent = 'Xuất JSON';
             dlBtn.disabled = true;
-            for (const b of [runBtn, bannerBtn, viewsBtn, dlBtn]) {
+            for (const b of [runBtn, viewsBtn, dlBtn]) {
                 b.style.cssText = 'background:#45475a;color:#cdd6f4;border:0;border-radius:4px;padding:3px 8px;margin-right:6px;cursor:pointer;';
             }
             bar.appendChild(runBtn);
-            bar.appendChild(bannerBtn);
             bar.appendChild(viewsBtn);
             bar.appendChild(dlBtn);
 
@@ -1638,32 +1714,6 @@
                 out.appendChild(d);
             }
 
-            function fmtTime(v) {
-                if (!v) return '-';
-                const ms = v > 1e12 ? v : v * 1000;
-                return new Date(ms).toLocaleString();
-            }
-
-            function fmtRemain(sec) {
-                if (sec === null || sec === undefined) return '-';
-                const s = sec > 1e9 ? sec / 1000 : sec;
-                const sign = s < 0 ? '-' : '';
-                const a = Math.abs(Math.round(s));
-                return sign + Math.floor(a / 86400) + 'd ' + Math.floor(a % 86400 / 3600) + 'h';
-            }
-
-            function renderBanner(report) {
-                out.textContent = '';
-                line('Banner hero (chỉ đọc): ' + report.rowCount + ' dòng', '#a6e3a1');
-                const rows = report.rows.slice().sort((a, b) => (b.closeTime || 0) - (a.closeTime || 0));
-                for (const r of rows) {
-                    line((r.selected ? '▶ ' : '• ') + r.ctrl.replace('Ctrl', '') + ' #' + r.uniqueId + ' act=' + r.activityId + ' [' + r.state + ']',
-                        r.state === 'open' ? '#a6e3a1' : r.state === 'upcoming' ? '#89b4fa' : (r.state === 'ended' ? '#6c7086' : '#fab387'));
-                    line('   mở: ' + fmtTime(r.startTime) + ' | đóng: ' + fmtTime(r.closeTime) + ' (' + fmtRemain(r.closeInSec) + ') | kết thúc: ' + fmtTime(r.endTime));
-                }
-                for (const e of report.errors) line('Lỗi: ' + e, '#f38ba8');
-            }
-
             function renderViews(report) {
                 out.textContent = '';
                 line('Màn hình đang mở (chỉ đọc): ' + report.views.length, '#a6e3a1');
@@ -1674,7 +1724,6 @@
             }
 
             function render(report) {
-                if (report.kind === 'banner') { renderBanner(report); return; }
                 if (report.kind === 'views') { renderViews(report); return; }
                 out.textContent = '';
                 if (report.error) { line('Lỗi: ' + report.error, '#f38ba8'); return; }
@@ -1695,18 +1744,6 @@
                 out.textContent = '';
                 line('Đang đọc màn hình đang mở...');
                 const req = { source: PROBE_SOURCE_REQ, kind: 'views' };
-                document.querySelectorAll('iframe').forEach((f) => {
-                    try { f.contentWindow.postMessage(req, '*'); } catch (e) { }
-                });
-                try { window.postMessage(req, '*'); } catch (e) { }
-                setTimeout(() => { if (!probeBest) line('Không nhận được kết quả từ frame game.', '#f38ba8'); }, 3000);
-            });
-
-            bannerBtn.addEventListener('click', () => {
-                probeBest = null;
-                out.textContent = '';
-                line('Đang đọc banner...');
-                const req = { source: PROBE_SOURCE_REQ, kind: 'banner' };
                 document.querySelectorAll('iframe').forEach((f) => {
                     try { f.contentWindow.postMessage(req, '*'); } catch (e) { }
                 });
@@ -1736,7 +1773,7 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = probeBest.kind === 'banner' ? 'tn-banner-status.json' : (probeBest.kind === 'views' ? 'tn-open-views.json' : 'tn-exposure-probe.json');
+                a.download = probeBest.kind === 'views' ? 'tn-open-views.json' : 'tn-exposure-probe.json';
                 a.click();
                 setTimeout(() => URL.revokeObjectURL(url), 1000);
             });
@@ -1747,7 +1784,7 @@
                 const frames = [...document.querySelectorAll('iframe')].map((f) => f.contentWindow);
                 if (event.source !== window && !frames.includes(event.source)) return;
                 // Giữ báo cáo có nhiều controller nhất (frame game, không phải frame rỗng).
-                if (!probeBest || data.report.controllerCount > probeBest.controllerCount || ((data.report.kind === 'banner' || data.report.kind === 'views') && probeBest.kind !== data.report.kind)) {
+                if (!probeBest || data.report.controllerCount > probeBest.controllerCount || (data.report.kind === 'views' && probeBest.kind !== data.report.kind)) {
                     probeBest = data.report;
                     render(probeBest);
                     dlBtn.disabled = false;
@@ -9537,10 +9574,6 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
             };
         }
 
-        // Banner hero (super hero) lịch sự kiện: chỉ gọi getter, không gọi send*.
-        const PROBE_BANNER_LEGACY = { SuperHeroCtrl: 'activity_id5601', NewSuperHeroCtrl: 'activity_id7701' };
-        const PROBE_BANNER_CFG_KEYS = /time|day|open|start|end|activity|period|round|term|name|type|hero|unit|preview|fight|system/i;
-
         function probePrimitives(obj, keyFilter) {
             const out = {};
             if (!obj || typeof obj !== 'object') return out;
@@ -9553,68 +9586,6 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
             return out;
         }
 
-        function probeRunBanners() {
-            const rows = [];
-            const errors = [];
-            const now = window.NetMgr && NetMgr.gInst().getTime();
-            // Chỉ đọc thụ động: không gInst(), không getBaseConfig() (xem bannerPeekInstance).
-            const D = bannerPeekInstance(window.DesenoActivityCtrl);
-            const deseno = D && D.getCurlModel();
-            const openStatus = window.ComCt && ComCt.activityStatus && ComCt.activityStatus.open;
-
-            function describe(ctrlName, uniqueId, activityId) {
-                const dat = deseno && deseno.getActDat ? deseno.getActDat(activityId) : undefined;
-                const closeTime = dat ? dat.close_time : 0;
-                const startTime = dat ? dat.start_time || 0 : 0;
-                const endTime = dat ? dat.end_time : 0;
-                const state = !dat ? 'no-data' : dat.status === openStatus ? 'open' : (startTime > now ? 'upcoming' : closeTime > now ? 'not-open' : 'ended');
-                return {
-                    ctrl: ctrlName, uniqueId, activityId, state, startTime, closeTime, endTime,
-                    closeInSec: closeTime ? closeTime - now : null,
-                    activityData: probePrimitives(dat)
-                };
-            }
-
-            try {
-                const ctrl = bannerPeekInstance(window.SuperHeroEncoreCtrl);
-                const model = ctrl && ctrl.getCurlModel();
-                const cfgs = model && model.baseConfigDic;
-                if (cfgs && Object.keys(cfgs).length) {
-                    for (const key of Object.keys(cfgs)) {
-                        const cfg = cfgs[key];
-                        const row = describe('SuperHeroEncoreCtrl', cfg.activity_id !== undefined ? cfg.activity_id : key, cfg.activity);
-                        row.cfg = probePrimitives(cfg, PROBE_BANNER_CFG_KEYS);
-                        row.selected = ctrl.currentUniqueId === row.uniqueId;
-                        rows.push(row);
-                    }
-                }
-            } catch (e) { errors.push('SuperHeroEncoreCtrl: ' + (e && e.message || e)); }
-
-            for (const name of Object.keys(PROBE_BANNER_LEGACY)) {
-                try {
-                    const inst = bannerPeekInstance(window[name]);
-                    if (!inst) continue;
-                    const activityId = window.DesenoActivityConst && DesenoActivityConst.activityIds[PROBE_BANNER_LEGACY[name]];
-                    const row = describe(name, inst.getActivityId(), activityId);
-                    row.legacyActivityKey = PROBE_BANNER_LEGACY[name];
-                    rows.push(row);
-                } catch (e) { errors.push(name + ': ' + (e && e.message || e)); }
-            }
-
-            return {
-                kind: 'banner',
-                generatedAt: new Date().toISOString(),
-                frame: location.href,
-                now,
-                rowCount: rows.length,
-                controllerCount: rows.length,
-                rows,
-                errors
-            };
-        }
-
-        // Màn hình đang mở (chỉ đọc): tên view trong m_viewCacheGroup, lớp, tên method và các trường nguyên thủy.
-        // Không gọi gInst() hay bất kỳ method nào. Mở màn hình cần dò trong game rồi bấm nút.
         function probeRunViews() {
             const vm = window.ViewMgr && ViewMgr.gViewMgr;
             const errors = [];
@@ -9656,7 +9627,7 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
             if (event.source !== window && event.source !== window.top && event.source !== window.parent) return;
             let report;
             try {
-                report = data.kind === 'banner' ? probeRunBanners() : (data.kind === 'views' ? probeRunViews() : probeRunExposure());
+                report = data.kind === 'views' ? probeRunViews() : probeRunExposure();
             } catch (e) {
                 report = { error: String(e && e.message || e), controllers: [], controllerCount: 0 };
             }
@@ -11286,8 +11257,51 @@ function quickStepMaxMs(key) { return QUICK_STEP_MAX_MS_BY_KEY[key] || QUICK_STE
             const q = QUICK_RUN_QUEUE.filter((k) => sel.includes(k));
             return q.length ? q : QUICK_RUN_QUEUE.slice();
         }
-        // Dãy đang áp dụng: dãy đã chốt lúc bắt đầu chạy (không đổi giữa chừng), nếu không thì dãy đang chọn.
-        function quickQueueNow() { return quickRun ? quickRun.queue : quickSelectedQueue(); }
+        // Các bước SỰ KIỆN: tự bỏ qua khi game báo rõ ràng không có sự kiện đang mở (chưa biết = vẫn giữ lại).
+        const QUICK_EVENT_STEPS = ['autoBanner', 'autoSkinBanner'];
+        // true = đang mở, false = game báo không có sự kiện nào, null = chưa biết (game chưa tải dữ liệu).
+        function quickEventOpenState(key) {
+            try {
+                if (key === 'autoBanner') {
+                    const list = typeof bannerGetOpenList === 'function' ? bannerGetOpenList() : null;
+                    return list ? list.length > 0 : null;
+                }
+                if (key === 'autoSkinBanner') {
+                    const st = typeof skinHudStatus === 'function' ? skinHudStatus() : null;
+                    if (!st || st.unknown) return null;
+                    return Boolean(st.open);
+                }
+            } catch (e) { }
+            return null;
+        }
+        // Tên sự kiện đang mở để hiện cạnh bước (hero: "Thần Lâm · <tên tướng>", skin: tên skin mục tiêu).
+        function quickEventDetail(key) {
+            try {
+                if (key === 'autoBanner') {
+                    const list = typeof bannerGetOpenList === 'function' ? bannerGetOpenList() : null;
+                    if (!list || !list.length) return [];
+                    return list.map((b) => b.series + (b.heroName ? ' · ' + b.heroName : ''));
+                }
+                if (key === 'autoSkinBanner') {
+                    const st = typeof skinHudStatus === 'function' ? skinHudStatus() : null;
+                    return st && st.open && st.name ? [String(st.name)] : [];
+                }
+            } catch (e) { }
+            return [];
+        }
+        // Dãy sẽ chạy nếu bắt đầu bây giờ: các bước đã chọn trừ bước sự kiện mà game báo không có.
+        function quickEffectiveQueue() {
+            return quickSelectedQueue().filter((k) => !QUICK_EVENT_STEPS.includes(k) || quickEventOpenState(k) !== false);
+        }
+        // Tiến độ đã lưu còn dùng được: cùng các bước thường đã chọn; bước sự kiện có thể đã bị bỏ qua lúc đó.
+        function quickKeysCompatible(keys) {
+            if (!Array.isArray(keys)) return false;
+            const sel = quickSelectedQueue();
+            const core = (a) => a.filter((k) => !QUICK_EVENT_STEPS.includes(k)).join();
+            return core(keys) === core(sel) && keys.filter((k) => QUICK_EVENT_STEPS.includes(k)).every((k) => sel.includes(k));
+        }
+        // Dãy đang áp dụng: dãy đã chốt lúc bắt đầu chạy (không đổi giữa chừng), nếu không thì dãy sẽ chạy nếu bắt đầu bây giờ.
+        function quickQueueNow() { return quickRun ? quickRun.queue : quickEffectiveQueue(); }
         let quickRun = null;
 const QUICK_ARENA_BATTLES = 3;     // Đấu Tiên Đài trong Quét nhanh: tối đa 3 trận
 
@@ -11298,7 +11312,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
         function quickSaveLoad() {
             try {
                 const o = JSON.parse(sessionStorage.getItem(QUICK_SAVE_KEY) || 'null');
-                if (o && o.day === new Date().toDateString() && Array.isArray(o.keys) && o.keys.join() === quickSelectedQueue().join() && o.total === o.keys.length &&
+                if (o && o.day === new Date().toDateString() && quickKeysCompatible(o.keys) && o.total === o.keys.length &&
                     Number.isInteger(o.idx) && o.idx > 0 && o.idx < o.total && Array.isArray(o.results)) return o;
             } catch (e) { }
             return null;
@@ -11326,7 +11340,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
                 const o = quickSaveLoad();
                 if (o) saved = { idx: o.idx, total: o.total, label: RUN_LABELS[o.keys[o.idx]] || o.keys[o.idx], done: o.results.length };
             }
-            try { window.top.postMessage({ source: 'TIEN_NGHICH_AUTO_GAME', action: 'QUICK_RUN_SAVED', saved, active, total: quickQueueNow().length, steps: QUICK_RUN_QUEUE.map((k) => ({ key: k, label: RUN_LABELS[k] || k })), selected: quickSelectedQueue(), completed: Boolean(completed) }, '*'); } catch (e) { }
+            try { window.top.postMessage({ source: 'TIEN_NGHICH_AUTO_GAME', action: 'QUICK_RUN_SAVED', saved, active, total: quickQueueNow().length, steps: QUICK_RUN_QUEUE.map((k) => (QUICK_EVENT_STEPS.includes(k) ? { key: k, label: RUN_LABELS[k] || k, event: true, open: quickEventOpenState(k), detail: quickEventDetail(k) } : { key: k, label: RUN_LABELS[k] || k })), selected: quickSelectedQueue(), completed: Boolean(completed), fromGame: Boolean(window.DailyDungeonCtrl), eventsPending: quickRun ? 0 : quickSelectedQueue().filter((k) => QUICK_EVENT_STEPS.includes(k) && quickEventOpenState(k) === null).length, skippedEvents: quickSelectedQueue().filter((k) => !quickQueueNow().includes(k)).map((k) => RUN_LABELS[k] || k) }, '*'); } catch (e) { }
         }
 
         // Cài đặt chọn bước đổi: tiến độ tạm dừng cũ không còn khớp dãy mới -> xóa (không đụng khi đang chạy; HUD cũng khóa lúc đó).
@@ -11334,7 +11348,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             if (quickRun) return;
             try {
                 const o = JSON.parse(sessionStorage.getItem(QUICK_SAVE_KEY) || 'null');
-                if (o && (!Array.isArray(o.keys) || o.keys.join() !== quickSelectedQueue().join())) quickSaveClear();
+                if (o && !quickKeysCompatible(o.keys)) quickSaveClear();
             } catch (e) { }
             quickReportSaved();
         }
@@ -11412,7 +11426,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             quickSaveClear();
             quickActiveFlag(true);
             quickRun = {
-                queue: quickSelectedQueue(),
+                queue: saved ? saved.keys.slice() : quickEffectiveQueue(),
                 idx: saved ? saved.idx : 0, results: saved ? saved.results : [], startedAt: Date.now(), stepStartedAt: Date.now(), gapUntil: 0,
                 savedActive: CONFIG.activeFeature, savedTowerDaily: CONFIG.towerDailyRoutine,
                 savedFlags: QUICK_RUN_QUEUE.map((k) => [k, CONFIG[k]]),
@@ -11422,6 +11436,8 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
                 quickRun.priorMs = saved.results.reduce((t, x) => t + (x.ms || 0), 0);
                 sendLog(`⏯ [Quét nhanh] Tiếp tục từ bước ${saved.idx + 1}/${quickRun.queue.length} (đã xong ${saved.results.length} bước).`, 'run');
             } else {
+                const skipped = quickSelectedQueue().filter((k) => !quickRun.queue.includes(k));
+                if (skipped.length) sendLog(`⏭ [Quét nhanh] Bỏ qua vì không có sự kiện đang mở: ${skipped.map((k) => RUN_LABELS[k] || k).join(', ')}.`, 'run');
                 sendLog(`⚡ [Quét nhanh] Bắt đầu ${quickRun.queue.length} bước${quickRun.queue.includes('autoCuoiNgay') ? ', Nhận Cuối Ngày là bước cuối' : ''}. Dừng bất cứ lúc nào bằng nút TẠM DỪNG (có thể tiếp tục sau).`, 'run');
             }
             quickReportSaved();

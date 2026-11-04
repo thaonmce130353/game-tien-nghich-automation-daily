@@ -1,6 +1,6 @@
 # Banner heroes (super hero events)
 
-Static reading of the game bundle `main.min_eef72ae3.js` (observed 2026-11-02), plus the read-only status view in the extension's probe panel. Controller names and methods can change with any game update.
+Static reading of the game bundle `main.min_eef72ae3.js` (observed 2026-11-02). Controller names and methods can change with any game update.
 
 ## Controller map
 
@@ -31,19 +31,6 @@ The 7-day length is not stated in the client. Open, close and end times arrive f
 
 Full tables: [controllers/INDEX.md](controllers/INDEX.md).
 
-## Read-only status view
-
-In the HUD, open **🔍 Probe** and press **Banner hero**. It lists each banner with its `unique_id`, Deseno activity id, state (`open`, `upcoming`, `not-open`, `ended`, `no-data`), start, close and end time, and time left. **Xuất JSON** saves `tn-banner-status.json` with the raw time fields.
-
-It calls only getters (`gInst`, `getCurlModel`, `getBaseConfig`, `getActDat`, `getActivityId`). It never calls a `send*` method and never opens a UI.
-
-`no-data` means the server has not sent that activity yet, so its start time is unknown. Use the exported JSON to see which time fields the server actually provides.
-
-## Implementation
-
-- Game frame (local-only, git-ignored): `probeRunBanners` in [exposure-probe.js](../extension/src/content/features/exposure-probe.js).
-- Panel (local-only, git-ignored): [exposure-probe-ui.js](../extension/src/content/features/exposure-probe-ui.js).
-
 ## Banner roster (confirmed)
 
 Config table `super_hero_encore_data_json`, confirmed by the user on 2026-11-02. Each banner is a `unique_id` (`activity_id`) with a hero id. The two series step through `common_war_order_term_id` in order.
@@ -66,7 +53,7 @@ Config table `super_hero_encore_data_json`, confirmed by the user on 2026-11-02.
 
 Hero ids are not names; the names live in the hero config.
 
-## Observed schedule (probe export, 2026-11-02 14:45 UTC+7)
+## Observed schedule (2026-11-02 14:45 UTC+7)
 
 - 1320103 (Thần Lâm, hero 504020): 2026-10-30 00:00 to 2026-11-05 23:59:59.
 - 1320202 (Đạp Thiên, hero 604020): 2026-10-28 00:00 to 2026-11-03 23:59:59.
@@ -77,7 +64,7 @@ Hero ids are not names; the names live in the hero config.
 
 Files: [banner-gifts-ui.js](../extension/src/content/features/banner-gifts-ui.js) (tab), [banner-gifts.js](../extension/src/content/features/banner-gifts.js) (list, gift step, one-pass runner), [banner-workflow.js](../extension/src/content/features/banner-workflow.js) (recruit / challenge / war order steps).
 
-- The tab lists the banners open right now (same source as the Probe's Banner hero view). Ticking a banner only *selects* it in memory; nothing is sent. The workflow runs as one pass when **▶ BẮT ĐẦU TREO LEO ẢI AUTO** is pressed, with no repeat and no automatic retry. If no main feature is selected, Auto stops itself after the pass (`AUTO_FINISHED`). The main loop pauses (`bannerGiftBusy`) while it runs.
+- The tab lists the banners open right now (read passively from the game's own banner and activity data). Ticking a banner only *selects* it in memory; nothing is sent. The workflow runs as one pass when **▶ BẮT ĐẦU TREO LEO ẢI AUTO** is pressed, with no repeat and no automatic retry. If no main feature is selected, Auto stops itself after the pass (`AUTO_FINISHED`). The main loop pauses (`bannerGiftBusy`) while it runs.
 - Same steps for every hero (only names differ), in order. A failed gift step stops the rest for that banner; later steps log their failure and continue.
   1. **Quà** (view `superHeroEncoreGoodGiftUi`, requests `send19739`): each gift row's own `onBuy()`. `price > 0` (real money) is never touched; `gold == 0` is claimed; `gold == bannerGoldPrice` (300, the Tiên Ngọc gift) is bought by default; other prices are skipped. The row's button must be visible. A press is confirmed by `getGiftBuyCount` increasing after a refresh.
   2. **Chiêu Mộ**: Sảnh tab Recruit -> `reqTreasure(1)` (the "Chiêu mộ 1 lần" button). Skipped if the Chiêu Mộ trial mission (`superHeroEncore_recruit`) is already done (so a second START does not recruit again) or if the recruit item (`cfg.recruit_item`) count is below 1 (so the Get-Way popup never opens). Reward popups (`backpackGetAwardTipsUi`, `heroPreviewUi`) are closed afterwards.

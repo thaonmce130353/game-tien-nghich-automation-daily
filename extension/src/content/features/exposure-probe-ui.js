@@ -24,18 +24,15 @@
             const bar = document.createElement('div');
             const runBtn = document.createElement('button');
             runBtn.textContent = 'Quét (chỉ đọc)';
-            const bannerBtn = document.createElement('button');
-            bannerBtn.textContent = 'Banner hero';
             const viewsBtn = document.createElement('button');
             viewsBtn.textContent = 'Màn hình mở';
             const dlBtn = document.createElement('button');
             dlBtn.textContent = 'Xuất JSON';
             dlBtn.disabled = true;
-            for (const b of [runBtn, bannerBtn, viewsBtn, dlBtn]) {
+            for (const b of [runBtn, viewsBtn, dlBtn]) {
                 b.style.cssText = 'background:#45475a;color:#cdd6f4;border:0;border-radius:4px;padding:3px 8px;margin-right:6px;cursor:pointer;';
             }
             bar.appendChild(runBtn);
-            bar.appendChild(bannerBtn);
             bar.appendChild(viewsBtn);
             bar.appendChild(dlBtn);
 
@@ -98,32 +95,6 @@
                 out.appendChild(d);
             }
 
-            function fmtTime(v) {
-                if (!v) return '-';
-                const ms = v > 1e12 ? v : v * 1000;
-                return new Date(ms).toLocaleString();
-            }
-
-            function fmtRemain(sec) {
-                if (sec === null || sec === undefined) return '-';
-                const s = sec > 1e9 ? sec / 1000 : sec;
-                const sign = s < 0 ? '-' : '';
-                const a = Math.abs(Math.round(s));
-                return sign + Math.floor(a / 86400) + 'd ' + Math.floor(a % 86400 / 3600) + 'h';
-            }
-
-            function renderBanner(report) {
-                out.textContent = '';
-                line('Banner hero (chỉ đọc): ' + report.rowCount + ' dòng', '#a6e3a1');
-                const rows = report.rows.slice().sort((a, b) => (b.closeTime || 0) - (a.closeTime || 0));
-                for (const r of rows) {
-                    line((r.selected ? '▶ ' : '• ') + r.ctrl.replace('Ctrl', '') + ' #' + r.uniqueId + ' act=' + r.activityId + ' [' + r.state + ']',
-                        r.state === 'open' ? '#a6e3a1' : r.state === 'upcoming' ? '#89b4fa' : (r.state === 'ended' ? '#6c7086' : '#fab387'));
-                    line('   mở: ' + fmtTime(r.startTime) + ' | đóng: ' + fmtTime(r.closeTime) + ' (' + fmtRemain(r.closeInSec) + ') | kết thúc: ' + fmtTime(r.endTime));
-                }
-                for (const e of report.errors) line('Lỗi: ' + e, '#f38ba8');
-            }
-
             function renderViews(report) {
                 out.textContent = '';
                 line('Màn hình đang mở (chỉ đọc): ' + report.views.length, '#a6e3a1');
@@ -134,7 +105,6 @@
             }
 
             function render(report) {
-                if (report.kind === 'banner') { renderBanner(report); return; }
                 if (report.kind === 'views') { renderViews(report); return; }
                 out.textContent = '';
                 if (report.error) { line('Lỗi: ' + report.error, '#f38ba8'); return; }
@@ -155,18 +125,6 @@
                 out.textContent = '';
                 line('Đang đọc màn hình đang mở...');
                 const req = { source: PROBE_SOURCE_REQ, kind: 'views' };
-                document.querySelectorAll('iframe').forEach((f) => {
-                    try { f.contentWindow.postMessage(req, '*'); } catch (e) { }
-                });
-                try { window.postMessage(req, '*'); } catch (e) { }
-                setTimeout(() => { if (!probeBest) line('Không nhận được kết quả từ frame game.', '#f38ba8'); }, 3000);
-            });
-
-            bannerBtn.addEventListener('click', () => {
-                probeBest = null;
-                out.textContent = '';
-                line('Đang đọc banner...');
-                const req = { source: PROBE_SOURCE_REQ, kind: 'banner' };
                 document.querySelectorAll('iframe').forEach((f) => {
                     try { f.contentWindow.postMessage(req, '*'); } catch (e) { }
                 });
@@ -196,7 +154,7 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = probeBest.kind === 'banner' ? 'tn-banner-status.json' : (probeBest.kind === 'views' ? 'tn-open-views.json' : 'tn-exposure-probe.json');
+                a.download = probeBest.kind === 'views' ? 'tn-open-views.json' : 'tn-exposure-probe.json';
                 a.click();
                 setTimeout(() => URL.revokeObjectURL(url), 1000);
             });
@@ -207,7 +165,7 @@
                 const frames = [...document.querySelectorAll('iframe')].map((f) => f.contentWindow);
                 if (event.source !== window && !frames.includes(event.source)) return;
                 // Giữ báo cáo có nhiều controller nhất (frame game, không phải frame rỗng).
-                if (!probeBest || data.report.controllerCount > probeBest.controllerCount || ((data.report.kind === 'banner' || data.report.kind === 'views') && probeBest.kind !== data.report.kind)) {
+                if (!probeBest || data.report.controllerCount > probeBest.controllerCount || (data.report.kind === 'views' && probeBest.kind !== data.report.kind)) {
                     probeBest = data.report;
                     render(probeBest);
                     dlBtn.disabled = false;

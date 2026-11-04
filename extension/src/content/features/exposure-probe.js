@@ -62,10 +62,6 @@
             };
         }
 
-        // Banner hero (super hero) lịch sự kiện: chỉ gọi getter, không gọi send*.
-        const PROBE_BANNER_LEGACY = { SuperHeroCtrl: 'activity_id5601', NewSuperHeroCtrl: 'activity_id7701' };
-        const PROBE_BANNER_CFG_KEYS = /time|day|open|start|end|activity|period|round|term|name|type|hero|unit|preview|fight|system/i;
-
         function probePrimitives(obj, keyFilter) {
             const out = {};
             if (!obj || typeof obj !== 'object') return out;
@@ -78,68 +74,6 @@
             return out;
         }
 
-        function probeRunBanners() {
-            const rows = [];
-            const errors = [];
-            const now = window.NetMgr && NetMgr.gInst().getTime();
-            // Chỉ đọc thụ động: không gInst(), không getBaseConfig() (xem bannerPeekInstance).
-            const D = bannerPeekInstance(window.DesenoActivityCtrl);
-            const deseno = D && D.getCurlModel();
-            const openStatus = window.ComCt && ComCt.activityStatus && ComCt.activityStatus.open;
-
-            function describe(ctrlName, uniqueId, activityId) {
-                const dat = deseno && deseno.getActDat ? deseno.getActDat(activityId) : undefined;
-                const closeTime = dat ? dat.close_time : 0;
-                const startTime = dat ? dat.start_time || 0 : 0;
-                const endTime = dat ? dat.end_time : 0;
-                const state = !dat ? 'no-data' : dat.status === openStatus ? 'open' : (startTime > now ? 'upcoming' : closeTime > now ? 'not-open' : 'ended');
-                return {
-                    ctrl: ctrlName, uniqueId, activityId, state, startTime, closeTime, endTime,
-                    closeInSec: closeTime ? closeTime - now : null,
-                    activityData: probePrimitives(dat)
-                };
-            }
-
-            try {
-                const ctrl = bannerPeekInstance(window.SuperHeroEncoreCtrl);
-                const model = ctrl && ctrl.getCurlModel();
-                const cfgs = model && model.baseConfigDic;
-                if (cfgs && Object.keys(cfgs).length) {
-                    for (const key of Object.keys(cfgs)) {
-                        const cfg = cfgs[key];
-                        const row = describe('SuperHeroEncoreCtrl', cfg.activity_id !== undefined ? cfg.activity_id : key, cfg.activity);
-                        row.cfg = probePrimitives(cfg, PROBE_BANNER_CFG_KEYS);
-                        row.selected = ctrl.currentUniqueId === row.uniqueId;
-                        rows.push(row);
-                    }
-                }
-            } catch (e) { errors.push('SuperHeroEncoreCtrl: ' + (e && e.message || e)); }
-
-            for (const name of Object.keys(PROBE_BANNER_LEGACY)) {
-                try {
-                    const inst = bannerPeekInstance(window[name]);
-                    if (!inst) continue;
-                    const activityId = window.DesenoActivityConst && DesenoActivityConst.activityIds[PROBE_BANNER_LEGACY[name]];
-                    const row = describe(name, inst.getActivityId(), activityId);
-                    row.legacyActivityKey = PROBE_BANNER_LEGACY[name];
-                    rows.push(row);
-                } catch (e) { errors.push(name + ': ' + (e && e.message || e)); }
-            }
-
-            return {
-                kind: 'banner',
-                generatedAt: new Date().toISOString(),
-                frame: location.href,
-                now,
-                rowCount: rows.length,
-                controllerCount: rows.length,
-                rows,
-                errors
-            };
-        }
-
-        // Màn hình đang mở (chỉ đọc): tên view trong m_viewCacheGroup, lớp, tên method và các trường nguyên thủy.
-        // Không gọi gInst() hay bất kỳ method nào. Mở màn hình cần dò trong game rồi bấm nút.
         function probeRunViews() {
             const vm = window.ViewMgr && ViewMgr.gViewMgr;
             const errors = [];
@@ -181,7 +115,7 @@
             if (event.source !== window && event.source !== window.top && event.source !== window.parent) return;
             let report;
             try {
-                report = data.kind === 'banner' ? probeRunBanners() : (data.kind === 'views' ? probeRunViews() : probeRunExposure());
+                report = data.kind === 'views' ? probeRunViews() : probeRunExposure();
             } catch (e) {
                 report = { error: String(e && e.message || e), controllers: [], controllerCount: 0 };
             }
