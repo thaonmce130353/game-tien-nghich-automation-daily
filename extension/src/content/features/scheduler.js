@@ -3,7 +3,7 @@
         const CUOI_NGAY_ACTION_INTERVAL_MS = 450;
         const TAM_TIEN_ACTION_INTERVAL_MS = 450;
         // Các tính năng là chuỗi nhiều bước nhỏ, mỗi bước chờ máy chủ: nhịp nhanh, không nghỉ dài ngẫu nhiên.
-        const FAST_ROUTINE_FEATURES = ['autoCuoiNgay', 'autoTamTienDai', 'autoExtremeYin'];
+        const FAST_ROUTINE_FEATURES = ['autoCuoiNgay', 'autoTamTienDai', 'autoExtremeYin', 'autoThaiCo', 'autoTienMinh'];
         const OTHER_TRIALS_ACTION_INTERVAL_MS = 600;
 
         // Thông Thiên + Tứ Linh ở chế độ quét (Quét nhanh) cũng là chuỗi bước nhỏ chờ máy chủ.
@@ -47,6 +47,7 @@
                 case 'autoTroChien': return done(troChienState);
                 case 'autoTamTienDai': return done(tamTienDaiState);
                 case 'autoTienHuu': return done(tienHuuState);
+                case 'autoThaiCo': return done(thaiCoState);
                 case 'autoTienMinh': return done(tienMinhState);
                 case 'autoCuoiNgay': return done(cuoiNgayState);
                 case 'autoSectDefense': return done(sectDefenseState);
@@ -90,6 +91,7 @@
         function resetUnfinishedRunStates() {
             if (tamTienDaiState && tamTienDaiState.phase !== 'done') tamTienDaiState = null;
             if (tienHuuState && tienHuuState.phase !== 'done') tienHuuState = null;
+            if (thaiCoState && thaiCoState.phase !== 'done') thaiCoState = null;
             if (cuoiNgayState && cuoiNgayState.phase !== 'done') cuoiNgayState = null;
             if (tienMinhState && tienMinhState.phase !== 'done') tienMinhState = null;
             if (troChienState && troChienState.phase !== 'done') troChienState = null;
@@ -279,6 +281,13 @@
                     // 'wait' = chỉ chờ máy chủ/chuyển bước (chưa gửi gì): không nghỉ kiểu người chơi, kiểm tra lại ngay nhịp sau.
                     if (routine === 'wait') { nextActionAt = Date.now() + 40; runNoteActed(true); return; }
                     if (routine) { markActed(actionInterval, FAST_ROUTINE_FEATURES.includes(active)); return; }
+                }
+                // Thái Cổ Thu Hà (quét tầng trước + Like BXH)
+                else if (active === 'autoThaiCo') {
+                    const tc = handleThaiCoThuHa(ctx);
+                    // 'wait' = chỉ chờ máy chủ/chuyển bước: kiểm tra lại ngay, không nghỉ kiểu người chơi.
+                    if (tc === 'wait') { nextActionAt = Date.now() + 40; runNoteActed(true); return; }
+                    if (tc) { markActed(actionInterval, true); return; }
                 }
                 // 4. LỊCH LUYỆN: Leo Phụ Bản Ngày
                 else if (active === 'autoClimbDailyDungeons' || (CONFIG.autoClimbDailyDungeons && !active)) {

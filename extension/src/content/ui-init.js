@@ -56,6 +56,8 @@
 
         // Tiến độ QUÉT NHANH đã lưu (null = không có): nút chính thành TIẾP TỤC, hiện thêm nút CHẠY LẠI TỪ ĐẦU.
         let quickSavedInfo = null;
+        let quickStepsCatalog = [];  // [{key, label}] các bước Quét nhanh, do game báo
+        let quickTotalSteps = 0;     // số bước của dãy Quét nhanh, do game báo (HUD không có QUICK_RUN_QUEUE)
         function updateQuickButtons(saved, active) {
             quickSavedInfo = saved || null;
             const btn = document.getElementById('tn-btn-sweep');
@@ -69,7 +71,7 @@
                     ? 'Bước ' + (active.idx + 1) + '/' + active.total + ' · ' + active.label
                     : (quickSavedInfo
                         ? 'Bước ' + (quickSavedInfo.idx + 1) + '/' + quickSavedInfo.total + ' · ' + quickSavedInfo.label
-                        : '1 chạm · ' + QUICK_RUN_QUEUE.length + ' bước');
+                        : (quickTotalSteps ? '1 chạm · ' + quickTotalSteps + ' bước' : sub.textContent));
                 btn.title = quickSavedInfo ? 'Tiếp tục QUÉT NHANH từ bước: ' + quickSavedInfo.label + ' (đã xong ' + quickSavedInfo.done + ' bước)' : (btn.dataset.baseTitle || btn.title);
             }
             if (fresh) fresh.style.display = quickSavedInfo ? 'flex' : 'none';
@@ -90,7 +92,7 @@
                 badge.className = 'tn-badge tn-badge-ready';
                 badge.textContent = 'TẠM DỪNG';
                 btnMain.className = 'tn-action-btn tn-btn-start';
-                btnMain.textContent = '▶ BẮT ĐẦU TREO LEO ẢI AUTO';
+                btnMain.textContent = '▶ BẮT ĐẦU AUTO';
             }
         }
 
@@ -139,6 +141,8 @@
             } else if (data.action === 'LOG') {
                 addLogToUI(data.message, data.logType);
             } else if (data.action === 'QUICK_RUN_SAVED') {
+                if (data.total) quickTotalSteps = data.total;
+                if (Array.isArray(data.steps)) quickStepsCatalog = data.steps;
                 updateQuickButtons(data.completed ? null : data.saved, data.completed ? null : data.active);
             } else if (data.action === 'AUTO_FINISHED') {
                 // Tính năng đã hoàn tất: trả nút về trạng thái dừng (dòng kết quả đã được game ghi log).

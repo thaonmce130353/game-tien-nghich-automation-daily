@@ -205,6 +205,8 @@
                 sendCommandToGame('REQUEST_ROLE_INFO');
             }, 1500);
             sendCommandToGame('REQUEST_ROLE_INFO');
+            // Đồng bộ lựa chọn bước Quét nhanh (đã nhớ) sang game để kiểm tra tiến độ tạm dừng đúng dãy.
+            [300, 1200, 3000].forEach((ms) => setTimeout(() => sendCommandToGame('UPDATE_CONFIG', { config: CONFIG }), ms));
             setTimeout(() => sendCommandToGame('REQUEST_ROLE_INFO'), 500);
             setTimeout(() => sendCommandToGame('REQUEST_ROLE_INFO'), 1500);
             setTimeout(() => sendCommandToGame('REQUEST_ROLE_INFO'), 3000);

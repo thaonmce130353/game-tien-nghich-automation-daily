@@ -111,6 +111,95 @@
                 overlay.classList.add('open');
             }
 
+            // Cài đặt QUÉT NHANH: tick chọn các bước (thứ tự cố định, không đổi được). Đổi lựa chọn thì bỏ tiến độ tạm dừng cũ.
+            function openQuickSteps() {
+                card.textContent = '';
+                const head = document.createElement('div');
+                head.className = 'tn-set-head';
+                const title = document.createElement('span');
+                title.textContent = '⚙ Cài đặt: Quét Nhanh';
+                const x = document.createElement('button');
+                x.type = 'button';
+                x.className = 'tn-set-close';
+                x.textContent = '✕';
+                x.addEventListener('click', close);
+                head.append(title, x);
+                card.appendChild(head);
+
+                const note = document.createElement('div');
+                note.className = 'tn-set-hint';
+                note.style.margin = '0 0 6px 0';
+                note.textContent = quickStepsCatalog.length
+                    ? 'Tick các bước muốn chạy (thứ tự cố định). Đổi lựa chọn sẽ bỏ tiến độ tạm dừng trước đó.'
+                    : 'Chưa nhận được danh sách bước từ game; đợi vài giây rồi mở lại.';
+                card.appendChild(note);
+                const locked = Boolean(CONFIG.running);
+                if (locked) {
+                    const warn = document.createElement('div');
+                    warn.className = 'tn-set-hint';
+                    warn.style.cssText = 'margin:0 0 6px 0;color:#f9e2af;';
+                    warn.textContent = 'Auto đang chạy: tạm dừng trước khi đổi bước.';
+                    card.appendChild(warn);
+                }
+
+                const boxes = [];
+                const list = document.createElement('div');
+                list.className = 'tn-set-list';
+                card.appendChild(list);
+                const apply = (changedBox) => {
+                    const keys = quickStepsCatalog.filter((st, i) => boxes[i].checked).map((st) => st.key);
+                    if (!keys.length) { changedBox.checked = true; return; }   // phải còn ít nhất một bước
+                    CONFIG.quickSteps = keys.length === quickStepsCatalog.length ? null : keys;
+                    try {
+                        if (CONFIG.quickSteps) localStorage.setItem('TN_QUICK_STEPS_V1', JSON.stringify(CONFIG.quickSteps));
+                        else localStorage.removeItem('TN_QUICK_STEPS_V1');
+                    } catch (e) { }
+                    sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
+                    if (quickSavedInfo) {
+                        updateQuickButtons(null, null);
+                        addLogToUI('⚙ Quét nhanh: đã đổi các bước nên bỏ tiến độ tạm dừng cũ.', 'info');
+                    }
+                    addLogToUI('⚙ Quét nhanh: chạy ' + keys.length + '/' + quickStepsCatalog.length + ' bước.', 'info');
+                };
+                const selected = new Set(Array.isArray(CONFIG.quickSteps) ? CONFIG.quickSteps : quickStepsCatalog.map((st) => st.key));
+                quickStepsCatalog.forEach((st, i) => {
+                    const row = document.createElement('label');
+                    row.className = 'tn-set-field';
+                    const text = document.createElement('div');
+                    const label = document.createElement('div');
+                    label.className = 'tn-set-label';
+                    label.textContent = (i + 1) + '. ' + st.label;
+                    text.appendChild(label);
+                    const input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.checked = selected.has(st.key);
+                    input.disabled = locked;
+                    input.addEventListener('change', () => apply(input));
+                    boxes.push(input);
+                    row.append(text, input);
+                    list.appendChild(row);
+                });
+                if (quickStepsCatalog.length && !locked) {
+                    const all = document.createElement('button');
+                    all.type = 'button';
+                    all.className = 'tn-action-btn tn-btn-start';
+                    all.style.cssText = 'margin:6px 0 0 0;padding:6px 0;';
+                    all.textContent = 'Chọn tất cả';
+                    all.addEventListener('click', () => { boxes.forEach((b) => { b.checked = true; }); apply(boxes[0]); });
+                    card.appendChild(all);
+                }
+                const done = document.createElement('button');
+                done.type = 'button';
+                done.className = 'tn-action-btn tn-btn-start';
+                done.style.cssText = 'margin:6px 0 0 0;padding:6px 0;';
+                done.textContent = 'Xong';
+                done.addEventListener('click', close);
+                card.appendChild(done);
+                overlay.classList.add('open');
+            }
+            const quickCfgBtn = document.getElementById('tn-btn-quick-cfg');
+            if (quickCfgBtn) quickCfgBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openQuickSteps(); });
+
             document.querySelectorAll('.tn-gear-btn').forEach((btn) => {
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();

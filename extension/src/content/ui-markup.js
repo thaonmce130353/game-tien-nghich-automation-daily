@@ -90,6 +90,14 @@
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoTienHuu" ${CONFIG.activeFeature === 'autoTienHuu' ? 'checked' : ''}>
                                     </label>
+                                    <label class="tn-opt-item" style="border-left: 3px solid #74c7ec;">
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#74c7ec;"><span class="tn-feat-name">🌊 Thái Cổ Thu Hà</span></div>
+                                            <div class="tn-feat-desc">Quét tầng trước 2 lần miễn phí, rồi mở BXH Like top 3.</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoThaiCo"></div>
+                                        </div>
+                                        <input type="checkbox" class="tn-mutex-feature" data-key="autoThaiCo" ${CONFIG.activeFeature === 'autoThaiCo' ? 'checked' : ''}>
+                                    </label>
                                     <label class="tn-opt-item" style="border-left: 3px solid #cba6f7;">
                                         <div style="min-width:0; flex:1;">
                                             <div class="tn-feat-title" style="color:#cba6f7;"><span class="tn-feat-name">🏛️ Tiên Minh</span><button type="button" class="tn-gear-btn" data-gear="autoTienMinh" title="Cài đặt">⚙</button></div>
@@ -243,10 +251,11 @@
 
                 <!-- THANH NÚT CHẠY CỐ ĐỊNH Ở ĐÁY HUD (STICKY / FIXED FOOTER) -->
                 <div id="tn-hud-footer">
-                    <button id="tn-btn-main" class="tn-action-btn tn-btn-start">▶ BẮT ĐẦU TREO LEO ẢI AUTO</button>
+                    <button id="tn-btn-main" class="tn-action-btn tn-btn-start">▶ BẮT ĐẦU AUTO</button>
                     <div id="tn-quick-group">
-                        <button id="tn-btn-sweep" class="tn-action-btn tn-btn-sweep" title="Chạy lần lượt: Tâm Tiên Đài, Tiên Hữu, Trợ Chiến, Tiên Minh, Thông Thiên (quét 3 lần) + Tứ Linh (10 ải), Phụ Bản Ngày & Bí Cảnh, Thủ Vệ, Cửu Uyển Nhi & Cổ Thần, Cực Âm, Di Tích, Ảo Cảnh, Kiếm Hành & Điêu Long, Vực U Minh, Đấu Tiên Đài, Ma Đạo, Banner; cuối cùng Nhận Cuối Ngày."><span class="tn-qb-main">⚡ QUÉT NHANH</span><span class="tn-qb-sub">1 chạm · 17 bước</span></button>
+                        <button id="tn-btn-sweep" class="tn-action-btn tn-btn-sweep" title="Chạy lần lượt: Tâm Tiên Đài, Tiên Hữu, Thái Cổ Thu Hà, Trợ Chiến, Tiên Minh, Thông Thiên (quét 3 lần) + Tứ Linh (10 ải), Phụ Bản Ngày & Bí Cảnh, Thủ Vệ, Cửu Uyển Nhi & Cổ Thần, Cực Âm, Di Tích, Ảo Cảnh, Kiếm Hành & Điêu Long, Vực U Minh, Đấu Tiên Đài, Ma Đạo, Banner; cuối cùng Nhận Cuối Ngày."><span class="tn-qb-main">⚡ QUÉT NHANH</span><span class="tn-qb-sub">1 chạm · 17 bước</span></button>
                         <button id="tn-btn-quick-fresh" class="tn-action-btn tn-btn-sweep" style="display:none;" title="Chạy lại từ đầu (bỏ tiến độ đã lưu)">↺</button>
+                        <button id="tn-btn-quick-cfg" class="tn-action-btn tn-btn-sweep" title="Chọn các bước của QUÉT NHANH">⚙</button>
                     </div>
                 </div>
                 <div class="tn-resize-handle tn-resize-left" title="Kéo để đổi kích thước"></div>

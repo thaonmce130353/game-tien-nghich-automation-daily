@@ -64,6 +64,7 @@
         autoTamTienDai: false,          // Nhận quà miễn phí Tâm Tiên Đài và Chiêu Mộ
         buyTamTienGifts: true,          // Tự mua quà Tiên Ngọc Tâm Tiên Đài (đổi trong cài đặt ⚙ của tính năng)
         autoTienHuu: false,             // Tặng nhanh quà Bạn Bè (Tiên Hữu)
+        autoThaiCo: false,              // Thái Cổ Thu Hà: quét tầng trước 2 lần miễn phí, Like top 3 BXH
         autoArena: false,               // Đấu Tiên Đài PvP (giới hạn lượt, chọn đối thủ thấp)
         arenaBattleLimit: 5,             // Số trận Đấu Tiên Đài tối đa mỗi lần chạy Auto
         autoMaDao: false,               // Ma Đạo gộp: Thưởng treo máy, Tác chiến nhanh, Ải chính tuyến, Ủy phái Sử Thi
@@ -81,6 +82,8 @@
         bannerGoldPrice: 300,           // Quà Tiên Ngọc trong bảng Quà banner: mua mặc định, chỉ khi đúng giá này
         bannerZlBuyGold: 300,           // Trần Tiên Ngọc mua điểm Chiến Lệnh mỗi banner (0 = tắt); chỉ mua trong 24 giờ cuối
 
+        quickSteps: null,               // QUÉT NHANH: mảng khóa tính năng được chọn (null = tất cả); thứ tự cố định theo dãy gốc
+
         activeTab: 'daoThanh',
         intervalMs: 1200,
         running: false
@@ -97,6 +100,12 @@
         if (rc && rc.resume && rc.runConfig && Date.now() - rc.startedAt < 3 * 60 * 1000) {
             Object.assign(CONFIG, rc.runConfig);
         }
+    } catch (e) { }
+
+    // Ngoại lệ thứ hai: lựa chọn các bước của QUÉT NHANH là cài đặt của người dùng nên được nhớ giữa các lần tải trang.
+    try {
+        const qs = JSON.parse(localStorage.getItem('TN_QUICK_STEPS_V1') || 'null');
+        if (Array.isArray(qs)) CONFIG.quickSteps = qs;
     } catch (e) { }
 
     CONFIG.running = false;

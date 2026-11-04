@@ -4,7 +4,7 @@
         // Nhận Cuối Ngày luôn là bước cuối để gom hết thư/quà phát sinh. Quy tắc chi tiêu = đúng cài đặt từng tính năng.
         // =====================================================================
         const QUICK_RUN_QUEUE = [
-            'autoTamTienDai', 'autoTienHuu', 'autoTroChien', 'autoTienMinh',
+            'autoTamTienDai', 'autoTienHuu', 'autoThaiCo', 'autoTroChien', 'autoTienMinh',
             'autoTongTian',            // chế độ quét: Thông Thiên 3 lần (2 free + 1 mua) + Tứ Linh 10 ải mới/tháp, KHÔNG leo
             'autoDailyDungeon', 'autoSectDefense', 'autoOtherTrials', 'autoExtremeYin', 'autoImmortalRelic',
             'autoMinigameMemory', 'autoMinigameDragon', 'autoClimbYMAbyss', 'autoArena', 'autoMaDao', 'autoBanner',
@@ -16,7 +16,17 @@ function quickStepMaxMs(key) { return QUICK_STEP_MAX_MS_BY_KEY[key] || QUICK_STE
         const QUICK_STEP_GAP_MS = 1500;               // nghỉ giữa hai bước (đóng bảng còn mở, chờ game ổn định)
         // Cờ CONFIG.<khóa tính năng> cũng phải khớp: nhiều tính năng tự kiểm tra cờ của mình (ví dụ `if (!CONFIG.autoClimbYMAbyss) return false`);
         // khi bấm BẮT ĐẦU thường thì checkbox đặt cờ này, nên Quét nhanh phải tự đặt theo từng bước.
-        const QUICK_CONFIG_LOCKED_KEYS = ['activeFeature', 'running', 'towerSweepOnly', 'towerDailyRoutine'].concat(QUICK_RUN_QUEUE);
+        const QUICK_CONFIG_LOCKED_KEYS = ['activeFeature', 'running', 'towerSweepOnly', 'towerDailyRoutine', 'quickSteps'].concat(QUICK_RUN_QUEUE);
+
+        // Các bước người dùng chọn (CONFIG.quickSteps = mảng khóa, null = tất cả). Thứ tự luôn theo QUICK_RUN_QUEUE; không đổi được.
+        function quickSelectedQueue() {
+            const sel = CONFIG.quickSteps;
+            if (!Array.isArray(sel)) return QUICK_RUN_QUEUE.slice();
+            const q = QUICK_RUN_QUEUE.filter((k) => sel.includes(k));
+            return q.length ? q : QUICK_RUN_QUEUE.slice();
+        }
+        // Dãy đang áp dụng: dãy đã chốt lúc bắt đầu chạy (không đổi giữa chừng), nếu không thì dãy đang chọn.
+        function quickQueueNow() { return quickRun ? quickRun.queue : quickSelectedQueue(); }
         let quickRun = null;
 const QUICK_ARENA_BATTLES = 3;     // Đấu Tiên Đài trong Quét nhanh: tối đa 3 trận
 
@@ -27,15 +37,16 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
         function quickSaveLoad() {
             try {
                 const o = JSON.parse(sessionStorage.getItem(QUICK_SAVE_KEY) || 'null');
-                if (o && o.day === new Date().toDateString() && o.total === QUICK_RUN_QUEUE.length &&
+                if (o && o.day === new Date().toDateString() && Array.isArray(o.keys) && o.keys.join() === quickSelectedQueue().join() && o.total === o.keys.length &&
                     Number.isInteger(o.idx) && o.idx > 0 && o.idx < o.total && Array.isArray(o.results)) return o;
             } catch (e) { }
             return null;
         }
-        function quickSaveWrite(nextIdx, results) {
+        function quickSaveWrite(nextIdx, results, keys) {
+            keys = keys || quickQueueNow();
             try {
                 if (nextIdx <= 0) { sessionStorage.removeItem(QUICK_SAVE_KEY); return; }
-                sessionStorage.setItem(QUICK_SAVE_KEY, JSON.stringify({ day: new Date().toDateString(), total: QUICK_RUN_QUEUE.length, idx: nextIdx, results }));
+                sessionStorage.setItem(QUICK_SAVE_KEY, JSON.stringify({ day: new Date().toDateString(), total: keys.length, keys, idx: nextIdx, results }));
             } catch (e) { }
         }
         function quickSaveClear() { try { sessionStorage.removeItem(QUICK_SAVE_KEY); } catch (e) { } }
@@ -49,12 +60,22 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
         function quickReportSaved(completed) {
             let saved = null, active = null;
             if (quickRun) {
-                active = { idx: quickRun.idx, total: QUICK_RUN_QUEUE.length, label: RUN_LABELS[QUICK_RUN_QUEUE[quickRun.idx]] || QUICK_RUN_QUEUE[quickRun.idx] };
+                active = { idx: quickRun.idx, total: quickRun.queue.length, label: RUN_LABELS[quickRun.queue[quickRun.idx]] || quickRun.queue[quickRun.idx] };
             } else {
                 const o = quickSaveLoad();
-                if (o) saved = { idx: o.idx, total: o.total, label: RUN_LABELS[QUICK_RUN_QUEUE[o.idx]] || QUICK_RUN_QUEUE[o.idx], done: o.results.length };
+                if (o) saved = { idx: o.idx, total: o.total, label: RUN_LABELS[o.keys[o.idx]] || o.keys[o.idx], done: o.results.length };
             }
-            try { window.top.postMessage({ source: 'TIEN_NGHICH_AUTO_GAME', action: 'QUICK_RUN_SAVED', saved, active, completed: Boolean(completed) }, '*'); } catch (e) { }
+            try { window.top.postMessage({ source: 'TIEN_NGHICH_AUTO_GAME', action: 'QUICK_RUN_SAVED', saved, active, total: quickQueueNow().length, steps: QUICK_RUN_QUEUE.map((k) => ({ key: k, label: RUN_LABELS[k] || k })), selected: quickSelectedQueue(), completed: Boolean(completed) }, '*'); } catch (e) { }
+        }
+
+        // Cài đặt chọn bước đổi: tiến độ tạm dừng cũ không còn khớp dãy mới -> xóa (không đụng khi đang chạy; HUD cũng khóa lúc đó).
+        function quickStepsConfigChanged() {
+            if (quickRun) return;
+            try {
+                const o = JSON.parse(sessionStorage.getItem(QUICK_SAVE_KEY) || 'null');
+                if (o && (!Array.isArray(o.keys) || o.keys.join() !== quickSelectedQueue().join())) quickSaveClear();
+            } catch (e) { }
+            quickReportSaved();
         }
 
         function quickRunActive() { return Boolean(quickRun); }
@@ -103,7 +124,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
         }
 
         function quickRunBeginStep(index) {
-            const key = QUICK_RUN_QUEUE[index];
+            const key = quickRun.queue[index];
             quickRun.idx = index;
             quickRun.stepStartedAt = Date.now();
             CONFIG.activeFeature = key;
@@ -118,7 +139,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             if (typeof resetArenaRun === 'function') resetArenaRun(false);
             runBegin(key);
             quickReportSaved();
-            sendLog(`▶️ [Quét nhanh] Bước ${index + 1}/${QUICK_RUN_QUEUE.length}: ${RUN_LABELS[key] || key}`, 'run');
+            sendLog(`▶️ [Quét nhanh] Bước ${index + 1}/${quickRun.queue.length}: ${RUN_LABELS[key] || key}`, 'run');
             if (key === 'autoBanner') bannerRunOnce();
         }
 
@@ -129,6 +150,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             quickSaveClear();
             quickActiveFlag(true);
             quickRun = {
+                queue: quickSelectedQueue(),
                 idx: saved ? saved.idx : 0, results: saved ? saved.results : [], startedAt: Date.now(), stepStartedAt: Date.now(), gapUntil: 0,
                 savedActive: CONFIG.activeFeature, savedTowerDaily: CONFIG.towerDailyRoutine,
                 savedFlags: QUICK_RUN_QUEUE.map((k) => [k, CONFIG[k]]),
@@ -136,9 +158,9 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             };
             if (saved) {
                 quickRun.priorMs = saved.results.reduce((t, x) => t + (x.ms || 0), 0);
-                sendLog(`⏯ [Quét nhanh] Tiếp tục từ bước ${saved.idx + 1}/${QUICK_RUN_QUEUE.length} (đã xong ${saved.results.length} bước).`, 'run');
+                sendLog(`⏯ [Quét nhanh] Tiếp tục từ bước ${saved.idx + 1}/${quickRun.queue.length} (đã xong ${saved.results.length} bước).`, 'run');
             } else {
-                sendLog(`⚡ [Quét nhanh] Bắt đầu ${QUICK_RUN_QUEUE.length} bước, Nhận Cuối Ngày là bước cuối. Dừng bất cứ lúc nào bằng nút TẠM DỪNG (có thể tiếp tục sau).`, 'run');
+                sendLog(`⚡ [Quét nhanh] Bắt đầu ${quickRun.queue.length} bước${quickRun.queue.includes('autoCuoiNgay') ? ', Nhận Cuối Ngày là bước cuối' : ''}. Dừng bất cứ lúc nào bằng nút TẠM DỪNG (có thể tiếp tục sau).`, 'run');
             }
             quickReportSaved();
             quickRunBeginStep(quickRun.idx);
@@ -148,8 +170,8 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
         function quickRunAfterStep(info, bad, reason) {
             if (!quickRun) return false;
             quickRun.results.push({ key: info.key, label: info.label, bad: Boolean(bad), reason: reason || '', ms: Date.now() - info.startedAt });
-            if (quickRun.idx + 1 < QUICK_RUN_QUEUE.length) {
-                quickSaveWrite(quickRun.idx + 1, quickRun.results);
+            if (quickRun.idx + 1 < quickRun.queue.length) {
+                quickSaveWrite(quickRun.idx + 1, quickRun.results, quickRun.queue);
                 quickReturnToMain();
                 quickRun.gapUntil = Date.now() + QUICK_STEP_GAP_MS;
                 return true;
@@ -162,7 +184,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             quickActiveFlag(false);
             quickReportSaved(true);     // xong cả dãy: HUD bỏ nút TIẾP TỤC / CHẠY LẠI TỪ ĐẦU
             const badSteps = r.results.filter((x) => x.bad);
-            sendLog(`${badSteps.length ? '⚠️' : '✅'} [Quét nhanh] Hoàn tất ${r.results.length}/${QUICK_RUN_QUEUE.length} bước (${runFormatDuration((r.priorMs || 0) + Date.now() - r.startedAt)})` +
+            sendLog(`${badSteps.length ? '⚠️' : '✅'} [Quét nhanh] Hoàn tất ${r.results.length}/${r.queue.length} bước (${runFormatDuration((r.priorMs || 0) + Date.now() - r.startedAt)})` +
                 `${badSteps.length ? '; cần xem lại: ' + badSteps.map((x) => x.label).join(', ') : ''}.`, 'result');
             return false;
         }
@@ -176,10 +198,10 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             quickRestoreConfig();
             quickRun = null;
             quickActiveFlag(false);
-            quickSaveWrite(nextIdx, r.results);
+            quickSaveWrite(nextIdx, r.results, r.queue);
             quickReportSaved();
-            sendLog(`⏸ [Quét nhanh] Đã dừng sau ${r.results.length}/${QUICK_RUN_QUEUE.length} bước.` +
-                (nextIdx > 0 && nextIdx < QUICK_RUN_QUEUE.length ? ` Đã lưu tiến độ: bấm TIẾP TỤC QUÉT NHANH để chạy tiếp từ bước ${nextIdx + 1}, hoặc CHẠY LẠI TỪ ĐẦU.` : ''), 'run');
+            sendLog(`⏸ [Quét nhanh] Đã dừng sau ${r.results.length}/${r.queue.length} bước.` +
+                (nextIdx > 0 && nextIdx < r.queue.length ? ` Đã lưu tiến độ: bấm TIẾP TỤC QUÉT NHANH để chạy tiếp từ bước ${nextIdx + 1}, hoặc CHẠY LẠI TỪ ĐẦU.` : ''), 'run');
         }
 
         // Đầu mỗi nhịp scheduler: nghỉ giữa bước / bắt đầu bước kế / cắt bước kẹt. true = nhịp này đã được dùng.

@@ -15,6 +15,8 @@
         const TIEN_MINH_FIGHT_MAX_WAIT_MS = 90000;
         const TIEN_MINH_DUNGEON_MAX_BUYS = 4;
         const TIEN_MINH_ASKED_FIGHTS = 2;
+        const TIEN_MINH_POLL_FIRST_MS = 1000;      // sau khi trận xong: hỏi lại máy chủ sớm (thời gian đánh không tính vào mốc này)
+        const TIEN_MINH_POLL_EVERY_MS = 1500;
         let tamTienDaiState = null;
         let tienHuuState = null;
         let cuoiNgayState = null;
@@ -1187,7 +1189,7 @@
                 } else if (now - pending.startedAt >= TIEN_MINH_DUNGEON_FIGHT_TIMEOUT_MS) {
                     dungeon.pending = null;
                     failTienMinhStep(state, 'dungeon-fight-timeout', 'Máy chủ chưa xác nhận trận Bí Cảnh Tông Môn; không gửi lại để tránh lặp trận.', 'war');
-                } else if (now - pending.startedAt >= 3000 && now - pending.lastRefreshAt >= 2000) {
+                } else if (now - pending.startedAt >= TIEN_MINH_POLL_FIRST_MS && now - pending.lastRefreshAt >= TIEN_MINH_POLL_EVERY_MS) {
                     // Số trận chỉ cập nhật khi tải lại dữ liệu sau khi trận kết thúc.
                     pending.lastRefreshAt = now;
                     try {
@@ -1411,7 +1413,7 @@
                     return true;
                 } else {
                     // Số lượt chỉ cập nhật khi tải lại dữ liệu sau khi trận kết thúc.
-                    if (now - pending.startedAt >= 3000 && now - pending.lastRefreshAt >= 2000 &&
+                    if (now - pending.startedAt >= TIEN_MINH_POLL_FIRST_MS * 3 && now - pending.lastRefreshAt >= TIEN_MINH_POLL_EVERY_MS &&
                         typeof wr.send18125 === 'function') {
                         pending.lastRefreshAt = now;
                         try {
@@ -1523,7 +1525,7 @@
                     logTienMinh(state, `asked-fight-${asked.count}`, `✅ [Tiên Minh - Tông Môn Vấn Đạo] Máy chủ xác nhận lượt Khiêu Chiến ${asked.count}/${TIEN_MINH_ASKED_FIGHTS}.`, "action");
                 } else if (now - pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
                     asked.pending = null;
-                    failTienMinhStep(state, 'asked-fight-timeout', 'Máy chủ chưa xác nhận trận Tông Môn Vấn Đạo; không gửi lại để tránh lặp trận.', 'help');
+                    failTienMinhStep(state, 'asked-fight-timeout', 'Máy chủ chưa xác nhận trận Tông Môn Vấn Đạo; không gửi lại để tránh lặp trận. Vẫn kiểm tra thưởng sát thương.', 'askedClaim');
                 }
                 return true;
             }
@@ -1598,7 +1600,7 @@
             if (fightCtrl && typeof fightCtrl.gCanFight === 'function' && !fightCtrl.gCanFight(0)) {
                 asked.blocked = (asked.blocked || 0) + 1;
                 if (asked.blocked >= 10) {
-                    failTienMinhStep(state, 'asked-blocked', 'Game không cho phép Khiêu Chiến Tông Môn Vấn Đạo lúc này (đang trong trận khác).', 'help');
+                    failTienMinhStep(state, 'asked-blocked', 'Game không cho phép Khiêu Chiến Tông Môn Vấn Đạo lúc này (đang trong trận khác). Vẫn kiểm tra thưởng sát thương.', 'askedClaim');
                 }
                 return true;
             }
@@ -1608,7 +1610,7 @@
                 ctx.EmbattleCtrl.gInst().openEmbattle(embattleType.guildAsked);
             } catch (error) {
                 asked.pending = null;
-                failTienMinhStep(state, 'asked-challenge-error', `Không thể Khiêu Chiến Tông Môn Vấn Đạo: ${error.message || error}`, 'help');
+                failTienMinhStep(state, 'asked-challenge-error', `Không thể Khiêu Chiến Tông Môn Vấn Đạo: ${error.message || error}. Vẫn kiểm tra thưởng sát thương.`, 'askedClaim');
             }
             return true;
         }
@@ -2050,6 +2052,7 @@
                 if (leftoverVm && typeof leftoverVm.viewIsVisible === 'function' &&
                     !isTienMinhFighting(ctx) && leftoverVm.viewIsVisible('embattleUi')) {
                     leftoverVm.closeView('embattleUi');
+                    tienMinhDidSend = true;
                     logTienMinh(state, 'battle-embattle-leftover', "ℹ️ [Tiên Minh] Đã đóng bảng đội hình còn mở sau khi hết lượt Khiêu Chiến.", "info");
                     return true;
                 }
@@ -2111,7 +2114,28 @@
                     acted = true;
                 }
             });
+            if (acted) tienMinhDidSend = true;
             return acted;
+        }
+
+        // Tiên Minh là chuỗi ~25 bước, mỗi bước chờ máy chủ. Nhịp chỉ chờ (chưa gửi gì) phải kiểm tra lại ngay ('wait'),
+        // không nghỉ kiểu người chơi như khi vừa gửi thật. Cờ tienMinhDidSend được bật tại đúng lúc gọi các hàm gửi/mở
+        // giao diện của GuildCtrl / GldWrCtrl / EmbattleCtrl (bọc một lần trên prototype), nên không phải sửa từng bước.
+        let tienMinhDidSend = false;
+        const TIEN_MINH_SEND_RE = /^(send\d+|openGuild|saveGuildDungeonFightData|showGuildBargainView|closeGuildFeteUi|openEmbattle)/;
+        function tienMinhWatchSends(ctrl) {
+            try {
+                const proto = ctrl && Object.getPrototypeOf(ctrl);
+                if (!proto || proto.__tnSendWatched) return;
+                proto.__tnSendWatched = true;
+                Object.getOwnPropertyNames(proto).forEach((name) => {
+                    if (!TIEN_MINH_SEND_RE.test(name)) return;
+                    const desc = Object.getOwnPropertyDescriptor(proto, name);
+                    const orig = desc && desc.value;
+                    if (typeof orig !== 'function') return;
+                    proto[name] = function () { tienMinhDidSend = true; return orig.apply(this, arguments); };
+                });
+            } catch (error) { }
         }
 
         function handleTienMinh(ctx) {
@@ -2129,6 +2153,9 @@
                 return true;
             }
             tienMinhControllerUnavailableLogged = false;
+            tienMinhWatchSends(gc);
+            tienMinhWatchSends(wr);
+            if (ctx.EmbattleCtrl && ctx.EmbattleCtrl.gInst) tienMinhWatchSends(ctx.EmbattleCtrl.gInst());
 
             const dayKey = new Date().toDateString();
             if (!tienMinhState || tienMinhState.dayKey !== dayKey ||
@@ -2295,7 +2322,9 @@
                 }
                 // 4. Tiên Minh (Bang Hội)
                 if (CONFIG.activeFeature === 'autoTienMinh') {
-                    return handleTienMinh(ctx);
+                    tienMinhDidSend = false;
+                    const acted = handleTienMinh(ctx);
+                    return acted === true && !tienMinhDidSend ? 'wait' : acted;
                 }
                 // 5. Cuối Ngày (Thư, Like BXH, Sôi Nổi)
                 if (CONFIG.activeFeature === 'autoCuoiNgay') {

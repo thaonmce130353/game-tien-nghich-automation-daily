@@ -5,6 +5,9 @@
         //   2. Khiêu chiến 4 ải xung quanh (ô 17, 19, 9, 7 - dễ đến khó), rồi ải giữa (ô 13). Mỗi ải: bấm ô ->
         //      bảng khiêu chiến -> nút Khiêu chiến (send11066). Hạ xong ải giữa, ô đó thành cửa "Tầng sau"
         //      (etype NEXT_SGC): đi qua cửa (send11063) sang tầng kế và lặp lại 4 ải + ải giữa, tới khi hết tướng còn sức.
+        //      Ải đánh CO_THAN_FAILS_BEFORE_SPECIAL trận liên tiếp mà vẫn chưa hạ (tướng vẫn còn sống): dùng ngay
+        //      Cấm Tuyệt Mệnh lên ải đó (chung giới hạn 5 lần), rồi quay lại đánh tiếp. Riêng ải giữa (Thủ Lĩnh) game
+        //      không cho dùng vật phẩm: kẹt ở đó thì nhận thưởng rồi kết thúc sớm.
         //   3. Hết tướng: dùng vật phẩm đặc biệt (Cấm Tuyệt Mệnh, send11079) lên ải còn lại, tối đa 5 lần.
         //   4. Nhận thưởng Diệt Thủ Hộ (mốc hạ gục đã đạt, send11084).
         // Mỗi bước chỉ tính thành công khi dữ liệu máy chủ tải lại (send11060) xác nhận.
@@ -12,6 +15,8 @@
         const CO_THAN_FIGHT_TIMEOUT_MS = 90000;
         const CO_THAN_BOSS_ORDER = [17, 19, 9, 7, 13];
         const CO_THAN_MAX_SPECIAL_USES = 5;
+        const CO_THAN_LEADER_GRID = 13;           // ải giữa (Thủ Lĩnh): game không cho dùng Cấm Tuyệt Mệnh lên đây
+        const CO_THAN_FAILS_BEFORE_SPECIAL = 3;   // số trận không hạ được một ải (tướng còn sống) trước khi dùng Cấm Tuyệt Mệnh
         const CO_THAN_MAX_CLAIMS = 10;
         const CO_THAN_MAX_FIGHTS = 1000;
         const CO_THAN_MAX_FLOORS = 200;
@@ -56,6 +61,10 @@
                 door: null,               // { gridId, at, layer } đã gửi đi qua cửa, chờ máy chủ xác nhận
                 pending: null,            // { gridId, at, killBefore, hpBefore }
                 special: { uses: loadCoThanSpecialSent(), pending: null },
+                bossFails: {},            // gridId -> số trận liên tiếp chưa hạ được (tướng còn sống)
+                spForce: null,            // gridId cần dùng Cấm Tuyệt Mệnh ngay (sau 3 trận không hạ được)
+                spForceSent: false,
+                spBlocked: false,         // hết lượt/vật phẩm hoặc đủ số lần: không dùng sớm nữa, cứ đánh tới hết tướng
                 claim: { done: 0, pending: null },
                 idleAt: Date.now()
             };
@@ -106,6 +115,8 @@
         function coThanResync(state, key, message) {
             state.pending = null;
             state.door = null;
+            state.spForce = null;
+            state.spForceSent = false;
             state.refreshing = null;
             if (!tryAttemptTarget('co-than-resync', "[Cổ Thần Địa] Tải lại trạng thái")) {
                 failCoThan(state, key, `${message} Đã thử tải lại nhiều lần mà không được; dừng để an toàn.`, 'done');
@@ -257,11 +268,30 @@
                 state.fights++;
                 clearTargetAttempts('co-than-open-' + p.gridId);
                 if (grid && grid.isFsh === 1) {
+                    delete state.bossFails[p.gridId];
                     sendLog(`✅ [Cổ Thần Địa] Máy chủ xác nhận đã hạ ải ô #${p.gridId} (hạ gục ${after.killNum || 0}).`, "action");
                 } else if (grid && grid.eType === (ctx.AdvConst && ctx.AdvConst.NEXT_SGC || CO_THAN_NEXT_FLOOR_ETYPE)) {
                     sendLog(`✅ [Cổ Thần Địa] Máy chủ xác nhận đã hạ ải giữa ô #${p.gridId}; cửa sang tầng sau đã xuất hiện (hạ gục ${after.killNum || 0}).`, "action");
                 } else {
                     sendLog(`ℹ️ [Cổ Thần Địa] Trận ô #${p.gridId} kết thúc nhưng ải chưa bị hạ (HP đội ${p.hpBefore} -> ${coThanTotalHp(after)}).`, "info");
+                    state.bossFails[p.gridId] = (state.bossFails[p.gridId] || 0) + 1;
+                    const sp = state.special;
+                    const denied = sp.denied && sp.denied.has(p.gridId);
+                    if (state.bossFails[p.gridId] >= CO_THAN_FAILS_BEFORE_SPECIAL && coThanAliveCount(after) > 0 && p.gridId === CO_THAN_LEADER_GRID) {
+                        // Ải giữa (Thủ Lĩnh) không dùng được Cấm Tuyệt Mệnh: không đánh mãi, nhận thưởng rồi kết thúc sớm.
+                        sendLog(`ℹ️ [Cổ Thần Địa] Ải giữa (Thủ Lĩnh) đánh ${CO_THAN_FAILS_BEFORE_SPECIAL} trận vẫn chưa hạ được và game không cho dùng Cấm Tuyệt Mệnh lên Thủ Lĩnh; nhận thưởng rồi kết thúc.`, "info");
+                        state.phase = 'reward';
+                        state.refreshing = null;
+                        return true;
+                    }
+                    if (grid && state.bossFails[p.gridId] >= CO_THAN_FAILS_BEFORE_SPECIAL && coThanAliveCount(after) > 0 && !state.spBlocked && !denied) {
+                        state.bossFails[p.gridId] = 0;
+                        state.spForce = p.gridId;
+                        state.spForceSent = false;
+                        state.refreshing = null;
+                        state.phase = 'special';
+                        sendLog(`⚠️ [Cổ Thần Địa] Đã đánh ${CO_THAN_FAILS_BEFORE_SPECIAL} trận ải ô #${p.gridId} mà chưa hạ được (tướng vẫn còn sống); dùng Cấm Tuyệt Mệnh lên ải này.`, "warn");
+                    }
                 }
                 state.idleAt = now;
                 return true;
@@ -359,6 +389,18 @@
                     const knownRefusal = String(reply.msg) === '196050';
                     sendLog(`${knownRefusal ? 'ℹ️' : '⚠️'} [Cổ Thần Địa] Máy chủ trả lời dùng vật phẩm ô #${sp.pending.gridId}: res=${reply.res}, thông báo: "${text || '(trống)'}".`, knownRefusal ? "info" : "warn");
                 }
+                if (reply && reply.res !== 1 && state.spForce && String(reply.msg) === '196050') {
+                    // "Không thể dùng Cấm Tuyệt Mệnh lên Thủ Lĩnh ở tầng này": ải kẹt là Thủ Lĩnh, nhận thưởng rồi kết thúc sớm.
+                    sp.uses = Math.max(0, sp.uses - 1);
+                    saveCoThanSpecialSent(sp.uses);
+                    sp.pending = null;
+                    state.spForce = null;
+                    state.spForceSent = false;
+                    state.refreshing = null;
+                    sendLog("ℹ️ [Cổ Thần Địa] Game không cho dùng Cấm Tuyệt Mệnh lên ải đang kẹt (Thủ Lĩnh); nhận thưởng rồi kết thúc.", "info");
+                    state.phase = 'reward';
+                    return true;
+                }
                 if (reply && reply.res !== 1) {
                     // Máy chủ từ chối rõ ràng (ví dụ "không thể dùng lên Thủ Lĩnh ở tầng này"): vật phẩm chưa bị trừ, nên
                     // hoàn lại lượt đếm, bỏ ô này khỏi danh sách mục tiêu và đi tiếp thay vì báo lỗi.
@@ -389,9 +431,34 @@
                 return true;
             }
             if (!dt) { state.phase = 'reward'; return false; }
+            // Dùng sớm (sau 3 trận không hạ được): đã gửi và xử lý xong thì quay lại đánh tiếp.
+            if (state.spForce && state.spForceSent) {
+                state.spForce = null;
+                state.spForceSent = false;
+                state.phase = 'fight';
+                state.idleAt = now;
+                state.refreshing = null;
+                return true;
+            }
             const owned = Number(dt.slPotion) || 0;
             const left = Number(dt.lsPotion) || 0;
             const targets = coThanRemainingBosses(dt).filter((g) => !(sp.denied && sp.denied.has(g.id)));
+            if (state.spForce && !targets.some((g) => g.id === state.spForce)) {
+                // Ải đã bị hạ/bị từ chối: không còn gì để dùng sớm, đánh tiếp.
+                state.spForce = null;
+                state.phase = 'fight';
+                state.idleAt = now;
+                return true;
+            }
+            if (state.spForce && (sp.uses >= CO_THAN_MAX_SPECIAL_USES || owned <= 0 || left <= 0)) {
+                const why = sp.uses >= CO_THAN_MAX_SPECIAL_USES ? 'đã đủ số lần' : 'hết vật phẩm/lượt';
+                sendLog(`ℹ️ [Cổ Thần Địa] Không dùng sớm được Cấm Tuyệt Mệnh (${why}); tiếp tục khiêu chiến.`, "info");
+                state.spForce = null;
+                state.spBlocked = true;
+                state.phase = 'fight';
+                state.idleAt = now;
+                return true;
+            }
             if (sp.uses >= CO_THAN_MAX_SPECIAL_USES || owned <= 0 || left <= 0 || !targets.length) {
                 const why = sp.uses >= CO_THAN_MAX_SPECIAL_USES ? 'đã đủ số lần'
                     : (!targets.length ? 'không còn ải' : 'hết vật phẩm/lượt');
@@ -402,7 +469,8 @@
             }
             if (now - state.idleAt < humanDelay(1400)) return false;
             state.idleAt = now;
-            const target = targets[0];
+            const target = state.spForce ? targets.find((g) => g.id === state.spForce) : targets[0];
+            if (state.spForce) state.spForceSent = true;
             sp.pending = { gridId: target.id, at: now, owned, left };
             coThanSpecialReply = null;
             state.refreshing = null;

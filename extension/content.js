@@ -64,6 +64,7 @@
         autoTamTienDai: false,          // Nhận quà miễn phí Tâm Tiên Đài và Chiêu Mộ
         buyTamTienGifts: true,          // Tự mua quà Tiên Ngọc Tâm Tiên Đài (đổi trong cài đặt ⚙ của tính năng)
         autoTienHuu: false,             // Tặng nhanh quà Bạn Bè (Tiên Hữu)
+        autoThaiCo: false,              // Thái Cổ Thu Hà: quét tầng trước 2 lần miễn phí, Like top 3 BXH
         autoArena: false,               // Đấu Tiên Đài PvP (giới hạn lượt, chọn đối thủ thấp)
         arenaBattleLimit: 5,             // Số trận Đấu Tiên Đài tối đa mỗi lần chạy Auto
         autoMaDao: false,               // Ma Đạo gộp: Thưởng treo máy, Tác chiến nhanh, Ải chính tuyến, Ủy phái Sử Thi
@@ -81,6 +82,8 @@
         bannerGoldPrice: 300,           // Quà Tiên Ngọc trong bảng Quà banner: mua mặc định, chỉ khi đúng giá này
         bannerZlBuyGold: 300,           // Trần Tiên Ngọc mua điểm Chiến Lệnh mỗi banner (0 = tắt); chỉ mua trong 24 giờ cuối
 
+        quickSteps: null,               // QUÉT NHANH: mảng khóa tính năng được chọn (null = tất cả); thứ tự cố định theo dãy gốc
+
         activeTab: 'daoThanh',
         intervalMs: 1200,
         running: false
@@ -97,6 +100,12 @@
         if (rc && rc.resume && rc.runConfig && Date.now() - rc.startedAt < 3 * 60 * 1000) {
             Object.assign(CONFIG, rc.runConfig);
         }
+    } catch (e) { }
+
+    // Ngoại lệ thứ hai: lựa chọn các bước của QUÉT NHANH là cài đặt của người dùng nên được nhớ giữa các lần tải trang.
+    try {
+        const qs = JSON.parse(localStorage.getItem('TN_QUICK_STEPS_V1') || 'null');
+        if (Array.isArray(qs)) CONFIG.quickSteps = qs;
     } catch (e) { }
 
     CONFIG.running = false;
@@ -165,6 +174,8 @@
 
         // Tiến độ QUÉT NHANH đã lưu (null = không có): nút chính thành TIẾP TỤC, hiện thêm nút CHẠY LẠI TỪ ĐẦU.
         let quickSavedInfo = null;
+        let quickStepsCatalog = [];  // [{key, label}] các bước Quét nhanh, do game báo
+        let quickTotalSteps = 0;     // số bước của dãy Quét nhanh, do game báo (HUD không có QUICK_RUN_QUEUE)
         function updateQuickButtons(saved, active) {
             quickSavedInfo = saved || null;
             const btn = document.getElementById('tn-btn-sweep');
@@ -178,7 +189,7 @@
                     ? 'Bước ' + (active.idx + 1) + '/' + active.total + ' · ' + active.label
                     : (quickSavedInfo
                         ? 'Bước ' + (quickSavedInfo.idx + 1) + '/' + quickSavedInfo.total + ' · ' + quickSavedInfo.label
-                        : '1 chạm · ' + QUICK_RUN_QUEUE.length + ' bước');
+                        : (quickTotalSteps ? '1 chạm · ' + quickTotalSteps + ' bước' : sub.textContent));
                 btn.title = quickSavedInfo ? 'Tiếp tục QUÉT NHANH từ bước: ' + quickSavedInfo.label + ' (đã xong ' + quickSavedInfo.done + ' bước)' : (btn.dataset.baseTitle || btn.title);
             }
             if (fresh) fresh.style.display = quickSavedInfo ? 'flex' : 'none';
@@ -199,7 +210,7 @@
                 badge.className = 'tn-badge tn-badge-ready';
                 badge.textContent = 'TẠM DỪNG';
                 btnMain.className = 'tn-action-btn tn-btn-start';
-                btnMain.textContent = '▶ BẮT ĐẦU TREO LEO ẢI AUTO';
+                btnMain.textContent = '▶ BẮT ĐẦU AUTO';
             }
         }
 
@@ -248,6 +259,8 @@
             } else if (data.action === 'LOG') {
                 addLogToUI(data.message, data.logType);
             } else if (data.action === 'QUICK_RUN_SAVED') {
+                if (data.total) quickTotalSteps = data.total;
+                if (Array.isArray(data.steps)) quickStepsCatalog = data.steps;
                 updateQuickButtons(data.completed ? null : data.saved, data.completed ? null : data.active);
             } else if (data.action === 'AUTO_FINISHED') {
                 // Tính năng đã hoàn tất: trả nút về trạng thái dừng (dòng kết quả đã được game ghi log).
@@ -497,8 +510,16 @@
                     padding: 0;
                     filter: brightness(0.88);
                 }
-                #tn-quick-group.has-saved #tn-btn-sweep { border-top-right-radius: 4px; border-bottom-right-radius: 4px; }
-                #tn-quick-group.has-saved #tn-btn-quick-fresh { border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
+                #tn-btn-quick-cfg {
+                    flex: 0 0 34px;
+                    font-size: 16px;
+                    font-weight: 800;
+                    padding: 0;
+                    filter: brightness(0.88);
+                }
+                #tn-btn-sweep { border-top-right-radius: 4px; border-bottom-right-radius: 4px; }
+                #tn-btn-quick-fresh { border-radius: 4px; }
+                #tn-btn-quick-cfg { border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
                 #tn-auto-hud::-webkit-scrollbar {
                     width: 4px;
                 }
@@ -709,7 +730,14 @@
                     border: 1px solid rgba(203, 166, 247, 0.5);
                     border-radius: 10px; padding: 10px 12px;
                     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+                    box-sizing: border-box;
+                    max-height: calc(100% - 16px);
+                    display: flex; flex-direction: column;
                 }
+                #tn-settings-card .tn-set-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 2px; }
+                #tn-settings-card .tn-set-list::-webkit-scrollbar { width: 4px; }
+                #tn-settings-card .tn-set-list::-webkit-scrollbar-thumb { background: #45475a; border-radius: 4px; }
+                #tn-settings-card .tn-set-head, #tn-settings-card > .tn-action-btn, #tn-settings-card > .tn-set-hint { flex: 0 0 auto; }
                 #tn-settings-card .tn-set-head { display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 12px; margin-bottom: 8px; color: #cba6f7; }
                 #tn-settings-card .tn-set-close { background: transparent; border: 0; color: #a6adc8; font-size: 14px; cursor: pointer; }
                 #tn-settings-card .tn-set-field { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 8px; margin-bottom: 5px; background: rgba(17, 17, 27, 0.7); border-radius: 6px; }
@@ -873,6 +901,14 @@
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoTienHuu" ${CONFIG.activeFeature === 'autoTienHuu' ? 'checked' : ''}>
                                     </label>
+                                    <label class="tn-opt-item" style="border-left: 3px solid #74c7ec;">
+                                        <div style="min-width:0; flex:1;">
+                                            <div class="tn-feat-title" style="color:#74c7ec;"><span class="tn-feat-name">🌊 Thái Cổ Thu Hà</span></div>
+                                            <div class="tn-feat-desc">Quét tầng trước 2 lần miễn phí, rồi mở BXH Like top 3.</div>
+                                            <div class="tn-feat-cfg" data-cfg-for="autoThaiCo"></div>
+                                        </div>
+                                        <input type="checkbox" class="tn-mutex-feature" data-key="autoThaiCo" ${CONFIG.activeFeature === 'autoThaiCo' ? 'checked' : ''}>
+                                    </label>
                                     <label class="tn-opt-item" style="border-left: 3px solid #cba6f7;">
                                         <div style="min-width:0; flex:1;">
                                             <div class="tn-feat-title" style="color:#cba6f7;"><span class="tn-feat-name">🏛️ Tiên Minh</span><button type="button" class="tn-gear-btn" data-gear="autoTienMinh" title="Cài đặt">⚙</button></div>
@@ -1026,10 +1062,11 @@
 
                 <!-- THANH NÚT CHẠY CỐ ĐỊNH Ở ĐÁY HUD (STICKY / FIXED FOOTER) -->
                 <div id="tn-hud-footer">
-                    <button id="tn-btn-main" class="tn-action-btn tn-btn-start">▶ BẮT ĐẦU TREO LEO ẢI AUTO</button>
+                    <button id="tn-btn-main" class="tn-action-btn tn-btn-start">▶ BẮT ĐẦU AUTO</button>
                     <div id="tn-quick-group">
-                        <button id="tn-btn-sweep" class="tn-action-btn tn-btn-sweep" title="Chạy lần lượt: Tâm Tiên Đài, Tiên Hữu, Trợ Chiến, Tiên Minh, Thông Thiên (quét 3 lần) + Tứ Linh (10 ải), Phụ Bản Ngày & Bí Cảnh, Thủ Vệ, Cửu Uyển Nhi & Cổ Thần, Cực Âm, Di Tích, Ảo Cảnh, Kiếm Hành & Điêu Long, Vực U Minh, Đấu Tiên Đài, Ma Đạo, Banner; cuối cùng Nhận Cuối Ngày."><span class="tn-qb-main">⚡ QUÉT NHANH</span><span class="tn-qb-sub">1 chạm · 17 bước</span></button>
+                        <button id="tn-btn-sweep" class="tn-action-btn tn-btn-sweep" title="Chạy lần lượt: Tâm Tiên Đài, Tiên Hữu, Thái Cổ Thu Hà, Trợ Chiến, Tiên Minh, Thông Thiên (quét 3 lần) + Tứ Linh (10 ải), Phụ Bản Ngày & Bí Cảnh, Thủ Vệ, Cửu Uyển Nhi & Cổ Thần, Cực Âm, Di Tích, Ảo Cảnh, Kiếm Hành & Điêu Long, Vực U Minh, Đấu Tiên Đài, Ma Đạo, Banner; cuối cùng Nhận Cuối Ngày."><span class="tn-qb-main">⚡ QUÉT NHANH</span><span class="tn-qb-sub">1 chạm · 17 bước</span></button>
                         <button id="tn-btn-quick-fresh" class="tn-action-btn tn-btn-sweep" style="display:none;" title="Chạy lại từ đầu (bỏ tiến độ đã lưu)">↺</button>
+                        <button id="tn-btn-quick-cfg" class="tn-action-btn tn-btn-sweep" title="Chọn các bước của QUÉT NHANH">⚙</button>
                     </div>
                 </div>
                 <div class="tn-resize-handle tn-resize-left" title="Kéo để đổi kích thước"></div>
@@ -1148,6 +1185,95 @@
                 card.appendChild(done);
                 overlay.classList.add('open');
             }
+
+            // Cài đặt QUÉT NHANH: tick chọn các bước (thứ tự cố định, không đổi được). Đổi lựa chọn thì bỏ tiến độ tạm dừng cũ.
+            function openQuickSteps() {
+                card.textContent = '';
+                const head = document.createElement('div');
+                head.className = 'tn-set-head';
+                const title = document.createElement('span');
+                title.textContent = '⚙ Cài đặt: Quét Nhanh';
+                const x = document.createElement('button');
+                x.type = 'button';
+                x.className = 'tn-set-close';
+                x.textContent = '✕';
+                x.addEventListener('click', close);
+                head.append(title, x);
+                card.appendChild(head);
+
+                const note = document.createElement('div');
+                note.className = 'tn-set-hint';
+                note.style.margin = '0 0 6px 0';
+                note.textContent = quickStepsCatalog.length
+                    ? 'Tick các bước muốn chạy (thứ tự cố định). Đổi lựa chọn sẽ bỏ tiến độ tạm dừng trước đó.'
+                    : 'Chưa nhận được danh sách bước từ game; đợi vài giây rồi mở lại.';
+                card.appendChild(note);
+                const locked = Boolean(CONFIG.running);
+                if (locked) {
+                    const warn = document.createElement('div');
+                    warn.className = 'tn-set-hint';
+                    warn.style.cssText = 'margin:0 0 6px 0;color:#f9e2af;';
+                    warn.textContent = 'Auto đang chạy: tạm dừng trước khi đổi bước.';
+                    card.appendChild(warn);
+                }
+
+                const boxes = [];
+                const list = document.createElement('div');
+                list.className = 'tn-set-list';
+                card.appendChild(list);
+                const apply = (changedBox) => {
+                    const keys = quickStepsCatalog.filter((st, i) => boxes[i].checked).map((st) => st.key);
+                    if (!keys.length) { changedBox.checked = true; return; }   // phải còn ít nhất một bước
+                    CONFIG.quickSteps = keys.length === quickStepsCatalog.length ? null : keys;
+                    try {
+                        if (CONFIG.quickSteps) localStorage.setItem('TN_QUICK_STEPS_V1', JSON.stringify(CONFIG.quickSteps));
+                        else localStorage.removeItem('TN_QUICK_STEPS_V1');
+                    } catch (e) { }
+                    sendCommandToGame('UPDATE_CONFIG', { config: CONFIG });
+                    if (quickSavedInfo) {
+                        updateQuickButtons(null, null);
+                        addLogToUI('⚙ Quét nhanh: đã đổi các bước nên bỏ tiến độ tạm dừng cũ.', 'info');
+                    }
+                    addLogToUI('⚙ Quét nhanh: chạy ' + keys.length + '/' + quickStepsCatalog.length + ' bước.', 'info');
+                };
+                const selected = new Set(Array.isArray(CONFIG.quickSteps) ? CONFIG.quickSteps : quickStepsCatalog.map((st) => st.key));
+                quickStepsCatalog.forEach((st, i) => {
+                    const row = document.createElement('label');
+                    row.className = 'tn-set-field';
+                    const text = document.createElement('div');
+                    const label = document.createElement('div');
+                    label.className = 'tn-set-label';
+                    label.textContent = (i + 1) + '. ' + st.label;
+                    text.appendChild(label);
+                    const input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.checked = selected.has(st.key);
+                    input.disabled = locked;
+                    input.addEventListener('change', () => apply(input));
+                    boxes.push(input);
+                    row.append(text, input);
+                    list.appendChild(row);
+                });
+                if (quickStepsCatalog.length && !locked) {
+                    const all = document.createElement('button');
+                    all.type = 'button';
+                    all.className = 'tn-action-btn tn-btn-start';
+                    all.style.cssText = 'margin:6px 0 0 0;padding:6px 0;';
+                    all.textContent = 'Chọn tất cả';
+                    all.addEventListener('click', () => { boxes.forEach((b) => { b.checked = true; }); apply(boxes[0]); });
+                    card.appendChild(all);
+                }
+                const done = document.createElement('button');
+                done.type = 'button';
+                done.className = 'tn-action-btn tn-btn-start';
+                done.style.cssText = 'margin:6px 0 0 0;padding:6px 0;';
+                done.textContent = 'Xong';
+                done.addEventListener('click', close);
+                card.appendChild(done);
+                overlay.classList.add('open');
+            }
+            const quickCfgBtn = document.getElementById('tn-btn-quick-cfg');
+            if (quickCfgBtn) quickCfgBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openQuickSteps(); });
 
             document.querySelectorAll('.tn-gear-btn').forEach((btn) => {
                 btn.addEventListener('click', (e) => {
@@ -1365,6 +1491,8 @@
                 sendCommandToGame('REQUEST_ROLE_INFO');
             }, 1500);
             sendCommandToGame('REQUEST_ROLE_INFO');
+            // Đồng bộ lựa chọn bước Quét nhanh (đã nhớ) sang game để kiểm tra tiến độ tạm dừng đúng dãy.
+            [300, 1200, 3000].forEach((ms) => setTimeout(() => sendCommandToGame('UPDATE_CONFIG', { config: CONFIG }), ms));
             setTimeout(() => sendCommandToGame('REQUEST_ROLE_INFO'), 500);
             setTimeout(() => sendCommandToGame('REQUEST_ROLE_INFO'), 1500);
             setTimeout(() => sendCommandToGame('REQUEST_ROLE_INFO'), 3000);
@@ -2182,7 +2310,7 @@
             autoArena: 'Đấu Tiên Đài', autoTongTian: 'Thông Thiên Tháp & Tứ Linh Tháp', autoDailyDungeon: 'Phụ Bản Ngày & Bí Cảnh Tứ Quốc',
             autoSectDefense: 'Thủ Vệ Tứ Phái', autoOtherTrials: 'Cửu Uyển Nhi & Cổ Thần Địa',
             autoImmortalRelic: 'Di Tích Tiên Giới', autoMinigameMemory: 'Ảo Cảnh Pháp Trận', autoMinigameDragon: 'Kiếm Hành & Điêu Long',
-            autoTroChien: 'Trợ Chiến Linh Thú', autoTamTienDai: 'Tâm Tiên Đài', autoTienHuu: 'Tiên Hữu', autoTienMinh: 'Tiên Minh',
+            autoTroChien: 'Trợ Chiến Linh Thú', autoTamTienDai: 'Tâm Tiên Đài', autoTienHuu: 'Tiên Hữu', autoThaiCo: 'Thái Cổ Thu Hà', autoTienMinh: 'Tiên Minh',
             autoCuoiNgay: 'Nhận Cuối Ngày', autoClimbDailyDungeons: 'Leo Phụ Bản Ngày', autoClimbYMAbyss: 'Vực U Minh',
             autoExtremeYin: 'Cực Âm Địa', autoClimbCamp: 'Leo Tứ Linh Trận', autoSweepDungeons: 'Quét Phụ Bản',
             autoMaDao: 'Ma Đạo Tổng Hợp', autoXianYuan: 'Quà Tiên Duyên', autoBanner: 'Tướng Thần Lâm / Đạp Thiên'
@@ -2455,6 +2583,7 @@
                 return;
             } else if (data.action === 'UPDATE_CONFIG') {
                 Object.assign(CONFIG, quickRunFilterConfig(data.config));
+                if (typeof quickStepsConfigChanged === 'function') quickStepsConfigChanged();
             } else if (data.action === 'TOGGLE_AUTO') {
                 const wasRunning = CONFIG.running;
                 CONFIG.running = data.running;
@@ -5150,6 +5279,9 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
         //   2. Khiêu chiến 4 ải xung quanh (ô 17, 19, 9, 7 - dễ đến khó), rồi ải giữa (ô 13). Mỗi ải: bấm ô ->
         //      bảng khiêu chiến -> nút Khiêu chiến (send11066). Hạ xong ải giữa, ô đó thành cửa "Tầng sau"
         //      (etype NEXT_SGC): đi qua cửa (send11063) sang tầng kế và lặp lại 4 ải + ải giữa, tới khi hết tướng còn sức.
+        //      Ải đánh CO_THAN_FAILS_BEFORE_SPECIAL trận liên tiếp mà vẫn chưa hạ (tướng vẫn còn sống): dùng ngay
+        //      Cấm Tuyệt Mệnh lên ải đó (chung giới hạn 5 lần), rồi quay lại đánh tiếp. Riêng ải giữa (Thủ Lĩnh) game
+        //      không cho dùng vật phẩm: kẹt ở đó thì nhận thưởng rồi kết thúc sớm.
         //   3. Hết tướng: dùng vật phẩm đặc biệt (Cấm Tuyệt Mệnh, send11079) lên ải còn lại, tối đa 5 lần.
         //   4. Nhận thưởng Diệt Thủ Hộ (mốc hạ gục đã đạt, send11084).
         // Mỗi bước chỉ tính thành công khi dữ liệu máy chủ tải lại (send11060) xác nhận.
@@ -5157,6 +5289,8 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
         const CO_THAN_FIGHT_TIMEOUT_MS = 90000;
         const CO_THAN_BOSS_ORDER = [17, 19, 9, 7, 13];
         const CO_THAN_MAX_SPECIAL_USES = 5;
+        const CO_THAN_LEADER_GRID = 13;           // ải giữa (Thủ Lĩnh): game không cho dùng Cấm Tuyệt Mệnh lên đây
+        const CO_THAN_FAILS_BEFORE_SPECIAL = 3;   // số trận không hạ được một ải (tướng còn sống) trước khi dùng Cấm Tuyệt Mệnh
         const CO_THAN_MAX_CLAIMS = 10;
         const CO_THAN_MAX_FIGHTS = 1000;
         const CO_THAN_MAX_FLOORS = 200;
@@ -5201,6 +5335,10 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
                 door: null,               // { gridId, at, layer } đã gửi đi qua cửa, chờ máy chủ xác nhận
                 pending: null,            // { gridId, at, killBefore, hpBefore }
                 special: { uses: loadCoThanSpecialSent(), pending: null },
+                bossFails: {},            // gridId -> số trận liên tiếp chưa hạ được (tướng còn sống)
+                spForce: null,            // gridId cần dùng Cấm Tuyệt Mệnh ngay (sau 3 trận không hạ được)
+                spForceSent: false,
+                spBlocked: false,         // hết lượt/vật phẩm hoặc đủ số lần: không dùng sớm nữa, cứ đánh tới hết tướng
                 claim: { done: 0, pending: null },
                 idleAt: Date.now()
             };
@@ -5251,6 +5389,8 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
         function coThanResync(state, key, message) {
             state.pending = null;
             state.door = null;
+            state.spForce = null;
+            state.spForceSent = false;
             state.refreshing = null;
             if (!tryAttemptTarget('co-than-resync', "[Cổ Thần Địa] Tải lại trạng thái")) {
                 failCoThan(state, key, `${message} Đã thử tải lại nhiều lần mà không được; dừng để an toàn.`, 'done');
@@ -5402,11 +5542,30 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
                 state.fights++;
                 clearTargetAttempts('co-than-open-' + p.gridId);
                 if (grid && grid.isFsh === 1) {
+                    delete state.bossFails[p.gridId];
                     sendLog(`✅ [Cổ Thần Địa] Máy chủ xác nhận đã hạ ải ô #${p.gridId} (hạ gục ${after.killNum || 0}).`, "action");
                 } else if (grid && grid.eType === (ctx.AdvConst && ctx.AdvConst.NEXT_SGC || CO_THAN_NEXT_FLOOR_ETYPE)) {
                     sendLog(`✅ [Cổ Thần Địa] Máy chủ xác nhận đã hạ ải giữa ô #${p.gridId}; cửa sang tầng sau đã xuất hiện (hạ gục ${after.killNum || 0}).`, "action");
                 } else {
                     sendLog(`ℹ️ [Cổ Thần Địa] Trận ô #${p.gridId} kết thúc nhưng ải chưa bị hạ (HP đội ${p.hpBefore} -> ${coThanTotalHp(after)}).`, "info");
+                    state.bossFails[p.gridId] = (state.bossFails[p.gridId] || 0) + 1;
+                    const sp = state.special;
+                    const denied = sp.denied && sp.denied.has(p.gridId);
+                    if (state.bossFails[p.gridId] >= CO_THAN_FAILS_BEFORE_SPECIAL && coThanAliveCount(after) > 0 && p.gridId === CO_THAN_LEADER_GRID) {
+                        // Ải giữa (Thủ Lĩnh) không dùng được Cấm Tuyệt Mệnh: không đánh mãi, nhận thưởng rồi kết thúc sớm.
+                        sendLog(`ℹ️ [Cổ Thần Địa] Ải giữa (Thủ Lĩnh) đánh ${CO_THAN_FAILS_BEFORE_SPECIAL} trận vẫn chưa hạ được và game không cho dùng Cấm Tuyệt Mệnh lên Thủ Lĩnh; nhận thưởng rồi kết thúc.`, "info");
+                        state.phase = 'reward';
+                        state.refreshing = null;
+                        return true;
+                    }
+                    if (grid && state.bossFails[p.gridId] >= CO_THAN_FAILS_BEFORE_SPECIAL && coThanAliveCount(after) > 0 && !state.spBlocked && !denied) {
+                        state.bossFails[p.gridId] = 0;
+                        state.spForce = p.gridId;
+                        state.spForceSent = false;
+                        state.refreshing = null;
+                        state.phase = 'special';
+                        sendLog(`⚠️ [Cổ Thần Địa] Đã đánh ${CO_THAN_FAILS_BEFORE_SPECIAL} trận ải ô #${p.gridId} mà chưa hạ được (tướng vẫn còn sống); dùng Cấm Tuyệt Mệnh lên ải này.`, "warn");
+                    }
                 }
                 state.idleAt = now;
                 return true;
@@ -5504,6 +5663,18 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
                     const knownRefusal = String(reply.msg) === '196050';
                     sendLog(`${knownRefusal ? 'ℹ️' : '⚠️'} [Cổ Thần Địa] Máy chủ trả lời dùng vật phẩm ô #${sp.pending.gridId}: res=${reply.res}, thông báo: "${text || '(trống)'}".`, knownRefusal ? "info" : "warn");
                 }
+                if (reply && reply.res !== 1 && state.spForce && String(reply.msg) === '196050') {
+                    // "Không thể dùng Cấm Tuyệt Mệnh lên Thủ Lĩnh ở tầng này": ải kẹt là Thủ Lĩnh, nhận thưởng rồi kết thúc sớm.
+                    sp.uses = Math.max(0, sp.uses - 1);
+                    saveCoThanSpecialSent(sp.uses);
+                    sp.pending = null;
+                    state.spForce = null;
+                    state.spForceSent = false;
+                    state.refreshing = null;
+                    sendLog("ℹ️ [Cổ Thần Địa] Game không cho dùng Cấm Tuyệt Mệnh lên ải đang kẹt (Thủ Lĩnh); nhận thưởng rồi kết thúc.", "info");
+                    state.phase = 'reward';
+                    return true;
+                }
                 if (reply && reply.res !== 1) {
                     // Máy chủ từ chối rõ ràng (ví dụ "không thể dùng lên Thủ Lĩnh ở tầng này"): vật phẩm chưa bị trừ, nên
                     // hoàn lại lượt đếm, bỏ ô này khỏi danh sách mục tiêu và đi tiếp thay vì báo lỗi.
@@ -5534,9 +5705,34 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
                 return true;
             }
             if (!dt) { state.phase = 'reward'; return false; }
+            // Dùng sớm (sau 3 trận không hạ được): đã gửi và xử lý xong thì quay lại đánh tiếp.
+            if (state.spForce && state.spForceSent) {
+                state.spForce = null;
+                state.spForceSent = false;
+                state.phase = 'fight';
+                state.idleAt = now;
+                state.refreshing = null;
+                return true;
+            }
             const owned = Number(dt.slPotion) || 0;
             const left = Number(dt.lsPotion) || 0;
             const targets = coThanRemainingBosses(dt).filter((g) => !(sp.denied && sp.denied.has(g.id)));
+            if (state.spForce && !targets.some((g) => g.id === state.spForce)) {
+                // Ải đã bị hạ/bị từ chối: không còn gì để dùng sớm, đánh tiếp.
+                state.spForce = null;
+                state.phase = 'fight';
+                state.idleAt = now;
+                return true;
+            }
+            if (state.spForce && (sp.uses >= CO_THAN_MAX_SPECIAL_USES || owned <= 0 || left <= 0)) {
+                const why = sp.uses >= CO_THAN_MAX_SPECIAL_USES ? 'đã đủ số lần' : 'hết vật phẩm/lượt';
+                sendLog(`ℹ️ [Cổ Thần Địa] Không dùng sớm được Cấm Tuyệt Mệnh (${why}); tiếp tục khiêu chiến.`, "info");
+                state.spForce = null;
+                state.spBlocked = true;
+                state.phase = 'fight';
+                state.idleAt = now;
+                return true;
+            }
             if (sp.uses >= CO_THAN_MAX_SPECIAL_USES || owned <= 0 || left <= 0 || !targets.length) {
                 const why = sp.uses >= CO_THAN_MAX_SPECIAL_USES ? 'đã đủ số lần'
                     : (!targets.length ? 'không còn ải' : 'hết vật phẩm/lượt');
@@ -5547,7 +5743,8 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
             }
             if (now - state.idleAt < humanDelay(1400)) return false;
             state.idleAt = now;
-            const target = targets[0];
+            const target = state.spForce ? targets.find((g) => g.id === state.spForce) : targets[0];
+            if (state.spForce) state.spForceSent = true;
             sp.pending = { gridId: target.id, at: now, owned, left };
             coThanSpecialReply = null;
             state.refreshing = null;
@@ -6722,6 +6919,8 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
         const TIEN_MINH_FIGHT_MAX_WAIT_MS = 90000;
         const TIEN_MINH_DUNGEON_MAX_BUYS = 4;
         const TIEN_MINH_ASKED_FIGHTS = 2;
+        const TIEN_MINH_POLL_FIRST_MS = 1000;      // sau khi trận xong: hỏi lại máy chủ sớm (thời gian đánh không tính vào mốc này)
+        const TIEN_MINH_POLL_EVERY_MS = 1500;
         let tamTienDaiState = null;
         let tienHuuState = null;
         let cuoiNgayState = null;
@@ -7894,7 +8093,7 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
                 } else if (now - pending.startedAt >= TIEN_MINH_DUNGEON_FIGHT_TIMEOUT_MS) {
                     dungeon.pending = null;
                     failTienMinhStep(state, 'dungeon-fight-timeout', 'Máy chủ chưa xác nhận trận Bí Cảnh Tông Môn; không gửi lại để tránh lặp trận.', 'war');
-                } else if (now - pending.startedAt >= 3000 && now - pending.lastRefreshAt >= 2000) {
+                } else if (now - pending.startedAt >= TIEN_MINH_POLL_FIRST_MS && now - pending.lastRefreshAt >= TIEN_MINH_POLL_EVERY_MS) {
                     // Số trận chỉ cập nhật khi tải lại dữ liệu sau khi trận kết thúc.
                     pending.lastRefreshAt = now;
                     try {
@@ -8118,7 +8317,7 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
                     return true;
                 } else {
                     // Số lượt chỉ cập nhật khi tải lại dữ liệu sau khi trận kết thúc.
-                    if (now - pending.startedAt >= 3000 && now - pending.lastRefreshAt >= 2000 &&
+                    if (now - pending.startedAt >= TIEN_MINH_POLL_FIRST_MS * 3 && now - pending.lastRefreshAt >= TIEN_MINH_POLL_EVERY_MS &&
                         typeof wr.send18125 === 'function') {
                         pending.lastRefreshAt = now;
                         try {
@@ -8230,7 +8429,7 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
                     logTienMinh(state, `asked-fight-${asked.count}`, `✅ [Tiên Minh - Tông Môn Vấn Đạo] Máy chủ xác nhận lượt Khiêu Chiến ${asked.count}/${TIEN_MINH_ASKED_FIGHTS}.`, "action");
                 } else if (now - pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
                     asked.pending = null;
-                    failTienMinhStep(state, 'asked-fight-timeout', 'Máy chủ chưa xác nhận trận Tông Môn Vấn Đạo; không gửi lại để tránh lặp trận.', 'help');
+                    failTienMinhStep(state, 'asked-fight-timeout', 'Máy chủ chưa xác nhận trận Tông Môn Vấn Đạo; không gửi lại để tránh lặp trận. Vẫn kiểm tra thưởng sát thương.', 'askedClaim');
                 }
                 return true;
             }
@@ -8305,7 +8504,7 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
             if (fightCtrl && typeof fightCtrl.gCanFight === 'function' && !fightCtrl.gCanFight(0)) {
                 asked.blocked = (asked.blocked || 0) + 1;
                 if (asked.blocked >= 10) {
-                    failTienMinhStep(state, 'asked-blocked', 'Game không cho phép Khiêu Chiến Tông Môn Vấn Đạo lúc này (đang trong trận khác).', 'help');
+                    failTienMinhStep(state, 'asked-blocked', 'Game không cho phép Khiêu Chiến Tông Môn Vấn Đạo lúc này (đang trong trận khác). Vẫn kiểm tra thưởng sát thương.', 'askedClaim');
                 }
                 return true;
             }
@@ -8315,7 +8514,7 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
                 ctx.EmbattleCtrl.gInst().openEmbattle(embattleType.guildAsked);
             } catch (error) {
                 asked.pending = null;
-                failTienMinhStep(state, 'asked-challenge-error', `Không thể Khiêu Chiến Tông Môn Vấn Đạo: ${error.message || error}`, 'help');
+                failTienMinhStep(state, 'asked-challenge-error', `Không thể Khiêu Chiến Tông Môn Vấn Đạo: ${error.message || error}. Vẫn kiểm tra thưởng sát thương.`, 'askedClaim');
             }
             return true;
         }
@@ -8757,6 +8956,7 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
                 if (leftoverVm && typeof leftoverVm.viewIsVisible === 'function' &&
                     !isTienMinhFighting(ctx) && leftoverVm.viewIsVisible('embattleUi')) {
                     leftoverVm.closeView('embattleUi');
+                    tienMinhDidSend = true;
                     logTienMinh(state, 'battle-embattle-leftover', "ℹ️ [Tiên Minh] Đã đóng bảng đội hình còn mở sau khi hết lượt Khiêu Chiến.", "info");
                     return true;
                 }
@@ -8818,7 +9018,28 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
                     acted = true;
                 }
             });
+            if (acted) tienMinhDidSend = true;
             return acted;
+        }
+
+        // Tiên Minh là chuỗi ~25 bước, mỗi bước chờ máy chủ. Nhịp chỉ chờ (chưa gửi gì) phải kiểm tra lại ngay ('wait'),
+        // không nghỉ kiểu người chơi như khi vừa gửi thật. Cờ tienMinhDidSend được bật tại đúng lúc gọi các hàm gửi/mở
+        // giao diện của GuildCtrl / GldWrCtrl / EmbattleCtrl (bọc một lần trên prototype), nên không phải sửa từng bước.
+        let tienMinhDidSend = false;
+        const TIEN_MINH_SEND_RE = /^(send\d+|openGuild|saveGuildDungeonFightData|showGuildBargainView|closeGuildFeteUi|openEmbattle)/;
+        function tienMinhWatchSends(ctrl) {
+            try {
+                const proto = ctrl && Object.getPrototypeOf(ctrl);
+                if (!proto || proto.__tnSendWatched) return;
+                proto.__tnSendWatched = true;
+                Object.getOwnPropertyNames(proto).forEach((name) => {
+                    if (!TIEN_MINH_SEND_RE.test(name)) return;
+                    const desc = Object.getOwnPropertyDescriptor(proto, name);
+                    const orig = desc && desc.value;
+                    if (typeof orig !== 'function') return;
+                    proto[name] = function () { tienMinhDidSend = true; return orig.apply(this, arguments); };
+                });
+            } catch (error) { }
         }
 
         function handleTienMinh(ctx) {
@@ -8836,6 +9057,9 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
                 return true;
             }
             tienMinhControllerUnavailableLogged = false;
+            tienMinhWatchSends(gc);
+            tienMinhWatchSends(wr);
+            if (ctx.EmbattleCtrl && ctx.EmbattleCtrl.gInst) tienMinhWatchSends(ctx.EmbattleCtrl.gInst());
 
             const dayKey = new Date().toDateString();
             if (!tienMinhState || tienMinhState.dayKey !== dayKey ||
@@ -9002,7 +9226,9 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
                 }
                 // 4. Tiên Minh (Bang Hội)
                 if (CONFIG.activeFeature === 'autoTienMinh') {
-                    return handleTienMinh(ctx);
+                    tienMinhDidSend = false;
+                    const acted = handleTienMinh(ctx);
+                    return acted === true && !tienMinhDidSend ? 'wait' : acted;
                 }
                 // 5. Cuối Ngày (Thư, Like BXH, Sôi Nổi)
                 if (CONFIG.activeFeature === 'autoCuoiNgay') {
@@ -9929,13 +10155,200 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
             }
         }
 
+
+        // Thái Cổ Thu Hà (DoubleTeamDungeonCtrl, doubleTeamDungeonUi; BXH: RankCtrl, rankListHallUi, RankType.dtd)
+        // Mỗi nhịp một việc, máy trạng thái thaiCoState.phase:
+        //   open -> sweep -> rank -> done
+        //   - open: mở màn Thái Cổ Thu Hà, đợi máy chủ trả dữ liệu (send32080 -> sc32080).
+        //   - sweep: "Quét tầng trước" tối đa 2 lần MIỄN PHÍ (send32084(pass_dungeon_uid), chỉ khi checkSweepRed() còn lượt
+        //     miễn phí; nhánh trả Tiên Ngọc của nút quét KHÔNG BAO GIỜ được gửi). Xác nhận khi sweep_count tăng.
+        //   - rank: mở BXH (rankListHallUi), thả Like top 1-3 (send15006(type, hạng)); xác nhận khi getCanWorship chuyển sang false.
+        // Chỉ ghi "đã" khi dữ liệu máy chủ xác nhận; thiếu phản hồi thì báo lỗi, không gửi lại.
+        const THAI_CO_REQUEST_TIMEOUT_MS = 15000;
+        const THAI_CO_SWEEPS = 2;
+        const THAI_CO_LIKE_TOP = 3;
+        let thaiCoState = null;
+        let thaiCoDidSend = false;     // nhịp này đã gửi yêu cầu thật (nếu không: chỉ chờ, scheduler kiểm tra lại ngay)
+
+        function createThaiCoState() {
+            return {
+                dayKey: new Date().toDateString(),
+                phase: 'open',
+                failed: false,
+                opened: false,
+                refreshing: null,
+                swept: 0,
+                sweepPending: null,        // { before, id, at }
+                rankOpened: false,
+                rankRefreshing: null,
+                likes: 0,
+                likeRank: 1,
+                likePending: null,         // { rank, at }
+                summarized: false
+            };
+        }
+
+        function thaiCoFail(s, message, nextPhase) {
+            sendLog(`❌ [Thái Cổ Thu Hà] ${message}`, "error");
+            s.failed = true;
+            s.refreshing = null;
+            s.phase = nextPhase;
+        }
+
+        function thaiCoCloseViews(vm) {
+            ['rankListHallUi', 'doubleTeamDungeonUi'].forEach((name) => {
+                try { if (vm.viewIsVisible(name)) vm.closeView(name); } catch (e) { }
+            });
+        }
+
+        function thaiCoStepOpen(ctx, ctrl, vm, s, now) {
+            try {
+                if (ctx.FunOpenCtrl && ctx.FunOpenType && ctx.FunOpenType.MT !== undefined &&
+                    !ctx.FunOpenCtrl.gInst().check(ctx.FunOpenType.MT, false)) {
+                    sendLog("ℹ️ [Thái Cổ Thu Hà] Chức năng chưa mở khóa; bỏ qua.", "info");
+                    s.phase = 'done';
+                    return;
+                }
+            } catch (e) { }
+            if (!s.opened) {
+                s.opened = true;
+                thaiCoDidSend = true;
+                ctrl.openDoubleTeamDungeonUi();
+                return;
+            }
+            const r = pollTowerDailyRefresh(s, 'refreshing', now, () => { thaiCoDidSend = true; ctrl.send32080(); }, () => ctrl.sc32080);
+            if (r === 'wait') return;
+            if (r !== 'ready') { thaiCoFail(s, "Máy chủ chưa trả dữ liệu Thái Cổ Thu Hà; bỏ qua cả hai bước.", 'done'); return; }
+            s.phase = 'sweep';
+        }
+
+        function thaiCoStepSweep(ctrl, s, now) {
+            const sc = ctrl.sc32080;
+            if (!sc) { thaiCoFail(s, "Không đọc được dữ liệu quét tầng; bỏ qua quét tầng.", 'rank'); return; }
+            const total = Number(ctrl.getCurlModel().getBaseCfg().day_mop_up_time) || 0;
+            if (s.sweepPending) {
+                const p = s.sweepPending;
+                if (Number(sc.sweep_count) > p.before) {
+                    s.sweepPending = null;
+                    s.swept++;
+                    sendLog(`✅ [Thái Cổ Thu Hà] Máy chủ xác nhận đã quét tầng trước #${p.id} (đã quét ${sc.sweep_count}/${total} lượt miễn phí).`, "result");
+                } else if (now - p.at >= THAI_CO_REQUEST_TIMEOUT_MS) {
+                    s.sweepPending = null;
+                    thaiCoFail(s, `Đã gửi quét tầng #${p.id} nhưng máy chủ chưa xác nhận; không gửi lại.`, 'rank');
+                }
+                return;
+            }
+            // Chỉ nhánh miễn phí: checkSweepRed() = đã qua tầng nào đó và còn lượt quét miễn phí trong ngày.
+            if (s.swept >= THAI_CO_SWEEPS || !ctrl.checkSweepRed() || !(Number(sc.pass_dungeon_uid) > 0)) {
+                sendLog(s.swept
+                    ? `ℹ️ [Thái Cổ Thu Hà] Đã quét tầng trước ${s.swept} lần miễn phí; chuyển sang BXH.`
+                    : `ℹ️ [Thái Cổ Thu Hà] Không còn lượt quét miễn phí hoặc chưa qua tầng nào (đã quét ${sc.sweep_count}/${total}); không quét, không mua.`, "info");
+                s.phase = 'rank';
+                return;
+            }
+            s.sweepPending = { before: Number(sc.sweep_count) || 0, id: sc.pass_dungeon_uid, at: now };
+            thaiCoDidSend = true;
+            ctrl.send32084(sc.pass_dungeon_uid);
+            sendLog(`🌊 [Thái Cổ Thu Hà] Quét tầng trước #${sc.pass_dungeon_uid} (lượt miễn phí ${(Number(sc.sweep_count) || 0) + 1}/${total})...`, "action");
+        }
+
+        function thaiCoStepRank(ctx, vm, s, now) {
+            const rc = ctx.RankCtrl && ctx.RankCtrl.gInst && ctx.RankCtrl.gInst();
+            const type = ctx.RankConst && ctx.RankConst.RankType && ctx.RankConst.RankType.dtd;
+            const model = rc && typeof rc.getCurlModel === 'function' ? rc.getCurlModel() : null;
+            if (!rc || type === undefined || !model || typeof rc.send15006 !== 'function' || typeof rc.send15001 !== 'function' ||
+                typeof model.getCanWorship !== 'function' || typeof rc.showRankListUi !== 'function') {
+                thaiCoFail(s, "API BXH/Like chưa sẵn sàng; bỏ qua Like BXH.", 'done');
+                return;
+            }
+            const dataOf = () => { try { return model.getRankDataByType(type); } catch (e) { return undefined; } };
+            if (!s.rankOpened) {
+                s.rankOpened = true;
+                thaiCoDidSend = true;
+                rc.showRankListUi(type);
+                sendLog("ℹ️ [Thái Cổ Thu Hà - BXH] Đã mở BXH; đang tải danh sách.", "info");
+                return;
+            }
+            if (!s.rankLoaded) {
+                const r = pollTowerDailyRefresh(s, 'rankRefreshing', now, () => { thaiCoDidSend = true; rc.send15001(type); }, dataOf);
+                if (r === 'wait') return;
+                const d = dataOf();
+                if (r !== 'ready' || !d || !Array.isArray(d.list)) { thaiCoFail(s, "Máy chủ chưa trả danh sách BXH Thái Cổ Thu Hà; không Like.", 'done'); return; }
+                s.rankLoaded = true;
+                return;
+            }
+            if (s.likePending) {
+                const p = s.likePending;
+                if (!model.getCanWorship(type, p.rank)) {
+                    s.likePending = null;
+                    s.likes++;
+                    sendLog(`✅ [Thái Cổ Thu Hà - BXH] Máy chủ xác nhận đã Like hạng ${p.rank}.`, "result");
+                    s.likeRank++;
+                } else if (now - p.at >= THAI_CO_REQUEST_TIMEOUT_MS) {
+                    s.likePending = null;
+                    sendLog(`⚠️ [Thái Cổ Thu Hà - BXH] Đã gửi Like hạng ${p.rank} nhưng máy chủ chưa xác nhận; không gửi lại.`, "warn");
+                    s.failed = true;
+                    s.likeRank++;
+                }
+                return;
+            }
+            const maxLike = Math.min(THAI_CO_LIKE_TOP, Number(model.getMaxZanCount(type)) || 1);
+            if (s.likeRank > maxLike) { s.phase = 'done'; return; }
+            const rank = s.likeRank;
+            if (!model.getCanWorship(type, rank)) {
+                logOnce(`thai-co-like-${rank}`, `ℹ️ [Thái Cổ Thu Hà - BXH] Hạng ${rank} không Like được (đã Like hoặc hết lượt hôm nay); bỏ qua.`, "info");
+                s.likeRank++;
+                return;
+            }
+            s.likePending = { rank, at: now };
+            thaiCoDidSend = true;
+            rc.send15006(type, rank);        // giống nút Like của BXH (RankListZanUi.onClickZanBtn)
+            sendLog(`👍 [Thái Cổ Thu Hà - BXH] Like hạng ${rank}...`, "action");
+        }
+
+        // Trả về: true (đã gửi/hành động thật) | 'wait' (chỉ chờ máy chủ/chuyển bước) | false.
+        function handleThaiCoThuHa(ctx) {
+            try {
+                if (!ctx.DoubleTeamDungeonCtrl || !ctx.DoubleTeamDungeonCtrl.gInst || !ctx.ViewMgr || !ctx.ViewMgr.gInst) {
+                    logUnsupportedOnce('thai-co', "⚠️ [Thái Cổ Thu Hà] Game chưa sẵn sàng (DoubleTeamDungeonCtrl); bỏ qua.");
+                    return false;
+                }
+                const dayKey = new Date().toDateString();
+                if (!thaiCoState || thaiCoState.dayKey !== dayKey) {
+                    thaiCoState = createThaiCoState();
+                    sendLog("🌊 [Thái Cổ Thu Hà] Bắt đầu: quét tầng trước 2 lần miễn phí rồi Like top 3 BXH.", "action");
+                }
+                const s = thaiCoState;
+                const ctrl = ctx.DoubleTeamDungeonCtrl.gInst();
+                const vm = ctx.ViewMgr.gInst();
+                const now = Date.now();
+                if (s.phase === 'done') {
+                    // Nhịp "done": đóng các màn đã mở rồi ghi tổng kết một lần.
+                    thaiCoCloseViews(vm);
+                    if (!s.summarized) {
+                        s.summarized = true;
+                        sendLog(`${s.failed ? '⚠️' : '✅'} [Thái Cổ Thu Hà] Xong: quét tầng ${s.swept}/${THAI_CO_SWEEPS}, Like BXH ${s.likes}/${THAI_CO_LIKE_TOP}.`, s.failed ? "warn" : "result");
+                    }
+                    return false;
+                }
+                thaiCoDidSend = false;
+                if (s.phase === 'open') thaiCoStepOpen(ctx, ctrl, vm, s, now);
+                else if (s.phase === 'sweep') thaiCoStepSweep(ctrl, s, now);
+                else if (s.phase === 'rank') thaiCoStepRank(ctx, vm, s, now);
+                return thaiCoDidSend ? true : 'wait';
+            } catch (e) {
+                sendLog(`❌ [Thái Cổ Thu Hà] Lỗi: ${e && e.message || e}`, "error");
+                if (thaiCoState) { thaiCoState.failed = true; thaiCoState.phase = 'done'; }
+                return false;
+            }
+        }
         // =====================================================================
         // QUÉT NHANH (1 CHẠM): chạy lần lượt gần như mọi tính năng, mỗi bước y như bấm BẮT ĐẦU cho một tính năng riêng
         // (CONFIG.activeFeature + runBegin + runFinishProbe/runFinish có sẵn). Bước xong (hoặc lỗi) thì sang bước kế tiếp;
         // Nhận Cuối Ngày luôn là bước cuối để gom hết thư/quà phát sinh. Quy tắc chi tiêu = đúng cài đặt từng tính năng.
         // =====================================================================
         const QUICK_RUN_QUEUE = [
-            'autoTamTienDai', 'autoTienHuu', 'autoTroChien', 'autoTienMinh',
+            'autoTamTienDai', 'autoTienHuu', 'autoThaiCo', 'autoTroChien', 'autoTienMinh',
             'autoTongTian',            // chế độ quét: Thông Thiên 3 lần (2 free + 1 mua) + Tứ Linh 10 ải mới/tháp, KHÔNG leo
             'autoDailyDungeon', 'autoSectDefense', 'autoOtherTrials', 'autoExtremeYin', 'autoImmortalRelic',
             'autoMinigameMemory', 'autoMinigameDragon', 'autoClimbYMAbyss', 'autoArena', 'autoMaDao', 'autoBanner',
@@ -9947,7 +10360,17 @@ function quickStepMaxMs(key) { return QUICK_STEP_MAX_MS_BY_KEY[key] || QUICK_STE
         const QUICK_STEP_GAP_MS = 1500;               // nghỉ giữa hai bước (đóng bảng còn mở, chờ game ổn định)
         // Cờ CONFIG.<khóa tính năng> cũng phải khớp: nhiều tính năng tự kiểm tra cờ của mình (ví dụ `if (!CONFIG.autoClimbYMAbyss) return false`);
         // khi bấm BẮT ĐẦU thường thì checkbox đặt cờ này, nên Quét nhanh phải tự đặt theo từng bước.
-        const QUICK_CONFIG_LOCKED_KEYS = ['activeFeature', 'running', 'towerSweepOnly', 'towerDailyRoutine'].concat(QUICK_RUN_QUEUE);
+        const QUICK_CONFIG_LOCKED_KEYS = ['activeFeature', 'running', 'towerSweepOnly', 'towerDailyRoutine', 'quickSteps'].concat(QUICK_RUN_QUEUE);
+
+        // Các bước người dùng chọn (CONFIG.quickSteps = mảng khóa, null = tất cả). Thứ tự luôn theo QUICK_RUN_QUEUE; không đổi được.
+        function quickSelectedQueue() {
+            const sel = CONFIG.quickSteps;
+            if (!Array.isArray(sel)) return QUICK_RUN_QUEUE.slice();
+            const q = QUICK_RUN_QUEUE.filter((k) => sel.includes(k));
+            return q.length ? q : QUICK_RUN_QUEUE.slice();
+        }
+        // Dãy đang áp dụng: dãy đã chốt lúc bắt đầu chạy (không đổi giữa chừng), nếu không thì dãy đang chọn.
+        function quickQueueNow() { return quickRun ? quickRun.queue : quickSelectedQueue(); }
         let quickRun = null;
 const QUICK_ARENA_BATTLES = 3;     // Đấu Tiên Đài trong Quét nhanh: tối đa 3 trận
 
@@ -9958,15 +10381,16 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
         function quickSaveLoad() {
             try {
                 const o = JSON.parse(sessionStorage.getItem(QUICK_SAVE_KEY) || 'null');
-                if (o && o.day === new Date().toDateString() && o.total === QUICK_RUN_QUEUE.length &&
+                if (o && o.day === new Date().toDateString() && Array.isArray(o.keys) && o.keys.join() === quickSelectedQueue().join() && o.total === o.keys.length &&
                     Number.isInteger(o.idx) && o.idx > 0 && o.idx < o.total && Array.isArray(o.results)) return o;
             } catch (e) { }
             return null;
         }
-        function quickSaveWrite(nextIdx, results) {
+        function quickSaveWrite(nextIdx, results, keys) {
+            keys = keys || quickQueueNow();
             try {
                 if (nextIdx <= 0) { sessionStorage.removeItem(QUICK_SAVE_KEY); return; }
-                sessionStorage.setItem(QUICK_SAVE_KEY, JSON.stringify({ day: new Date().toDateString(), total: QUICK_RUN_QUEUE.length, idx: nextIdx, results }));
+                sessionStorage.setItem(QUICK_SAVE_KEY, JSON.stringify({ day: new Date().toDateString(), total: keys.length, keys, idx: nextIdx, results }));
             } catch (e) { }
         }
         function quickSaveClear() { try { sessionStorage.removeItem(QUICK_SAVE_KEY); } catch (e) { } }
@@ -9980,12 +10404,22 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
         function quickReportSaved(completed) {
             let saved = null, active = null;
             if (quickRun) {
-                active = { idx: quickRun.idx, total: QUICK_RUN_QUEUE.length, label: RUN_LABELS[QUICK_RUN_QUEUE[quickRun.idx]] || QUICK_RUN_QUEUE[quickRun.idx] };
+                active = { idx: quickRun.idx, total: quickRun.queue.length, label: RUN_LABELS[quickRun.queue[quickRun.idx]] || quickRun.queue[quickRun.idx] };
             } else {
                 const o = quickSaveLoad();
-                if (o) saved = { idx: o.idx, total: o.total, label: RUN_LABELS[QUICK_RUN_QUEUE[o.idx]] || QUICK_RUN_QUEUE[o.idx], done: o.results.length };
+                if (o) saved = { idx: o.idx, total: o.total, label: RUN_LABELS[o.keys[o.idx]] || o.keys[o.idx], done: o.results.length };
             }
-            try { window.top.postMessage({ source: 'TIEN_NGHICH_AUTO_GAME', action: 'QUICK_RUN_SAVED', saved, active, completed: Boolean(completed) }, '*'); } catch (e) { }
+            try { window.top.postMessage({ source: 'TIEN_NGHICH_AUTO_GAME', action: 'QUICK_RUN_SAVED', saved, active, total: quickQueueNow().length, steps: QUICK_RUN_QUEUE.map((k) => ({ key: k, label: RUN_LABELS[k] || k })), selected: quickSelectedQueue(), completed: Boolean(completed) }, '*'); } catch (e) { }
+        }
+
+        // Cài đặt chọn bước đổi: tiến độ tạm dừng cũ không còn khớp dãy mới -> xóa (không đụng khi đang chạy; HUD cũng khóa lúc đó).
+        function quickStepsConfigChanged() {
+            if (quickRun) return;
+            try {
+                const o = JSON.parse(sessionStorage.getItem(QUICK_SAVE_KEY) || 'null');
+                if (o && (!Array.isArray(o.keys) || o.keys.join() !== quickSelectedQueue().join())) quickSaveClear();
+            } catch (e) { }
+            quickReportSaved();
         }
 
         function quickRunActive() { return Boolean(quickRun); }
@@ -10034,7 +10468,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
         }
 
         function quickRunBeginStep(index) {
-            const key = QUICK_RUN_QUEUE[index];
+            const key = quickRun.queue[index];
             quickRun.idx = index;
             quickRun.stepStartedAt = Date.now();
             CONFIG.activeFeature = key;
@@ -10049,7 +10483,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             if (typeof resetArenaRun === 'function') resetArenaRun(false);
             runBegin(key);
             quickReportSaved();
-            sendLog(`▶️ [Quét nhanh] Bước ${index + 1}/${QUICK_RUN_QUEUE.length}: ${RUN_LABELS[key] || key}`, 'run');
+            sendLog(`▶️ [Quét nhanh] Bước ${index + 1}/${quickRun.queue.length}: ${RUN_LABELS[key] || key}`, 'run');
             if (key === 'autoBanner') bannerRunOnce();
         }
 
@@ -10060,6 +10494,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             quickSaveClear();
             quickActiveFlag(true);
             quickRun = {
+                queue: quickSelectedQueue(),
                 idx: saved ? saved.idx : 0, results: saved ? saved.results : [], startedAt: Date.now(), stepStartedAt: Date.now(), gapUntil: 0,
                 savedActive: CONFIG.activeFeature, savedTowerDaily: CONFIG.towerDailyRoutine,
                 savedFlags: QUICK_RUN_QUEUE.map((k) => [k, CONFIG[k]]),
@@ -10067,9 +10502,9 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             };
             if (saved) {
                 quickRun.priorMs = saved.results.reduce((t, x) => t + (x.ms || 0), 0);
-                sendLog(`⏯ [Quét nhanh] Tiếp tục từ bước ${saved.idx + 1}/${QUICK_RUN_QUEUE.length} (đã xong ${saved.results.length} bước).`, 'run');
+                sendLog(`⏯ [Quét nhanh] Tiếp tục từ bước ${saved.idx + 1}/${quickRun.queue.length} (đã xong ${saved.results.length} bước).`, 'run');
             } else {
-                sendLog(`⚡ [Quét nhanh] Bắt đầu ${QUICK_RUN_QUEUE.length} bước, Nhận Cuối Ngày là bước cuối. Dừng bất cứ lúc nào bằng nút TẠM DỪNG (có thể tiếp tục sau).`, 'run');
+                sendLog(`⚡ [Quét nhanh] Bắt đầu ${quickRun.queue.length} bước${quickRun.queue.includes('autoCuoiNgay') ? ', Nhận Cuối Ngày là bước cuối' : ''}. Dừng bất cứ lúc nào bằng nút TẠM DỪNG (có thể tiếp tục sau).`, 'run');
             }
             quickReportSaved();
             quickRunBeginStep(quickRun.idx);
@@ -10079,8 +10514,8 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
         function quickRunAfterStep(info, bad, reason) {
             if (!quickRun) return false;
             quickRun.results.push({ key: info.key, label: info.label, bad: Boolean(bad), reason: reason || '', ms: Date.now() - info.startedAt });
-            if (quickRun.idx + 1 < QUICK_RUN_QUEUE.length) {
-                quickSaveWrite(quickRun.idx + 1, quickRun.results);
+            if (quickRun.idx + 1 < quickRun.queue.length) {
+                quickSaveWrite(quickRun.idx + 1, quickRun.results, quickRun.queue);
                 quickReturnToMain();
                 quickRun.gapUntil = Date.now() + QUICK_STEP_GAP_MS;
                 return true;
@@ -10093,7 +10528,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             quickActiveFlag(false);
             quickReportSaved(true);     // xong cả dãy: HUD bỏ nút TIẾP TỤC / CHẠY LẠI TỪ ĐẦU
             const badSteps = r.results.filter((x) => x.bad);
-            sendLog(`${badSteps.length ? '⚠️' : '✅'} [Quét nhanh] Hoàn tất ${r.results.length}/${QUICK_RUN_QUEUE.length} bước (${runFormatDuration((r.priorMs || 0) + Date.now() - r.startedAt)})` +
+            sendLog(`${badSteps.length ? '⚠️' : '✅'} [Quét nhanh] Hoàn tất ${r.results.length}/${r.queue.length} bước (${runFormatDuration((r.priorMs || 0) + Date.now() - r.startedAt)})` +
                 `${badSteps.length ? '; cần xem lại: ' + badSteps.map((x) => x.label).join(', ') : ''}.`, 'result');
             return false;
         }
@@ -10107,10 +10542,10 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             quickRestoreConfig();
             quickRun = null;
             quickActiveFlag(false);
-            quickSaveWrite(nextIdx, r.results);
+            quickSaveWrite(nextIdx, r.results, r.queue);
             quickReportSaved();
-            sendLog(`⏸ [Quét nhanh] Đã dừng sau ${r.results.length}/${QUICK_RUN_QUEUE.length} bước.` +
-                (nextIdx > 0 && nextIdx < QUICK_RUN_QUEUE.length ? ` Đã lưu tiến độ: bấm TIẾP TỤC QUÉT NHANH để chạy tiếp từ bước ${nextIdx + 1}, hoặc CHẠY LẠI TỪ ĐẦU.` : ''), 'run');
+            sendLog(`⏸ [Quét nhanh] Đã dừng sau ${r.results.length}/${r.queue.length} bước.` +
+                (nextIdx > 0 && nextIdx < r.queue.length ? ` Đã lưu tiến độ: bấm TIẾP TỤC QUÉT NHANH để chạy tiếp từ bước ${nextIdx + 1}, hoặc CHẠY LẠI TỪ ĐẦU.` : ''), 'run');
         }
 
         // Đầu mỗi nhịp scheduler: nghỉ giữa bước / bắt đầu bước kế / cắt bước kẹt. true = nhịp này đã được dùng.
@@ -10137,7 +10572,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
         const CUOI_NGAY_ACTION_INTERVAL_MS = 450;
         const TAM_TIEN_ACTION_INTERVAL_MS = 450;
         // Các tính năng là chuỗi nhiều bước nhỏ, mỗi bước chờ máy chủ: nhịp nhanh, không nghỉ dài ngẫu nhiên.
-        const FAST_ROUTINE_FEATURES = ['autoCuoiNgay', 'autoTamTienDai', 'autoExtremeYin'];
+        const FAST_ROUTINE_FEATURES = ['autoCuoiNgay', 'autoTamTienDai', 'autoExtremeYin', 'autoThaiCo', 'autoTienMinh'];
         const OTHER_TRIALS_ACTION_INTERVAL_MS = 600;
 
         // Thông Thiên + Tứ Linh ở chế độ quét (Quét nhanh) cũng là chuỗi bước nhỏ chờ máy chủ.
@@ -10181,6 +10616,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
                 case 'autoTroChien': return done(troChienState);
                 case 'autoTamTienDai': return done(tamTienDaiState);
                 case 'autoTienHuu': return done(tienHuuState);
+                case 'autoThaiCo': return done(thaiCoState);
                 case 'autoTienMinh': return done(tienMinhState);
                 case 'autoCuoiNgay': return done(cuoiNgayState);
                 case 'autoSectDefense': return done(sectDefenseState);
@@ -10224,6 +10660,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
         function resetUnfinishedRunStates() {
             if (tamTienDaiState && tamTienDaiState.phase !== 'done') tamTienDaiState = null;
             if (tienHuuState && tienHuuState.phase !== 'done') tienHuuState = null;
+            if (thaiCoState && thaiCoState.phase !== 'done') thaiCoState = null;
             if (cuoiNgayState && cuoiNgayState.phase !== 'done') cuoiNgayState = null;
             if (tienMinhState && tienMinhState.phase !== 'done') tienMinhState = null;
             if (troChienState && troChienState.phase !== 'done') troChienState = null;
@@ -10413,6 +10850,13 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
                     // 'wait' = chỉ chờ máy chủ/chuyển bước (chưa gửi gì): không nghỉ kiểu người chơi, kiểm tra lại ngay nhịp sau.
                     if (routine === 'wait') { nextActionAt = Date.now() + 40; runNoteActed(true); return; }
                     if (routine) { markActed(actionInterval, FAST_ROUTINE_FEATURES.includes(active)); return; }
+                }
+                // Thái Cổ Thu Hà (quét tầng trước + Like BXH)
+                else if (active === 'autoThaiCo') {
+                    const tc = handleThaiCoThuHa(ctx);
+                    // 'wait' = chỉ chờ máy chủ/chuyển bước: kiểm tra lại ngay, không nghỉ kiểu người chơi.
+                    if (tc === 'wait') { nextActionAt = Date.now() + 40; runNoteActed(true); return; }
+                    if (tc) { markActed(actionInterval, true); return; }
                 }
                 // 4. LỊCH LUYỆN: Leo Phụ Bản Ngày
                 else if (active === 'autoClimbDailyDungeons' || (CONFIG.autoClimbDailyDungeons && !active)) {

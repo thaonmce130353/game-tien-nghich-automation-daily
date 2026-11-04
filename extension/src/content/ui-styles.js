@@ -106,8 +106,16 @@
                     padding: 0;
                     filter: brightness(0.88);
                 }
-                #tn-quick-group.has-saved #tn-btn-sweep { border-top-right-radius: 4px; border-bottom-right-radius: 4px; }
-                #tn-quick-group.has-saved #tn-btn-quick-fresh { border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
+                #tn-btn-quick-cfg {
+                    flex: 0 0 34px;
+                    font-size: 16px;
+                    font-weight: 800;
+                    padding: 0;
+                    filter: brightness(0.88);
+                }
+                #tn-btn-sweep { border-top-right-radius: 4px; border-bottom-right-radius: 4px; }
+                #tn-btn-quick-fresh { border-radius: 4px; }
+                #tn-btn-quick-cfg { border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
                 #tn-auto-hud::-webkit-scrollbar {
                     width: 4px;
                 }
@@ -318,7 +326,14 @@
                     border: 1px solid rgba(203, 166, 247, 0.5);
                     border-radius: 10px; padding: 10px 12px;
                     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+                    box-sizing: border-box;
+                    max-height: calc(100% - 16px);
+                    display: flex; flex-direction: column;
                 }
+                #tn-settings-card .tn-set-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 2px; }
+                #tn-settings-card .tn-set-list::-webkit-scrollbar { width: 4px; }
+                #tn-settings-card .tn-set-list::-webkit-scrollbar-thumb { background: #45475a; border-radius: 4px; }
+                #tn-settings-card .tn-set-head, #tn-settings-card > .tn-action-btn, #tn-settings-card > .tn-set-hint { flex: 0 0 auto; }
                 #tn-settings-card .tn-set-head { display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 12px; margin-bottom: 8px; color: #cba6f7; }
                 #tn-settings-card .tn-set-close { background: transparent; border: 0; color: #a6adc8; font-size: 14px; cursor: pointer; }
                 #tn-settings-card .tn-set-field { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 8px; margin-bottom: 5px; background: rgba(17, 17, 27, 0.7); border-radius: 6px; }
