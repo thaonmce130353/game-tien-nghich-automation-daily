@@ -173,7 +173,7 @@
                                     <label class="tn-opt-item" style="border-left: 3px solid #94e2d5;">
                                         <div style="min-width:0; flex:1;">
                                             <div class="tn-feat-title" style="color:#94e2d5;"><span class="tn-feat-name">🏯 Cửu Uyển Nhi & Cổ Thần Địa</span></div>
-                                            <div class="tn-feat-desc">Cửu Uyển Nhi: bấm Quét nhanh khi khả dụng. Cổ Thần Địa: xếp tướng, đánh 4 ải quanh rồi ải giữa, dùng vật phẩm đặc biệt, nhận thưởng Diệt Thủ Hộ. Sau đó Cực Âm Địa.</div>
+                                            <div class="tn-feat-desc">Cửu Uyển Nhi: bấm Quét nhanh khi khả dụng. Cổ Thần Địa: xếp tướng, đánh 4 ải quanh rồi ải giữa, dùng vật phẩm đặc biệt, nhận thưởng Diệt Thủ Hộ.</div>
                                             <div class="tn-feat-cfg" data-cfg-for="autoOtherTrials"></div>
                                         </div>
                                         <input type="checkbox" class="tn-mutex-feature" data-key="autoOtherTrials" ${CONFIG.activeFeature === 'autoOtherTrials' ? 'checked' : ''}>

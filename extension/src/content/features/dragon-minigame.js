@@ -9,6 +9,8 @@
         //     rồi Chiến Lệnh Điêu Long.
         // Chỉ ghi "đã" khi dữ liệu máy chủ xác nhận; thiếu phản hồi thì báo lỗi, không gửi lại.
         const DRAGON_REQUEST_TIMEOUT_MS = 15000;
+        const DRAGON_END_RESEND_MS = 6000;
+        const DRAGON_START_RECOVER_MS = 6000;
         const DRAGON_DICE_MIN_GAP_MS = 3300;      // game tự chặn bấm xúc xắc dưới 3s
         const DRAGON_DICE_MAX_ROLLS = 80;
         const DRAGON_DICE_MAX_BUYS = 12;           // trần số lần MUA xúc xắc bằng Tiên Ngọc trong một ngày
@@ -196,8 +198,9 @@
                 return false;
             }
             // Màn Điêu Long của game tự bấm vòng nhịp khi mở; đóng lại để chỉ có Auto điều khiển.
-            try { if (vm.viewIsVisible('engraveLongMainUi')) vm.closeView('engraveLongMainUi'); } catch (e) { }
+            try { if (vm.viewIsVisible('engraveLongMainUi') || (typeof vm.getViewByName === 'function' && vm.getViewByName('engraveLongMainUi'))) vm.closeView('engraveLongMainUi'); } catch (e) { }
             const model = ec.getCurlModel();
+            if (!s.longOpenLogged) { s.longOpenLogged = true; sendLog("🐉 [Điêu Long] Tải dữ liệu Điêu Long từ máy chủ.", "action"); }
             const r = pollTowerDailyRefresh(s, 'refreshing', now, () => ec.send32611(), () => model.engraveLongInfo);
             if (r === 'wait') return false;
             if (r !== 'ready' || !model.engraveLongInfo) { dragonFail(s, "[Điêu Long] Máy chủ chưa trả dữ liệu Điêu Long; bỏ qua Điêu Long.", 'done'); return false; }
@@ -237,7 +240,21 @@
                     p.sentAt = now;
                     return true;
                 }
-                if (now - p.sentAt >= DRAGON_REQUEST_TIMEOUT_MS) { dragonFail(s, "[Điêu Long] Máy chủ chưa xác nhận bắt đầu ván; dừng, không gửi lại.", 'long-stage'); s.play = null; return false; }
+                // Không có phản hồi: có thể máy chủ còn ván cũ chưa đóng (lần chạy trước lỗi giữa chừng). Đóng ván cũ (send32616, không tốn gì)
+                // rồi gửi bắt đầu lại đúng 1 lần.
+                if (!p.recovered && now - p.sentAt >= DRAGON_START_RECOVER_MS) {
+                    p.recovered = true;
+                    ec.send32616();
+                    p.sentAt = 0;
+                    sendLog("⚠️ [Điêu Long] Máy chủ chưa xác nhận bắt đầu ván; đóng ván cũ (nếu còn) rồi thử bắt đầu lại 1 lần.", "warn");
+                    return true;
+                }
+                if (now - p.sentAt >= DRAGON_REQUEST_TIMEOUT_MS) {
+                    const cap = model.getLongBastConfigByKey('wood_carving_game_prefect_complete_daily');
+                    dragonFail(s, `[Điêu Long] Máy chủ không nhận bắt đầu ván (điểm ngày ${info.daily_scores_acc}, hoàn mỹ ${info.prefect_complete}, giới hạn hoàn mỹ ngày ${cap ? cap.val : '?'}); dừng, không gửi lại.`, 'long-stage');
+                    s.play = null;
+                    return false;
+                }
                 return false;
             }
 
@@ -293,7 +310,15 @@
                     s.nextAt = now + humanDelay(1500);
                     return true;
                 }
-                if (now - p.sentAt >= DRAGON_REQUEST_TIMEOUT_MS) { dragonFail(s, "[Điêu Long] Máy chủ chưa xác nhận kết thúc ván; dừng, không gửi lại.", 'long-stage'); s.play = null; return false; }
+                // Kết thúc ván (send32616) chỉ chốt ván đang mở, không tốn lượt/tài nguyên: nếu phản hồi bị mất thì gửi lại đúng 1 lần
+                // (nút của game cũng gửi lại được), rồi mới coi là lỗi.
+                if (!p.resent && now - p.sentAt >= DRAGON_END_RESEND_MS) {
+                    p.resent = true;
+                    ec.send32616();
+                    sendLog(`⚠️ [Điêu Long] Máy chủ chưa trả kết thúc ván sau ${Math.round(DRAGON_END_RESEND_MS / 1000)}s (đã có ${ec.gameScoreArr.length}/${chance} bước); gửi lại kết thúc ván 1 lần.`, "warn");
+                    return true;
+                }
+                if (now - p.sentAt >= DRAGON_REQUEST_TIMEOUT_MS) { dragonFail(s, `[Điêu Long] Máy chủ chưa xác nhận kết thúc ván (bước ${ec.gameScoreArr.length}/${chance}); dừng.`, 'long-stage'); s.play = null; return false; }
                 return false;
             }
             return false;

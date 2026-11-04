@@ -10,6 +10,7 @@
         function isFastRoutineActive() {
             const a = CONFIG.activeFeature;
             return FAST_ROUTINE_FEATURES.includes(a) || (a === 'autoTongTian' && Boolean(CONFIG.towerSweepOnly)) ||
+                (a === 'autoDailyDungeon' && Boolean(biCanhState) && biCanhState.phase !== 'done') ||
                 (a === 'autoSectDefense' && Boolean(sectDefenseState) && (sectDefenseState.phase === 'stageReward' || sectDefenseState.phase === 'claim'));
         }
 
@@ -60,7 +61,7 @@
                 case 'autoTongTian': return CONFIG.towerSweepOnly && towerDailyState && towerDailyState.phase === 'done' ? { failed: Boolean(towerDailyState.failed) } : null;
                 case 'autoSweepDungeons': return sweptDayKey === today && !sweepPending ? { failed: false } : null;
                 case 'autoExtremeYin': return extremeYinSettled();
-                case 'autoOtherTrials': return done(uyenNhiState) && done(coThanState) ? extremeYinSettled() : null;
+                case 'autoOtherTrials': return done(uyenNhiState) && done(coThanState) ? { failed: Boolean(uyenNhiState.failed || coThanState.failed) } : null;
                 case 'autoDailyDungeon': return sweptDayKey === today && !sweepPending && done(biCanhState) ? { failed: false } : null;
                 case 'autoXianYuan': return xianYuanIdleCycles >= 2 ? { failed: false } : null;
                 case 'autoClimbYMAbyss': return abyssGaveUp ? { failed: false, reason: `chưa đủ sức qua tầng #${abyssGaveUp} (đã thử ${abyssGaveTries || MAX_TARGET_ATTEMPTS} lần, bình thường khi lực chiến chưa đủ)` } : null;
@@ -247,7 +248,7 @@
                 }
                 // [Module 2] Phụ Bản Ngày & Bí Cảnh Tứ Quốc
                 else if (active === 'autoDailyDungeon' || (CONFIG.autoDailyDungeon && !active)) {
-                    if (handleDailyAndBiCanh(ctx)) { markActed(actionInterval); return; }
+                    if (handleDailyAndBiCanh(ctx)) { markActed(actionInterval, isFastRoutineActive()); return; }
                 }
                 // [Module 3] Thủ Vệ Tứ Phái
                 else if (active === 'autoSectDefense' || (CONFIG.autoSectDefense && !active)) {
@@ -255,7 +256,7 @@
                     if (sd === 'wait') { nextActionAt = Date.now() + 40; runNoteActed(true); return; }
                     if (sd) { markActed(actionInterval, isFastRoutineActive()); return; }
                 }
-                // [Module 4] Cửu Uyển Nhi, Cổ Thần Địa, Cực Âm Địa
+                // [Module 4] Cửu Uyển Nhi, Cổ Thần Địa
                 else if (active === 'autoOtherTrials' || (CONFIG.autoOtherTrials && !active)) {
                     if (handleOtherTrials(ctx)) { markActed(actionInterval); return; }
                 }

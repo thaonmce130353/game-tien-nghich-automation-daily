@@ -197,9 +197,21 @@
                 sendLog(`❌ ${tag} Không xếp được đội hình sau ${EMBATTLE_ARRANGE_TRIES} lần Lên trận nhanh (${embattleDiagnose(embattle, null)}); bỏ qua Khiêu Chiến.`, 'err');
                 return;
             }
+            // Trận được bỏ qua hoạt ảnh nên có thể xong trong vài mili giây, nhanh hơn nhịp chờ: không thể chỉ chờ cờ "đang đánh".
+            // Nhận biết trận đã diễn ra bằng: đang đánh, hiện bảng kết quả, bảng đội hình đóng, hoặc sát thương Thí Luyện đổi.
+            const hurtOf = () => {
+                try {
+                    const info = ctx.ctrl.getCurlModel().getFightInfo(ctx.uid);
+                    return info && info.hurt ? String(info.hurt.dataNum) : '';
+                } catch (e) { return ''; }
+            };
+            const hurtBefore = hurtOf();
             embattle.cBtnH2();
 
-            if (!await bannerWaitFor(() => bannerIsFighting(), BANNER_FIGHT_START_MS)) {
+            const started = await bannerWaitFor(() => bannerIsFighting() ||
+                BANNER_RESULT_VIEWS.some((name) => vm.viewIsVisible(name)) ||
+                !vm.viewIsVisible('embattleUi') || hurtOf() !== hurtBefore, BANNER_FIGHT_START_MS, 100);
+            if (!started) {
                 bannerCloseViews(ctx, ['embattleUi']);
                 sendLog(`⚠️ ${tag} Trận đánh chưa bắt đầu; bỏ qua.`, 'err');
                 return;

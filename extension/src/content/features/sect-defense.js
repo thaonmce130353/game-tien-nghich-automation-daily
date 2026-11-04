@@ -11,6 +11,7 @@
         const SECT_REQUEST_TIMEOUT_MS = 20000;
         const SECT_FIGHT_TIMEOUT_MS = 90000;
         const SECT_MAX_BATTLES = 100;
+        const SECT_MAX_RESTARTS = 1;      // số lần bấm "Bắt đầu lại" (chơi thêm một lượt sau khi lượt đầu kết thúc) mỗi lần chạy
         const SECT_ZL_TERM_ID = 1;
         const SECT_MAX_STAGE_CLAIMS = 20;
         let sectDidSend = false;          // nhịp này đã gửi yêu cầu thật (nếu không: chỉ chờ, scheduler kiểm tra lại ngay)
@@ -31,6 +32,7 @@
                 logged: {},
                 refreshing: null,
                 battles: 0,
+                restarts: 0,
                 lastResult: null,         // ctrl.fResult đã xử lý
                 pendingBuff: null,        // { at, eId } đã chọn Buff, chờ máy chủ xác nhận
                 buffSeenAt: 0,
@@ -88,11 +90,19 @@
                 logSect(state, 'buff-empty', "⚠️ [Thủ Vệ Tứ Phái] Bảng chọn Buff chưa có dữ liệu; chờ game tải.", "warn");
                 return false;
             }
-            const index = Math.floor(buffs.length / 2);
-            const buff = buffs[index];
+            // Lần đầu chọn Buff ở giữa; nếu máy chủ từ chối ("Buff chọn bị lỗi") thì thử Buff khác (đầu, rồi cuối).
             const eId = view.exData && view.exData.eId;
+            state.buffTries = state.buffTries || {};
+            const tried = state.buffTries[eId] || 0;
+            const order = [Math.floor(buffs.length / 2), 0, buffs.length - 1];
+            const index = order[Math.min(tried, order.length - 1)];
+            const buff = buffs[index];
             if (!buff || typeof buff.id !== 'number' && typeof buff.id !== 'string') return false;
-            if (!tryAttemptTarget(`sect-buff-${eId}`, `[Thủ Vệ Tứ Phái] Chọn Buff màn #${eId}`)) return false;
+            if (!tryAttemptTarget(`sect-buff-${eId}`, `[Thủ Vệ Tứ Phái] Chọn Buff màn #${eId}`)) {
+                failSect(state, 'buff-rejected', "Máy chủ từ chối cả 3 lần chọn Buff; dừng, kiểm tra lại trạng thái.", 'status');
+                return true;
+            }
+            state.buffTries[eId] = tried + 1;
 
             ctrl.choiceBuffId(buff.id);
             state.pendingBuff = { at: now, eId, result: ctrl.fResult };
@@ -139,6 +149,13 @@
         // Máy chủ báo trận vừa xong: fResult được game gán mới trong rv11031 (chỉ khi res=1).
         function sectCheckBattleResult(ctrl, state, now) {
             if (!state.pendingBuff || ctrl.fResult === state.pendingBuff.result) {
+                // Máy chủ đã trả lời (cờ gửi đã tắt) nhưng không có kết quả trận mới = bị từ chối (toast "Buff chọn bị lỗi").
+                if (state.pendingBuff && !ctrl.is_send_11031 && now - state.pendingBuff.at >= 1500) {
+                    state.pendingBuff = null;
+                    state.buffSeenAt = 0;
+                    sendLog("⚠️ [Thủ Vệ Tứ Phái] Máy chủ từ chối Buff vừa chọn (Buff chọn bị lỗi); thử Buff khác.", "warn");
+                    return true;
+                }
                 if (state.pendingBuff && now - state.pendingBuff.at >= SECT_FIGHT_TIMEOUT_MS) {
                     state.pendingBuff = null;
                     failSect(state, 'battle-timeout', "Máy chủ chưa xác nhận trận sau khi chọn Buff; kiểm tra lại trạng thái, không gửi lại.", 'status');
@@ -164,7 +181,14 @@
                 return true;
             }
             const status = ctrl.endLsData && ctrl.endLsData.status;
-            if (status === SECT_STATE_END) {
+            if (status === SECT_STATE_END && state.restarts < SECT_MAX_RESTARTS) {
+                // Lượt đã kết thúc nhưng màn Thủ Vệ có nút "Bắt đầu lại": bấm để chơi thêm một lượt (giống người chơi) thay vì kết thúc sớm.
+                state.restarts++;
+                sendLog(`🔁 [Thủ Vệ Tứ Phái] Lượt khiêu chiến đã kết thúc (hôm nay vượt ${Number(ctrl.endLsData.maxNums) || 0} ải); bấm "Bắt đầu lại" để chơi tiếp (lần ${state.restarts}/${SECT_MAX_RESTARTS}).`, "action");
+                state.phase = 'fight';
+                state.idleSince = 0;
+                state.logged['status-end'] = false;
+            } else if (status === SECT_STATE_END) {
                 logSect(state, 'status-end', `✅ [Thủ Vệ Tứ Phái] Máy chủ báo đã hết lượt khiêu chiến${state.battles ? ` (đã đánh ${state.battles} trận trong lượt này)` : ' hôm nay'}.`, "action");
                 state.phase = 'stageReward';
             } else if (status === SECT_STATE_READY || status === SECT_STATE_FIGHTING) {
@@ -196,7 +220,8 @@
             }
             const status = ctrl.endLsData && ctrl.endLsData.status;
             state.idleSince = now;
-            if (status === SECT_STATE_READY) {
+            if (status === SECT_STATE_READY || status === SECT_STATE_END) {
+                // END: màn chính hiện nút "Bắt đầu lại" (cp18); nút đó chỉ hiện hộp xác nhận rồi mở bảng đội hình như Khiêu Chiến.
                 if (!sectViewVisible(vm, 'eTMainUi')) {
                     ctrl.sd11030(0);          // game tự mở eTMainUi khi sẵn sàng
                     sendLog("🛡️ [Thủ Vệ Tứ Phái] Đang mở màn Thủ Vệ Tứ Phái...", "action");

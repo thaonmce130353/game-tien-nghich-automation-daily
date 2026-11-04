@@ -97,13 +97,16 @@
 
         // 'wait' | 'arranged' (vừa bấm Lên trận nhanh) | 'ready' (đội hình hợp lệ: bên gọi bấm Bắt đầu rồi gọi embattleMarkStarted) | 'failed'
         function embattleStep(ui, st, now) {
-            if (!st.at) st.at = now;
-            if (now - st.at < humanDelay(900)) return 'wait';
+            // Độ trễ chọn một lần cho mỗi bước (không chọn lại mỗi nhịp, nếu không sẽ luôn trúng giá trị nhỏ nhất).
+            // Lần đầu (bảng vừa mở) chờ ngắn; sau Lên trận nhanh chờ lâu hơn để ô đội hình kịp cập nhật.
+            if (!st.at) { st.at = now; st.wait = humanDelay((st.clicked || 0) > 0 ? 650 : 350, true); }
+            if (now - st.at < (st.wait || 0)) return 'wait';
             if ((st.starts || 0) >= EMBATTLE_START_TRIES) return 'failed';
             if ((st.clicked || 0) > 0 && embattleTeamReady(ui)) return 'ready';
             if ((st.clicked || 0) >= EMBATTLE_ARRANGE_TRIES || typeof ui.oneKeyEmbattleLogic !== 'function') return 'failed';
             st.clicked = (st.clicked || 0) + 1;
             st.at = now;
+            st.wait = humanDelay(650, true);
             // Hàm của game có thể ném lỗi (ví dụ thiếu ải đang chọn); giữ lỗi lại để báo rõ thay vì im lặng.
             try { ui.oneKeyEmbattleLogic(0); st.lastError = ''; } catch (e) { st.lastError = String((e && e.message) || e); }
             return 'arranged';

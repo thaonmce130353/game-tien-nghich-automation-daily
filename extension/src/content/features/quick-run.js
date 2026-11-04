@@ -72,7 +72,7 @@ function quickStepMaxMs(key) { return QUICK_STEP_MAX_MS_BY_KEY[key] || QUICK_STE
         // Dãy đang áp dụng: dãy đã chốt lúc bắt đầu chạy (không đổi giữa chừng), nếu không thì dãy sẽ chạy nếu bắt đầu bây giờ.
         function quickQueueNow() { return quickRun ? quickRun.queue : quickEffectiveQueue(); }
         let quickRun = null;
-const QUICK_ARENA_BATTLES = 3;     // Đấu Tiên Đài trong Quét nhanh: tối đa 3 trận
+const QUICK_ARENA_BATTLES = 5;     // Đấu Tiên Đài trong Quét nhanh: tối đa 5 trận (không vượt giới hạn đã cài)
 
         // ---- Lưu tiến độ để dừng giữa chừng rồi TIẾP TỤC (hoặc chạy lại từ đầu). sessionStorage: sống qua lần tải lại trang
         // (tự vào lại game), chỉ hợp lệ trong ngày. idx = bước sẽ chạy tiếp theo; results = các bước đã xong.
@@ -194,6 +194,8 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             const saved = mode === 'resume' ? quickSaveLoad() : null;
             quickSaveClear();
             quickActiveFlag(true);
+            // Bắt đầu lại từ đầu: Thủ Vệ Tứ Phái hỏi lại máy chủ thay vì dùng bản ghi "đã xong hôm nay" (máy chủ báo hết lượt thì nó tự nhận thưởng mốc/Chiến Lệnh còn thiếu).
+            if (mode !== 'resume') { sectDefenseState = null; uyenNhiState = null; }
             quickRun = {
                 queue: saved ? saved.keys.slice() : quickEffectiveQueue(),
                 idx: saved ? saved.idx : 0, results: saved ? saved.results : [], startedAt: Date.now(), stepStartedAt: Date.now(), gapUntil: 0,

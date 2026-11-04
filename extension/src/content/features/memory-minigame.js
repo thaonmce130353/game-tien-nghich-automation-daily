@@ -238,10 +238,8 @@
                         s.phase = 'solve';
                         return true;
                     }
-                    if (left <= 0 && !s.extraUsed && s.rounds < MEMORY_MAX_ROUNDS) {
-                        s.extraUsed = true;   // theo yêu cầu: mỗi lần chạy thêm đúng 1 ván dù đã hết lượt thưởng
-                        sendLog(`ℹ️ [Ảo Cảnh Pháp Trận] Đã hết lượt nhận thưởng (${d.passTaken}/${d.rewardRuns}); chơi thêm 1 ván (không thưởng).`, "info");
-                    } else if (left <= 0 || s.rounds >= MEMORY_MAX_ROUNDS) {
+                    // Chỉ chơi đủ số ván có thưởng (không chơi thêm ván nào sau khi hết lượt thưởng).
+                    if (left <= 0 || s.rounds >= MEMORY_MAX_ROUNDS) {
                         sendLog(`ℹ️ [Ảo Cảnh Pháp Trận] Hết ván cần chơi (${d.passTaken}/${d.rewardRuns}); chuyển sang nhận thưởng mốc điểm.`, "info");
                         s.phase = 'claim';
                         s.claimReturn = 'tasks';
