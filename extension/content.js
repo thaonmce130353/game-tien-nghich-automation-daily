@@ -120,7 +120,7 @@
     if (isTopWindow || isStandaloneGame) {
         // Chỉ hiện thông tin quan trọng: 'result' (mua/nhận thưởng/kết quả), 'run' (bắt đầu/hoàn tất/dừng), 'warn', 'err'.
         // Các dòng chi tiết từng bước ('info', 'action', ...) chỉ hiện khi bật "Log chi tiết" (CONFIG.verboseLog).
-        const LOG_ALWAYS_SHOWN = ['result', 'run', 'warn', 'err', 'error', 'audit'];
+        const LOG_ALWAYS_SHOWN = ['result', 'run', 'warn', 'err', 'error'];
         function addLogToUI(msg, type = "info") {
             if (!CONFIG.verboseLog && !LOG_ALWAYS_SHOWN.includes(type)) return;
             const logBox = document.getElementById('tn-log-content');
@@ -138,7 +138,6 @@
             if (type === 'err' || type === 'error') color = '#f38ba8';
             if (type === 'action') color = '#89b4fa';
             if (type === 'run') color = '#89dceb';
-            if (type === 'audit') color = '#cba6f7';
 
             p.innerHTML = `<span style="color:#888;">[${time}]</span> <span style="color:${color};">${msg}</span>`;
             logBox.appendChild(p);
@@ -1659,6 +1658,8 @@
             for (const b of [runBtn, viewsBtn, dlBtn, auditBtn, auditClearBtn, auditToggleBtn]) {
                 b.style.cssText = 'background:#45475a;color:#cdd6f4;border:0;border-radius:4px;padding:3px 8px;margin-right:6px;cursor:pointer;';
             }
+            // Thanh nút dính ở đầu bảng khi cuộn kết quả dài (panel có padding 8px nên top:-8px).
+            bar.style.cssText = 'position:sticky;top:-8px;z-index:1;background:rgb(17,17,27);margin:-8px -8px 0;padding:8px;border-bottom:1px solid #45475a;';
             bar.appendChild(runBtn);
             bar.appendChild(viewsBtn);
             bar.appendChild(dlBtn);
@@ -2498,10 +2499,52 @@
             return closed;
         }
 
+        // Bảng quảng cáo nạp tiền game tự bật giữa lượt chạy (ví dụ newFirstChargeUi sau trận thua đầu tiên trong ngày).
+        // Chỉ đóng bảng (closeView), không bấm gì bên trong; đóng ngay để không che màn hình của tính năng đang chạy.
+        const PROMO_POPUP_NAMES = ['newFirstChargeUi'];
+        let promoPopupLogged = false;
+        runResetHooks.push(() => { promoPopupLogged = false; });
+        function closePromoPopups() {
+            try {
+                const vm = window.ViewMgr && window.ViewMgr.gInst && window.ViewMgr.gInst();
+                if (!vm || typeof vm.viewIsVisible !== 'function') return 0;
+                const names = PROMO_POPUP_NAMES.filter((n) => vm.viewIsVisible(n));
+                names.forEach((n) => {
+                    try { vm.closeView(n); } catch (e) { }
+                    try { if (vm.viewIsVisible(n) && typeof vm.closeUpView === 'function') vm.closeUpView(n); } catch (e) { }
+                });
+                if (names.length) {
+                    if (typeof auditNoteClosed === 'function') auditNoteClosed(names, 'closePromoPopups');
+                    if (!promoPopupLogged) {
+                        promoPopupLogged = true;
+                        sendLog(`ℹ️ [Auto] Đã đóng bảng quảng cáo nạp tiền (${names.join(', ')}); không mua gì.`, 'info');
+                    }
+                }
+                return names.length;
+            } catch (e) { return 0; }
+        }
+
         // Bảng thường đang hiển thị (tên view). null = chưa đọc được ViewMgr.
         function runVisibleViewSet() {
             const open = typeof quickVisibleViews === 'function' ? quickVisibleViews() : null;
             return open ? new Set(open) : null;
+        }
+
+        // Màn hình chính của thành (cityMainUi) và mainUpUi không bao giờ bị đóng hộ; nếu game đã ẩn thành (vào trận / bảng toàn màn hình)
+        // mà không tự mở lại (trận bị bỏ qua nên luồng "quay về thành" của game không chạy) thì mở lại bằng CityCtrl.showCityView.
+        const RUN_KEEP_VIEW_RE = /^(cityMainUi|mainUpUi)$/;
+        function runEnsureCityScreen(by) {
+            try {
+                const vm = window.ViewMgr && window.ViewMgr.gInst && window.ViewMgr.gInst();
+                if (!vm || !vm.viewIsVisible || vm.viewIsVisible('cityMainUi')) return false;
+                const openNow = typeof quickVisibleViews === 'function' ? quickVisibleViews() : null;
+                if (openNow && openNow.some((n) => /fight|disconnect|loading|login/i.test(n))) return false;
+                const cc = window.CityCtrl && window.CityCtrl.gInst && window.CityCtrl.gInst();
+                if (!cc || typeof cc.showCityView !== 'function') return false;
+                cc.showCityView();
+                sendLog('🏙️ [' + (by || 'Auto') + '] Màn hình chính đã bị ẩn; đã mở lại thành chính.', 'info');
+                return true;
+            } catch (e) { return false; }
         }
 
         // Đóng mọi bảng mà lượt chạy đã mở (không có lúc bắt đầu), trừ trận đánh / mất kết nối / tải / hướng dẫn.
@@ -2510,7 +2553,7 @@
             const v = quickViewMgr();
             const open = quickVisibleViews();
             if (!v || !open) return 0;
-            const names = open.filter((n) => !base.has(n) && !/fight|disconnect|loading|guide|login/i.test(n));
+            const names = open.filter((n) => !base.has(n) && !RUN_KEEP_VIEW_RE.test(n) && !/fight|disconnect|loading|guide|login/i.test(n));
             names.forEach((n) => { try { v.vm.closeView(n); } catch (e) { } });
             if (names.length && typeof auditNoteClosed === 'function') auditNoteClosed(names, by);
             return names.length;
@@ -2545,6 +2588,7 @@
                 `${bad ? '; có bước chưa hoàn tất/lỗi, xem các dòng ⚠️/❌ phía trên' : ''}.`, 'run');
             if (typeof auditRunFinish === 'function') auditRunFinish(info, bad, reason);
             runCloseOpenedViews(info.baseViews, 'runFinish');
+            if (info.baseViews && info.baseViews.has('cityMainUi') && !(typeof quickRunActive === 'function' && quickRunActive())) setTimeout(() => runEnsureCityScreen(info.label), 600);
             // Popup phần thưởng/thông báo có thể hiện trễ sau khi xong: dọn thêm một lần (Quét nhanh tự dọn đầu bước kế tiếp).
             if (!(typeof quickRunActive === 'function' && quickRunActive())) {
                 setTimeout(() => { try { if (!runInfo) closeStrayPopups(); } catch (e) { } }, 2500);
@@ -3262,6 +3306,31 @@
                     .some((n) => vm.viewIsVisible(n));
             } catch (e) { return false; }
         }
+        let abyssEmbState = null;
+        runResetHooks.push(() => { abyssEmbState = null; });
+        function abyssDriveEmbattle(ctx, now) {
+            const vm = ctx.ViewMgr && ctx.ViewMgr.gInst && ctx.ViewMgr.gInst();
+            if (!vm || !vm.viewIsVisible || !vm.viewIsVisible('embattleUi')) { abyssEmbState = null; return false; }
+            const embUi = vm.getViewByName('embattleUi');
+            if (!embUi) return false;
+            if (!abyssEmbState) abyssEmbState = { at: 0, clicked: 0, starts: 0 };
+            const step = embattleStep(embUi, abyssEmbState, now);
+            if (step === 'arranged') return true;
+            if (step === 'ready' && typeof embUi.cBtnH2 === 'function') {
+                embattleMarkStarted(abyssEmbState);
+                embUi.cBtnH2();
+                sendLog("🌌 [Vực U Minh] Đã xếp đội hình & bấm BẮT ĐẦU!", "action");
+                return true;
+            }
+            if (step === 'failed') {
+                const diag = embattleDiagnose(embUi, abyssEmbState);
+                abyssEmbState = null;
+                try { vm.closeView('embattleUi'); } catch (e) { }
+                sendLog(`❌ [Vực U Minh] Không xếp được đội hình (${diag}); không bắt đầu trận.`, "error");
+                return true;
+            }
+            return false;
+        }
         const ABYSS_QUICK_VERIFY_MS = 4000;     // sau trận: tải lại tầng rồi đợi chừng này mới kết luận chưa qua
 
         function handleClimbYMAbyss(ctx) {
@@ -3285,6 +3354,10 @@
                 }
 
                 const curAbyssId = curCfg.id;
+                // "Bỏ qua trận" tắt thì handleBattle (game-hooks.js) không chạy: tự xếp đội hình và bấm Bắt đầu như hook.
+                if (!CONFIG.autoSkipFight && abyssDriveEmbattle(ctx, now)) return true;
+                // Bảng đội hình / trận / kết quả còn mở: lần thử trước chưa xong, không mở lại và không tính thêm lần thử.
+                if (abyssFightBusy(ctx)) return false;
                 lastAbyssClimbTime = now;
                 if (typeof quickRunActive === 'function' && quickRunActive()) {
                     // Quét nhanh: chỉ 1 lần thử mỗi tầng, tính theo KẾT QUẢ (không đếm theo nhịp để trận đang chạy không bị tính là thử lại).
@@ -3321,8 +3394,9 @@
                     if (typeof ec.openEmbattle === 'function') ec.openEmbattle(eType, sType);
                 }
 
-                if (typeof abyss.startFight === 'function') abyss.startFight(1);
-                else if (typeof abyss.send32071 === 'function') abyss.send32071(curAbyssId);
+                // Không gọi abyss.startFight(1) ở đây: số 1 là số tướng giả, vượt qua kiểm tra đội hình của game nên máy chủ từ chối
+                // "Đội hình Tu Sĩ phe công trống" (105002). Bảng đội hình vừa mở được game-hooks.js xếp nhanh, kiểm tra ô có tướng rồi
+                // bấm Bắt đầu (cBtnH2 → startFight(số tướng thật)).
 
                 sendLog(`🌌 [Vực U Minh] Đang khiêu chiến tầng #${curAbyssId} (Tự chọn đội hình + Bắt đầu + Thử lại)...`, "action");
                 return true;
@@ -3553,9 +3627,7 @@
                     arenaRunState.noAttemptsLogged = false;
                     const powerStr = minFc < Infinity && minFc > 0 ? minFc.toLocaleString('vi-VN') : '--';
                     sendLog(`🏟️ [Đấu Tiên Đài] Đang khiêu chiến ${bestName} (LC thấp nhất: ${powerStr}, còn ${freeCount} miễn phí, ${ticketCount} vé)...`, "action");
-                    setTimeout(() => {
-                        if (typeof ac.send14201 === 'function') ac.send14201();
-                    }, 1200);
+                    // Danh sách đối thủ được làm mới khi quay lại đài (handleArenaFightResult), không cần gửi thêm 14201 ở đây.
                     return true;
                 }
             } catch (e) {
@@ -5182,6 +5254,8 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
                 refreshing: null,
                 battles: 0,
                 restarts: 0,
+                endSeen: false,
+                resumeTries: 0,           // số lần tải lại trạng thái khi Bắt đầu không vào trận giữa lượt
                 lastResult: null,         // ctrl.fResult đã xử lý
                 pendingBuff: null,        // { at, eId } đã chọn Buff, chờ máy chủ xác nhận
                 buffSeenAt: 0,
@@ -5287,11 +5361,28 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
             if (step === 'failed') {
                 const diag = embattleDiagnose(embUi, state.emb);
                 const pressedStart = (state.emb.starts || 0) >= EMBATTLE_START_TRIES;
+                const startAt = state.emb.firstStartAt || 0;
                 state.emb = null;
                 try { vm.closeView('embattleUi'); } catch (e) { }
-                if (pressedStart && state.restarts > 0) {
-                    // "Bắt đầu lại" sau khi lượt hôm nay đã kết thúc: máy chủ không mở lượt mới (không có bảng Buff) = hôm nay không chơi thêm được.
-                    sendLog("ℹ️ [Thủ Vệ Tứ Phái] Máy chủ không mở lượt mới sau \"Bắt đầu lại\" (hôm nay đã đánh hết lượt); chuyển sang nhận thưởng.", "info");
+                // Bắt đầu = sd11033; máy chủ trả 11033 không có enter_id khi hôm nay không còn ải (game không mở bảng Buff).
+                const r11033 = typeof netLastReply === 'function' ? netLastReply(11033) : null;
+                const noStage = Boolean(startAt && r11033 && r11033.at >= startAt && !(r11033.data && r11033.data.enter_id));
+                if (pressedStart && (noStage || state.restarts > 0 || state.endSeen)) {
+                    sendLog(`ℹ️ [Thủ Vệ Tứ Phái] Máy chủ không mở thêm ải sau ${state.battles} trận (${noStage ? '11033 không có ải mới' : 'lượt đã kết thúc'}); hôm nay đã hết lượt, chuyển sang nhận thưởng.`, "info");
+                    state.phase = 'stageReward';
+                    return true;
+                }
+                if (pressedStart && state.battles > 0 && (state.resumeTries || 0) < 1) {
+                    // Đã thấy live (2026-11-06): sau vài trận thắng, Bắt đầu ở bảng đội hình không gửi gì, nhưng lượt vẫn đang đánh dở
+                    // (tải lại trang thì 11030 báo status 2 và bảng Buff mở bình thường). Tải lại trạng thái một lần: status 2 → opEBuffUi.
+                    state.resumeTries = (state.resumeTries || 0) + 1;
+                    sendLog(`ℹ️ [Thủ Vệ Tứ Phái] Bắt đầu không vào trận sau ${state.battles} trận (${diag}); tải lại trạng thái để tiếp tục lượt đang đánh dở.`, "info");
+                    state.phase = 'status';
+                    return true;
+                }
+                if (pressedStart && state.battles > 0) {
+                    // Đã đánh trong lượt này nhưng không rõ vì sao không vào trận: vẫn nhận thưởng mốc (không bỏ sót), báo để xem lại.
+                    sendLog(`⚠️ [Thủ Vệ Tứ Phái] Bắt đầu không vào trận sau ${state.battles} trận (${diag}${r11033 ? '' : ', không thấy phản hồi 11033'}); dừng đánh, vẫn nhận thưởng mốc.`, "warn");
                     state.phase = 'stageReward';
                     return true;
                 }
@@ -5304,6 +5395,8 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
                 failSect(state, 'no-challenge', "Bảng đội hình không có nút Khiêu Chiến (bản game đổi); dừng.", 'claim');
                 return false;
             }
+            if (typeof netTapInstall === 'function') netTapInstall();
+            if (!state.emb.firstStartAt) state.emb.firstStartAt = now;
             embattleMarkStarted(state.emb);
             embUi.cBtnH2();
             state.lastEntryAt = now;
@@ -5340,6 +5433,7 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
             state.idleSince = now;
             const won = ctrl.isCgeSess === true;
             sendLog(`✅ [Thủ Vệ Tứ Phái] Máy chủ xác nhận trận ${state.battles} đã kết thúc (${won ? 'thắng' : 'thua'}${ctrl.is_quit ? ', kết thúc lượt' : ''}).`, "action");
+            if (ctrl.is_quit) state.endSeen = true;
             if (ctrl.is_quit || !won) state.phase = 'status';
             return true;
         }
@@ -5352,6 +5446,7 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
                 return true;
             }
             const status = ctrl.endLsData && ctrl.endLsData.status;
+            if (status === SECT_STATE_END) state.endSeen = true;
             if (status === SECT_STATE_END && state.restarts < SECT_MAX_RESTARTS) {
                 // Lượt đã kết thúc nhưng màn Thủ Vệ có nút "Bắt đầu lại": bấm để chơi thêm một lượt (giống người chơi) thay vì kết thúc sớm.
                 state.restarts++;
@@ -11744,9 +11839,10 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             const v = quickViewMgr();
             const open = quickVisibleViews();
             if (!v || !open) return 0;
-            const names = open.filter((n) => !quickRun.baseViews.has(n) && !/fight|disconnect|loading|guide/i.test(n));
+            const names = open.filter((n) => !quickRun.baseViews.has(n) && !RUN_KEEP_VIEW_RE.test(n) && !/fight|disconnect|loading|guide/i.test(n));
             names.forEach((n) => { try { v.vm.closeView(n); } catch (e) { } });
             if (names.length && typeof auditNoteClosed === 'function') auditNoteClosed(names, 'quickReturnToMain');
+            if (quickRun.baseViews.has('cityMainUi')) runEnsureCityScreen('Quét nhanh');
             return names.length;
         }
 
@@ -11885,6 +11981,9 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
         const AUDIT_OFF_KEY = 'tn-run-audit-off';
         const AUDIT_MAX_STEPS = 80;
         const AUDIT_SKIP_CMDS = { 10010: 1, 10012: 1 };      // nhịp tim / đồng bộ giờ
+        // Lệnh mà máy chủ trả lời bằng số lệnh khác (không có phản hồi cùng số): không tính "không thấy phản hồi".
+        // 11020 = trận Tứ Linh Tháp (kết quả qua khung trận + 11004), 32061 = mở ván Ảo Cảnh (bàn mới qua 32060).
+        const AUDIT_REPLY_ELSEWHERE = { 11020: 1, 32061: 1 };
         const AUDIT_REPLY_TIMEOUT_MS = 8000;
         const AUDIT_LATE_WINDOW_MS = 4000;                   // popup mở trong khoảng này sau khi xong = popup "trễ" của bước vừa xong
         const AUDIT_SLOW_TAIL_MS = 20000;                    // từ yêu cầu cuối tới lúc kết thúc lâu hơn mức này = chờ thừa
@@ -11892,7 +11991,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
         const AUDIT_SHARED_CTRLS = ['RoleCtrl', 'PropsCtrl', 'FightCtrl', 'EmbattleCtrl', 'GlobalCtrl', 'FunOpenCtrl', 'RechargeCtrl', 'CityCtrl', 'MainCtrl', 'BackpackCtrl', 'PlayerCtrl'];
         // Ctrl mong đợi theo tính năng (lấy từ module tính năng + bảng trong CLAUDE.md). Gọi Ctrl ngoài danh sách = cần xem lại.
         const AUDIT_EXPECTED_CTRLS = {
-            autoDailyReward: ['WelfareCtrl', 'VipCtrl'],
+            autoDailyReward: ['WelfareCtrl', 'VipCtrl', 'WarlordsCtrl'],
             autoTamTienDai: ['WelfareCtrl', 'RecruitCtrl', 'AcvCtrl'],
             autoTienHuu: ['FriendCtrl'],
             autoThaiCo: ['DoubleTeamDungeonCtrl', 'RankCtrl'],
@@ -11906,7 +12005,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             autoImmortalRelic: ['RainRuinsCtrl'],
             autoMinigameMemory: ['FaZhenMirageCtrl', 'DevilSeaCtrl', 'RankCtrl'],
             autoMinigameDragon: ['DiceCtrl', 'EngraveCtrl', 'DevilSeaCtrl', 'ShopCtrl'],
-            autoClimbYMAbyss: ['YMAbyssCtrl', 'DailyDungeonCtrl'],
+            autoClimbYMAbyss: ['YMAbyssCtrl', 'DailyDungeonCtrl', 'RankCtrl'],
             autoArena: ['ArenaCtrl'],
             autoMaDao: ['HangupCtrl', 'TravelCtrl', 'HeroCtrl'],
             autoBanner: ['SuperHeroEncoreCtrl', 'NewSuperHeroCtrl', 'DesenoActivityCtrl', 'HeroCtrl', 'TransGodCtrl', 'DevilSeaCtrl', 'RankCtrl'],
@@ -12028,7 +12127,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
                 lat: {},              // cmd -> { n, sum, max }
                 replies: {},          // cmd -> [mẫu phản hồi gần nhất] (chỉ lệnh do Auto gửi)
                 noReply: {},          // cmd -> n
-                refusals: [], errMsgs: [], tips: [], gameErrors: [], jsErrors: [], warnLogs: [], errLogs: [],
+                refusals: [], errMsgs: [], tips: [], gameErrors: [], jsErrors: [], warnLogs: [], errLogs: [], goldLogs: [],
                 unexpected: {}, forbidden: [],
                 viewsBase: views, viewsSeen: [], leftOpen: [], late: [], cleaned: [],
                 gold0: auditGold(), gold1: NaN,
@@ -12075,16 +12174,14 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
         function auditRunFinish(info, bad, reason) {
             if (!auditInstalled) return;
             try {
-                const s = auditCloseStep(reason, bad ? 'bad' : 'ok', info);
-                if (s) auditHudLine(s);
+                auditCloseStep(reason, bad ? 'bad' : 'ok', info);     // kết quả chỉ xem ở Probe → Audit, không ghi vào log HUD
             } catch (e) { }
         }
 
         function auditRunAbort() {
             if (!auditInstalled) return;
             try {
-                const s = auditCloseStep('người dùng dừng', 'aborted');
-                if (s) auditHudLine(s);
+                auditCloseStep('người dùng dừng', 'aborted');
             } catch (e) { }
         }
 
@@ -12102,6 +12199,8 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
 
         function auditOnLog(message, logType) {
             if (!auditCur) return;
+            // Mọi dòng log nhắc Tiên Ngọc (chi/nhận) ghi riêng để thấy khoản chi bị số dư tổng che mất.
+            if (/Tiên Ngọc/.test(String(message))) auditPush(auditCur.goldLogs, auditBrief(message, 160), 30);
             if (logType === 'warn') auditPush(auditCur.warnLogs, auditBrief(message, 160), 20);
             else if (logType === 'err' || logType === 'error') auditPush(auditCur.errLogs, auditBrief(message, 160), 20);
         }
@@ -12172,7 +12271,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
                 const c = s.calls[via] || (s.calls[via] = { n: 0, cmds: {}, args: [] });
                 if (via.charAt(0) === '?') c.n++;
                 c.cmds[cmd] = (c.cmds[cmd] || 0) + 1;
-                (auditPending[cmd] || (auditPending[cmd] = [])).push(Date.now());
+                if (!AUDIT_REPLY_ELSEWHERE[cmd]) (auditPending[cmd] || (auditPending[cmd] = [])).push(Date.now());
             } else {
                 s.sendsGame++;
                 const k = via + '|' + cmd;
@@ -12335,10 +12434,12 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             if (realRef.length) f.push('máy chủ từ chối ' + realRef.length);
             const realErr = s.errMsgs.filter((x) => !/thành công|hành lễ/i.test(x.msg) && !auditBenign(x.msg));
             if (realErr.length) f.push('báo lỗi ' + realErr.length + ' (' + realErr.map((x) => x.msg).slice(0, 3).join(' | ') + ')');
+            if (s.errLogs.length) f.push('log ❌ ' + s.errLogs.length + ' (' + s.errLogs.slice(0, 2).join(' | ') + ')');
             if (s.gameErrors.length) f.push('lỗi game ' + s.gameErrors.length);
             const unexp = Object.keys(s.unexpected);
             if (unexp.length) f.push('Ctrl ngoài dự kiến: ' + unexp.join(', '));
-            const leftPopups = s.leftOpen.filter((n) => !/^up:/.test(n) || !/disconnect/i.test(n));
+            // backpackGetAwardTipsUi = bảng phần thưởng hiện sau khi nhận, runFinish dọn là bình thường.
+            const leftPopups = s.leftOpen.filter((n) => (!/^up:/.test(n) || !/disconnect/i.test(n)) && n !== 'backpackGetAwardTipsUi');
             if (leftPopups.length) f.push('tính năng không tự đóng (đã dọn hộ): ' + leftPopups.join(', '));
             if (s.stillOpen && s.stillOpen.length) f.push('VẪN CÒN MỞ sau khi dọn: ' + s.stillOpen.join(', '));
             if (s.late.length) f.push('popup mở trễ: ' + s.late.join(', '));
@@ -12356,17 +12457,6 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
 
         function auditGoldDelta(s) {
             return Number.isFinite(s.gold0) && Number.isFinite(s.gold1) ? s.gold1 - s.gold0 : null;
-        }
-
-        function auditHudLine(s) {
-            const lat = auditLatSummary(s);
-            const gd = auditGoldDelta(s);
-            const f = auditFindings(s);
-            const msg = `🔎 [Audit] ${s.label}: ${runFormatDuration(s.ms)} · ${s.acts} thao tác · ${s.sendsOurs} yêu cầu` +
-                (lat ? ` (phản hồi TB ${lat.avg}ms, max ${lat.max}ms)` : '') +
-                (gd ? ` · Tiên Ngọc ${gd > 0 ? '+' : ''}${gd}` : '') +
-                (f.length ? ` · ⚠ ${f.join(' | ')}` : ' · không có vấn đề');
-            try { window.top.postMessage({ source: 'TIEN_NGHICH_AUTO_GAME', action: 'LOG', message: msg, logType: 'audit' }, '*'); } catch (e) { }
         }
 
         function auditReportLines() {
@@ -12401,6 +12491,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
                 s.forbidden.forEach((r) => L.push(`  ⛔ LỆNH CẤM ${r.label} ${r.args}: ${r.why}`));
                 s.jsErrors.forEach((r) => L.push(`  ✖ lỗi JS (${r.where}): ${r.msg}`));
                 s.gameErrors.forEach((r) => L.push(`  ✖ lỗi game: ${r}`));
+                (s.goldLogs || []).forEach((r) => L.push(`  💎 ${r}`));
                 s.errLogs.forEach((r) => L.push(`  log ❌ ${r}`));
                 s.warnLogs.forEach((r) => L.push(`  log ⚠ ${r}`));
                 const f = auditFindings(s);
@@ -12657,6 +12748,9 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
                     return;
                 }
                 disconnectPauseLogged = false;
+
+                // Bảng quảng cáo nạp tiền (newFirstChargeUi...) bật lên giữa lượt: đóng ngay, không tính là một thao tác.
+                closePromoPopups();
 
                 if ((CONFIG.autoArena || CONFIG.autoSkipFight) && handleArenaFightResult(ctx)) {
                     markActed(actionInterval);

@@ -214,6 +214,9 @@
                 }
                 disconnectPauseLogged = false;
 
+                // Bảng quảng cáo nạp tiền (newFirstChargeUi...) bật lên giữa lượt: đóng ngay, không tính là một thao tác.
+                closePromoPopups();
+
                 if ((CONFIG.autoArena || CONFIG.autoSkipFight) && handleArenaFightResult(ctx)) {
                     markActed(actionInterval);
                     return;

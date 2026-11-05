@@ -166,10 +166,52 @@
             return closed;
         }
 
+        // Bảng quảng cáo nạp tiền game tự bật giữa lượt chạy (ví dụ newFirstChargeUi sau trận thua đầu tiên trong ngày).
+        // Chỉ đóng bảng (closeView), không bấm gì bên trong; đóng ngay để không che màn hình của tính năng đang chạy.
+        const PROMO_POPUP_NAMES = ['newFirstChargeUi'];
+        let promoPopupLogged = false;
+        runResetHooks.push(() => { promoPopupLogged = false; });
+        function closePromoPopups() {
+            try {
+                const vm = window.ViewMgr && window.ViewMgr.gInst && window.ViewMgr.gInst();
+                if (!vm || typeof vm.viewIsVisible !== 'function') return 0;
+                const names = PROMO_POPUP_NAMES.filter((n) => vm.viewIsVisible(n));
+                names.forEach((n) => {
+                    try { vm.closeView(n); } catch (e) { }
+                    try { if (vm.viewIsVisible(n) && typeof vm.closeUpView === 'function') vm.closeUpView(n); } catch (e) { }
+                });
+                if (names.length) {
+                    if (typeof auditNoteClosed === 'function') auditNoteClosed(names, 'closePromoPopups');
+                    if (!promoPopupLogged) {
+                        promoPopupLogged = true;
+                        sendLog(`ℹ️ [Auto] Đã đóng bảng quảng cáo nạp tiền (${names.join(', ')}); không mua gì.`, 'info');
+                    }
+                }
+                return names.length;
+            } catch (e) { return 0; }
+        }
+
         // Bảng thường đang hiển thị (tên view). null = chưa đọc được ViewMgr.
         function runVisibleViewSet() {
             const open = typeof quickVisibleViews === 'function' ? quickVisibleViews() : null;
             return open ? new Set(open) : null;
+        }
+
+        // Màn hình chính của thành (cityMainUi) và mainUpUi không bao giờ bị đóng hộ; nếu game đã ẩn thành (vào trận / bảng toàn màn hình)
+        // mà không tự mở lại (trận bị bỏ qua nên luồng "quay về thành" của game không chạy) thì mở lại bằng CityCtrl.showCityView.
+        const RUN_KEEP_VIEW_RE = /^(cityMainUi|mainUpUi)$/;
+        function runEnsureCityScreen(by) {
+            try {
+                const vm = window.ViewMgr && window.ViewMgr.gInst && window.ViewMgr.gInst();
+                if (!vm || !vm.viewIsVisible || vm.viewIsVisible('cityMainUi')) return false;
+                const openNow = typeof quickVisibleViews === 'function' ? quickVisibleViews() : null;
+                if (openNow && openNow.some((n) => /fight|disconnect|loading|login/i.test(n))) return false;
+                const cc = window.CityCtrl && window.CityCtrl.gInst && window.CityCtrl.gInst();
+                if (!cc || typeof cc.showCityView !== 'function') return false;
+                cc.showCityView();
+                sendLog('🏙️ [' + (by || 'Auto') + '] Màn hình chính đã bị ẩn; đã mở lại thành chính.', 'info');
+                return true;
+            } catch (e) { return false; }
         }
 
         // Đóng mọi bảng mà lượt chạy đã mở (không có lúc bắt đầu), trừ trận đánh / mất kết nối / tải / hướng dẫn.
@@ -178,7 +220,7 @@
             const v = quickViewMgr();
             const open = quickVisibleViews();
             if (!v || !open) return 0;
-            const names = open.filter((n) => !base.has(n) && !/fight|disconnect|loading|guide|login/i.test(n));
+            const names = open.filter((n) => !base.has(n) && !RUN_KEEP_VIEW_RE.test(n) && !/fight|disconnect|loading|guide|login/i.test(n));
             names.forEach((n) => { try { v.vm.closeView(n); } catch (e) { } });
             if (names.length && typeof auditNoteClosed === 'function') auditNoteClosed(names, by);
             return names.length;
@@ -213,6 +255,7 @@
                 `${bad ? '; có bước chưa hoàn tất/lỗi, xem các dòng ⚠️/❌ phía trên' : ''}.`, 'run');
             if (typeof auditRunFinish === 'function') auditRunFinish(info, bad, reason);
             runCloseOpenedViews(info.baseViews, 'runFinish');
+            if (info.baseViews && info.baseViews.has('cityMainUi') && !(typeof quickRunActive === 'function' && quickRunActive())) setTimeout(() => runEnsureCityScreen(info.label), 600);
             // Popup phần thưởng/thông báo có thể hiện trễ sau khi xong: dọn thêm một lần (Quét nhanh tự dọn đầu bước kế tiếp).
             if (!(typeof quickRunActive === 'function' && quickRunActive())) {
                 setTimeout(() => { try { if (!runInfo) closeStrayPopups(); } catch (e) { } }, 2500);

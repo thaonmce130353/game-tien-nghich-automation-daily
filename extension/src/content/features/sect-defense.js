@@ -33,6 +33,8 @@
                 refreshing: null,
                 battles: 0,
                 restarts: 0,
+                endSeen: false,
+                resumeTries: 0,           // số lần tải lại trạng thái khi Bắt đầu không vào trận giữa lượt
                 lastResult: null,         // ctrl.fResult đã xử lý
                 pendingBuff: null,        // { at, eId } đã chọn Buff, chờ máy chủ xác nhận
                 buffSeenAt: 0,
@@ -138,11 +140,28 @@
             if (step === 'failed') {
                 const diag = embattleDiagnose(embUi, state.emb);
                 const pressedStart = (state.emb.starts || 0) >= EMBATTLE_START_TRIES;
+                const startAt = state.emb.firstStartAt || 0;
                 state.emb = null;
                 try { vm.closeView('embattleUi'); } catch (e) { }
-                if (pressedStart && state.restarts > 0) {
-                    // "Bắt đầu lại" sau khi lượt hôm nay đã kết thúc: máy chủ không mở lượt mới (không có bảng Buff) = hôm nay không chơi thêm được.
-                    sendLog("ℹ️ [Thủ Vệ Tứ Phái] Máy chủ không mở lượt mới sau \"Bắt đầu lại\" (hôm nay đã đánh hết lượt); chuyển sang nhận thưởng.", "info");
+                // Bắt đầu = sd11033; máy chủ trả 11033 không có enter_id khi hôm nay không còn ải (game không mở bảng Buff).
+                const r11033 = typeof netLastReply === 'function' ? netLastReply(11033) : null;
+                const noStage = Boolean(startAt && r11033 && r11033.at >= startAt && !(r11033.data && r11033.data.enter_id));
+                if (pressedStart && (noStage || state.restarts > 0 || state.endSeen)) {
+                    sendLog(`ℹ️ [Thủ Vệ Tứ Phái] Máy chủ không mở thêm ải sau ${state.battles} trận (${noStage ? '11033 không có ải mới' : 'lượt đã kết thúc'}); hôm nay đã hết lượt, chuyển sang nhận thưởng.`, "info");
+                    state.phase = 'stageReward';
+                    return true;
+                }
+                if (pressedStart && state.battles > 0 && (state.resumeTries || 0) < 1) {
+                    // Đã thấy live (2026-11-06): sau vài trận thắng, Bắt đầu ở bảng đội hình không gửi gì, nhưng lượt vẫn đang đánh dở
+                    // (tải lại trang thì 11030 báo status 2 và bảng Buff mở bình thường). Tải lại trạng thái một lần: status 2 → opEBuffUi.
+                    state.resumeTries = (state.resumeTries || 0) + 1;
+                    sendLog(`ℹ️ [Thủ Vệ Tứ Phái] Bắt đầu không vào trận sau ${state.battles} trận (${diag}); tải lại trạng thái để tiếp tục lượt đang đánh dở.`, "info");
+                    state.phase = 'status';
+                    return true;
+                }
+                if (pressedStart && state.battles > 0) {
+                    // Đã đánh trong lượt này nhưng không rõ vì sao không vào trận: vẫn nhận thưởng mốc (không bỏ sót), báo để xem lại.
+                    sendLog(`⚠️ [Thủ Vệ Tứ Phái] Bắt đầu không vào trận sau ${state.battles} trận (${diag}${r11033 ? '' : ', không thấy phản hồi 11033'}); dừng đánh, vẫn nhận thưởng mốc.`, "warn");
                     state.phase = 'stageReward';
                     return true;
                 }
@@ -155,6 +174,8 @@
                 failSect(state, 'no-challenge', "Bảng đội hình không có nút Khiêu Chiến (bản game đổi); dừng.", 'claim');
                 return false;
             }
+            if (typeof netTapInstall === 'function') netTapInstall();
+            if (!state.emb.firstStartAt) state.emb.firstStartAt = now;
             embattleMarkStarted(state.emb);
             embUi.cBtnH2();
             state.lastEntryAt = now;
@@ -191,6 +212,7 @@
             state.idleSince = now;
             const won = ctrl.isCgeSess === true;
             sendLog(`✅ [Thủ Vệ Tứ Phái] Máy chủ xác nhận trận ${state.battles} đã kết thúc (${won ? 'thắng' : 'thua'}${ctrl.is_quit ? ', kết thúc lượt' : ''}).`, "action");
+            if (ctrl.is_quit) state.endSeen = true;
             if (ctrl.is_quit || !won) state.phase = 'status';
             return true;
         }
@@ -203,6 +225,7 @@
                 return true;
             }
             const status = ctrl.endLsData && ctrl.endLsData.status;
+            if (status === SECT_STATE_END) state.endSeen = true;
             if (status === SECT_STATE_END && state.restarts < SECT_MAX_RESTARTS) {
                 // Lượt đã kết thúc nhưng màn Thủ Vệ có nút "Bắt đầu lại": bấm để chơi thêm một lượt (giống người chơi) thay vì kết thúc sớm.
                 state.restarts++;

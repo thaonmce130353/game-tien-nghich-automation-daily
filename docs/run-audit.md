@@ -5,7 +5,7 @@
 ## Using it
 
 - It is on by default once the game has loaded (`[TN audit] đã bật` in the game frame console).
-- After each run the HUD shows one purple line: `🔎 [Audit] <feature>: duration · actions · requests (avg/max reply) · Tiên Ngọc change · findings`.
+- Results are shown only in the Probe panel (Probe → Audit): one section per run with duration, actions, requests (avg/max reply), Tiên Ngọc change and a `=> OK` / `=> CẦN XEM: …` verdict. The HUD log gets no audit lines.
 - Full report: Probe (top right) → **Audit**. Read it with `get_page_text`. **Xuất JSON** saves the raw data, **Xóa audit** clears it, **Audit bật/tắt** turns it off for the next page load.
 - The report is kept in the game frame's `sessionStorage` (`tn-run-audit`, last 80 runs), so it survives auto-reconnect reloads. A run cut by a reload is marked `interrupted`.
 

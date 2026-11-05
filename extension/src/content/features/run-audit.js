@@ -12,6 +12,9 @@
         const AUDIT_OFF_KEY = 'tn-run-audit-off';
         const AUDIT_MAX_STEPS = 80;
         const AUDIT_SKIP_CMDS = { 10010: 1, 10012: 1 };      // nhịp tim / đồng bộ giờ
+        // Lệnh mà máy chủ trả lời bằng số lệnh khác (không có phản hồi cùng số): không tính "không thấy phản hồi".
+        // 11020 = trận Tứ Linh Tháp (kết quả qua khung trận + 11004), 32061 = mở ván Ảo Cảnh (bàn mới qua 32060).
+        const AUDIT_REPLY_ELSEWHERE = { 11020: 1, 32061: 1 };
         const AUDIT_REPLY_TIMEOUT_MS = 8000;
         const AUDIT_LATE_WINDOW_MS = 4000;                   // popup mở trong khoảng này sau khi xong = popup "trễ" của bước vừa xong
         const AUDIT_SLOW_TAIL_MS = 20000;                    // từ yêu cầu cuối tới lúc kết thúc lâu hơn mức này = chờ thừa
@@ -19,7 +22,7 @@
         const AUDIT_SHARED_CTRLS = ['RoleCtrl', 'PropsCtrl', 'FightCtrl', 'EmbattleCtrl', 'GlobalCtrl', 'FunOpenCtrl', 'RechargeCtrl', 'CityCtrl', 'MainCtrl', 'BackpackCtrl', 'PlayerCtrl'];
         // Ctrl mong đợi theo tính năng (lấy từ module tính năng + bảng trong CLAUDE.md). Gọi Ctrl ngoài danh sách = cần xem lại.
         const AUDIT_EXPECTED_CTRLS = {
-            autoDailyReward: ['WelfareCtrl', 'VipCtrl'],
+            autoDailyReward: ['WelfareCtrl', 'VipCtrl', 'WarlordsCtrl'],
             autoTamTienDai: ['WelfareCtrl', 'RecruitCtrl', 'AcvCtrl'],
             autoTienHuu: ['FriendCtrl'],
             autoThaiCo: ['DoubleTeamDungeonCtrl', 'RankCtrl'],
@@ -33,7 +36,7 @@
             autoImmortalRelic: ['RainRuinsCtrl'],
             autoMinigameMemory: ['FaZhenMirageCtrl', 'DevilSeaCtrl', 'RankCtrl'],
             autoMinigameDragon: ['DiceCtrl', 'EngraveCtrl', 'DevilSeaCtrl', 'ShopCtrl'],
-            autoClimbYMAbyss: ['YMAbyssCtrl', 'DailyDungeonCtrl'],
+            autoClimbYMAbyss: ['YMAbyssCtrl', 'DailyDungeonCtrl', 'RankCtrl'],
             autoArena: ['ArenaCtrl'],
             autoMaDao: ['HangupCtrl', 'TravelCtrl', 'HeroCtrl'],
             autoBanner: ['SuperHeroEncoreCtrl', 'NewSuperHeroCtrl', 'DesenoActivityCtrl', 'HeroCtrl', 'TransGodCtrl', 'DevilSeaCtrl', 'RankCtrl'],
@@ -155,7 +158,7 @@
                 lat: {},              // cmd -> { n, sum, max }
                 replies: {},          // cmd -> [mẫu phản hồi gần nhất] (chỉ lệnh do Auto gửi)
                 noReply: {},          // cmd -> n
-                refusals: [], errMsgs: [], tips: [], gameErrors: [], jsErrors: [], warnLogs: [], errLogs: [],
+                refusals: [], errMsgs: [], tips: [], gameErrors: [], jsErrors: [], warnLogs: [], errLogs: [], goldLogs: [],
                 unexpected: {}, forbidden: [],
                 viewsBase: views, viewsSeen: [], leftOpen: [], late: [], cleaned: [],
                 gold0: auditGold(), gold1: NaN,
@@ -202,16 +205,14 @@
         function auditRunFinish(info, bad, reason) {
             if (!auditInstalled) return;
             try {
-                const s = auditCloseStep(reason, bad ? 'bad' : 'ok', info);
-                if (s) auditHudLine(s);
+                auditCloseStep(reason, bad ? 'bad' : 'ok', info);     // kết quả chỉ xem ở Probe → Audit, không ghi vào log HUD
             } catch (e) { }
         }
 
         function auditRunAbort() {
             if (!auditInstalled) return;
             try {
-                const s = auditCloseStep('người dùng dừng', 'aborted');
-                if (s) auditHudLine(s);
+                auditCloseStep('người dùng dừng', 'aborted');
             } catch (e) { }
         }
 
@@ -229,6 +230,8 @@
 
         function auditOnLog(message, logType) {
             if (!auditCur) return;
+            // Mọi dòng log nhắc Tiên Ngọc (chi/nhận) ghi riêng để thấy khoản chi bị số dư tổng che mất.
+            if (/Tiên Ngọc/.test(String(message))) auditPush(auditCur.goldLogs, auditBrief(message, 160), 30);
             if (logType === 'warn') auditPush(auditCur.warnLogs, auditBrief(message, 160), 20);
             else if (logType === 'err' || logType === 'error') auditPush(auditCur.errLogs, auditBrief(message, 160), 20);
         }
@@ -299,7 +302,7 @@
                 const c = s.calls[via] || (s.calls[via] = { n: 0, cmds: {}, args: [] });
                 if (via.charAt(0) === '?') c.n++;
                 c.cmds[cmd] = (c.cmds[cmd] || 0) + 1;
-                (auditPending[cmd] || (auditPending[cmd] = [])).push(Date.now());
+                if (!AUDIT_REPLY_ELSEWHERE[cmd]) (auditPending[cmd] || (auditPending[cmd] = [])).push(Date.now());
             } else {
                 s.sendsGame++;
                 const k = via + '|' + cmd;
@@ -462,10 +465,12 @@
             if (realRef.length) f.push('máy chủ từ chối ' + realRef.length);
             const realErr = s.errMsgs.filter((x) => !/thành công|hành lễ/i.test(x.msg) && !auditBenign(x.msg));
             if (realErr.length) f.push('báo lỗi ' + realErr.length + ' (' + realErr.map((x) => x.msg).slice(0, 3).join(' | ') + ')');
+            if (s.errLogs.length) f.push('log ❌ ' + s.errLogs.length + ' (' + s.errLogs.slice(0, 2).join(' | ') + ')');
             if (s.gameErrors.length) f.push('lỗi game ' + s.gameErrors.length);
             const unexp = Object.keys(s.unexpected);
             if (unexp.length) f.push('Ctrl ngoài dự kiến: ' + unexp.join(', '));
-            const leftPopups = s.leftOpen.filter((n) => !/^up:/.test(n) || !/disconnect/i.test(n));
+            // backpackGetAwardTipsUi = bảng phần thưởng hiện sau khi nhận, runFinish dọn là bình thường.
+            const leftPopups = s.leftOpen.filter((n) => (!/^up:/.test(n) || !/disconnect/i.test(n)) && n !== 'backpackGetAwardTipsUi');
             if (leftPopups.length) f.push('tính năng không tự đóng (đã dọn hộ): ' + leftPopups.join(', '));
             if (s.stillOpen && s.stillOpen.length) f.push('VẪN CÒN MỞ sau khi dọn: ' + s.stillOpen.join(', '));
             if (s.late.length) f.push('popup mở trễ: ' + s.late.join(', '));
@@ -483,17 +488,6 @@
 
         function auditGoldDelta(s) {
             return Number.isFinite(s.gold0) && Number.isFinite(s.gold1) ? s.gold1 - s.gold0 : null;
-        }
-
-        function auditHudLine(s) {
-            const lat = auditLatSummary(s);
-            const gd = auditGoldDelta(s);
-            const f = auditFindings(s);
-            const msg = `🔎 [Audit] ${s.label}: ${runFormatDuration(s.ms)} · ${s.acts} thao tác · ${s.sendsOurs} yêu cầu` +
-                (lat ? ` (phản hồi TB ${lat.avg}ms, max ${lat.max}ms)` : '') +
-                (gd ? ` · Tiên Ngọc ${gd > 0 ? '+' : ''}${gd}` : '') +
-                (f.length ? ` · ⚠ ${f.join(' | ')}` : ' · không có vấn đề');
-            try { window.top.postMessage({ source: 'TIEN_NGHICH_AUTO_GAME', action: 'LOG', message: msg, logType: 'audit' }, '*'); } catch (e) { }
         }
 
         function auditReportLines() {
@@ -528,6 +522,7 @@
                 s.forbidden.forEach((r) => L.push(`  ⛔ LỆNH CẤM ${r.label} ${r.args}: ${r.why}`));
                 s.jsErrors.forEach((r) => L.push(`  ✖ lỗi JS (${r.where}): ${r.msg}`));
                 s.gameErrors.forEach((r) => L.push(`  ✖ lỗi game: ${r}`));
+                (s.goldLogs || []).forEach((r) => L.push(`  💎 ${r}`));
                 s.errLogs.forEach((r) => L.push(`  log ❌ ${r}`));
                 s.warnLogs.forEach((r) => L.push(`  log ⚠ ${r}`));
                 const f = auditFindings(s);

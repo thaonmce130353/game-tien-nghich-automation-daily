@@ -146,9 +146,10 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             const v = quickViewMgr();
             const open = quickVisibleViews();
             if (!v || !open) return 0;
-            const names = open.filter((n) => !quickRun.baseViews.has(n) && !/fight|disconnect|loading|guide/i.test(n));
+            const names = open.filter((n) => !quickRun.baseViews.has(n) && !RUN_KEEP_VIEW_RE.test(n) && !/fight|disconnect|loading|guide/i.test(n));
             names.forEach((n) => { try { v.vm.closeView(n); } catch (e) { } });
             if (names.length && typeof auditNoteClosed === 'function') auditNoteClosed(names, 'quickReturnToMain');
+            if (quickRun.baseViews.has('cityMainUi')) runEnsureCityScreen('Quét nhanh');
             return names.length;
         }
 

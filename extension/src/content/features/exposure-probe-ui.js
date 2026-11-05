@@ -39,6 +39,8 @@
             for (const b of [runBtn, viewsBtn, dlBtn, auditBtn, auditClearBtn, auditToggleBtn]) {
                 b.style.cssText = 'background:#45475a;color:#cdd6f4;border:0;border-radius:4px;padding:3px 8px;margin-right:6px;cursor:pointer;';
             }
+            // Thanh nút dính ở đầu bảng khi cuộn kết quả dài (panel có padding 8px nên top:-8px).
+            bar.style.cssText = 'position:sticky;top:-8px;z-index:1;background:rgb(17,17,27);margin:-8px -8px 0;padding:8px;border-bottom:1px solid #45475a;';
             bar.appendChild(runBtn);
             bar.appendChild(viewsBtn);
             bar.appendChild(dlBtn);

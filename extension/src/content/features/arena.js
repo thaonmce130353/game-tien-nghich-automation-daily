@@ -222,9 +222,7 @@
                     arenaRunState.noAttemptsLogged = false;
                     const powerStr = minFc < Infinity && minFc > 0 ? minFc.toLocaleString('vi-VN') : '--';
                     sendLog(`🏟️ [Đấu Tiên Đài] Đang khiêu chiến ${bestName} (LC thấp nhất: ${powerStr}, còn ${freeCount} miễn phí, ${ticketCount} vé)...`, "action");
-                    setTimeout(() => {
-                        if (typeof ac.send14201 === 'function') ac.send14201();
-                    }, 1200);
+                    // Danh sách đối thủ được làm mới khi quay lại đài (handleArenaFightResult), không cần gửi thêm 14201 ở đây.
                     return true;
                 }
             } catch (e) {
