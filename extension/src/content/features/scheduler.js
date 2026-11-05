@@ -9,7 +9,7 @@
         // Thông Thiên + Tứ Linh ở chế độ quét (Quét nhanh) cũng là chuỗi bước nhỏ chờ máy chủ.
         function isFastRoutineActive() {
             const a = CONFIG.activeFeature;
-            return FAST_ROUTINE_FEATURES.includes(a) || (a === 'autoTongTian' && Boolean(CONFIG.towerSweepOnly)) ||
+            return FAST_ROUTINE_FEATURES.includes(a) || a === 'autoTongTian' ||
                 (a === 'autoDailyDungeon' && Boolean(biCanhState) && biCanhState.phase !== 'done') ||
                 (a === 'autoSectDefense' && Boolean(sectDefenseState) && (sectDefenseState.phase === 'stageReward' || sectDefenseState.phase === 'claim'));
         }
@@ -346,7 +346,9 @@
             // Nhịp kiểm tra nhanh hơn khi chạy Nhận Cuối Ngày (chuỗi nhiều bước nhỏ, mỗi bước chờ máy chủ xác nhận).
             const fast = CONFIG.running && isFastRoutineActive();
             setTimeout(() => {
-                try { executeCycle(false); } catch (e) { }
+                const t0 = performance.now();
+                try { executeCycle(false); } catch (e) { if (typeof auditJsError === 'function') auditJsError(e, 'executeCycle'); }
+                if (typeof auditTick === 'function') auditTick(performance.now() - t0);
                 scheduleTick();
             }, fast ? 120 + Math.floor(Math.random() * 120) : 450 + Math.floor(Math.random() * 300));
         })();

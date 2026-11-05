@@ -1,7 +1,7 @@
     if (isTopWindow || isStandaloneGame) {
         // Chỉ hiện thông tin quan trọng: 'result' (mua/nhận thưởng/kết quả), 'run' (bắt đầu/hoàn tất/dừng), 'warn', 'err'.
         // Các dòng chi tiết từng bước ('info', 'action', ...) chỉ hiện khi bật "Log chi tiết" (CONFIG.verboseLog).
-        const LOG_ALWAYS_SHOWN = ['result', 'run', 'warn', 'err', 'error'];
+        const LOG_ALWAYS_SHOWN = ['result', 'run', 'warn', 'err', 'error', 'audit'];
         function addLogToUI(msg, type = "info") {
             if (!CONFIG.verboseLog && !LOG_ALWAYS_SHOWN.includes(type)) return;
             const logBox = document.getElementById('tn-log-content');
@@ -19,6 +19,7 @@
             if (type === 'err' || type === 'error') color = '#f38ba8';
             if (type === 'action') color = '#89b4fa';
             if (type === 'run') color = '#89dceb';
+            if (type === 'audit') color = '#cba6f7';
 
             p.innerHTML = `<span style="color:#888;">[${time}]</span> <span style="color:${color};">${msg}</span>`;
             logBox.appendChild(p);

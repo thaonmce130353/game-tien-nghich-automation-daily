@@ -146,6 +146,7 @@
         const STRAY_POPUP_KEEP_RE = /disconnect|loading|guide|fight|login|reconnect/i;
         function closeStrayPopups() {
             let closed = 0;
+            const closedNames = [];
             try {
                 const vm = window.ViewMgr && window.ViewMgr.gInst && window.ViewMgr.gInst();
                 if (!vm) return 0;
@@ -155,18 +156,39 @@
                         if (!STRAY_POPUP_RE.test(name) || STRAY_POPUP_KEEP_RE.test(name)) return;
                         const v = cache[name];
                         if (!v || !v.visible) return;
-                        try { close.call(vm, name); closed++; } catch (e) { }
+                        try { close.call(vm, name); closed++; closedNames.push(name); } catch (e) { }
                     });
                 };
                 scan(vm.m_viewCacheGroup || (window.ViewMgr.gViewMgr && window.ViewMgr.gViewMgr.m_viewCacheGroup), vm.closeView);
                 scan(vm.m_upViewCacheGroup, vm.closeUpView);
             } catch (e) { }
+            if (closedNames.length && typeof auditNoteClosed === 'function') auditNoteClosed(closedNames, 'closeStrayPopups');
             return closed;
+        }
+
+        // Bảng thường đang hiển thị (tên view). null = chưa đọc được ViewMgr.
+        function runVisibleViewSet() {
+            const open = typeof quickVisibleViews === 'function' ? quickVisibleViews() : null;
+            return open ? new Set(open) : null;
+        }
+
+        // Đóng mọi bảng mà lượt chạy đã mở (không có lúc bắt đầu), trừ trận đánh / mất kết nối / tải / hướng dẫn.
+        function runCloseOpenedViews(base, by) {
+            if (!base || typeof quickViewMgr !== 'function') return 0;
+            const v = quickViewMgr();
+            const open = quickVisibleViews();
+            if (!v || !open) return 0;
+            const names = open.filter((n) => !base.has(n) && !/fight|disconnect|loading|guide|login/i.test(n));
+            names.forEach((n) => { try { v.vm.closeView(n); } catch (e) { } });
+            if (names.length && typeof auditNoteClosed === 'function') auditNoteClosed(names, by);
+            return names.length;
         }
 
         function runBegin(key) {
             closeStrayPopups();     // bước dọn đầu tiên: đóng bảng xác nhận/thông báo còn mở từ tính năng trước
             runInfo = { key, label: (key === 'autoTongTian' && !CONFIG.towerSweepOnly) ? 'Tự Động Leo Thông Thiên Tháp' : (RUN_LABELS[key] || key || 'Auto'), startedAt: Date.now(), lastActAt: Date.now(), acts: 0, problems: 0 };
+            runInfo.baseViews = runVisibleViewSet();
+            if (typeof auditRunBegin === 'function') auditRunBegin(key, runInfo.label);
         }
 
         // touch=true: chỉ báo còn sống (game chưa sẵn sàng/đang mất kết nối), không tính là đã làm việc.
@@ -189,6 +211,12 @@
             const bad = Boolean(failed) || info.problems > 0;
             sendLog(`${bad ? '⚠️' : '✅'} [${info.label}] Hoàn tất${reason ? ': ' + reason : ''} (${runFormatDuration(Date.now() - info.startedAt)})` +
                 `${bad ? '; có bước chưa hoàn tất/lỗi, xem các dòng ⚠️/❌ phía trên' : ''}.`, 'run');
+            if (typeof auditRunFinish === 'function') auditRunFinish(info, bad, reason);
+            runCloseOpenedViews(info.baseViews, 'runFinish');
+            // Popup phần thưởng/thông báo có thể hiện trễ sau khi xong: dọn thêm một lần (Quét nhanh tự dọn đầu bước kế tiếp).
+            if (!(typeof quickRunActive === 'function' && quickRunActive())) {
+                setTimeout(() => { try { if (!runInfo) closeStrayPopups(); } catch (e) { } }, 2500);
+            }
             // Dãy Quét nhanh: sang bước kế tiếp, không dừng nút Auto.
             if (typeof quickRunAfterStep === 'function' && quickRunAfterStep(info, bad, reason)) return;
             CONFIG.running = false;
@@ -200,11 +228,13 @@
         // Người dùng dừng giữa chừng: bỏ trạng thái dở dang (giữ bản ghi "hôm nay đã xong" chống làm lại/mua lại).
         function runAbort() {
             const info = runInfo;
+            if (info && typeof auditRunAbort === 'function') auditRunAbort();
             runInfo = null;
             isTowerChallenging = false;
             waitingForFloorUpdate = false;
             nextActionAt = 0;
             if (typeof bannerRequestAbort === 'function') bannerRequestAbort();
+            if (typeof towerClimbStop === 'function') towerClimbStop();
             if (typeof quickRunAbort === 'function') quickRunAbort();
             for (const k of Object.keys(failCounts)) delete failCounts[k];
             for (const k of Object.keys(targetAttempts)) delete targetAttempts[k];
@@ -222,6 +252,7 @@
         function sendLog(message, logType = 'info') {
             try {
                 if (runInfo && (logType === 'warn' || logType === 'err' || logType === 'error')) runInfo.problems++;
+                if (typeof auditOnLog === 'function') auditOnLog(message, logType);
                 if (typeof addLogToUI === 'function') { try { addLogToUI(message, logType); } catch(e){} }
                 window.top.postMessage({
                     source: 'TIEN_NGHICH_AUTO_GAME',

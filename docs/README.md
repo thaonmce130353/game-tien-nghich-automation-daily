@@ -9,6 +9,9 @@ Lookup order for game-controller questions: read this file, then the single file
 | Source of a specific method | `node scripts/bundle-method.js <Ctrl> <method> [method...]` (prints only those bodies, capped at 1200 chars each; `--max=N` to change) | on demand |
 | Banner heroes: roster, schedule rules, Banner tab workflow | [banner-heroes.md](banner-heroes.md) | ~5 KB |
 | Which `*Ctrl` globals exist and safe inspection rules | [game-controllers.md](game-controllers.md) | ~5 KB |
+| What each feature really sends (Ctrl.method + cmd), screens it opens, timings, server refusals seen live | [audit-2026-11-05.md](audit-2026-11-05.md) | ~9 KB |
+| The run audit tool (Probe → Audit): what it records, how to read it, lessons | [run-audit.md](run-audit.md) | ~4 KB |
+| Checklist for the next full audit on a fresh game day | [audit-next-day-plan.md](audit-next-day-plan.md) | ~3 KB |
 
 ## Layout
 

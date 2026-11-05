@@ -29,12 +29,23 @@
             const dlBtn = document.createElement('button');
             dlBtn.textContent = 'Xuất JSON';
             dlBtn.disabled = true;
-            for (const b of [runBtn, viewsBtn, dlBtn]) {
+            // Audit tạm (features/run-audit.js): báo cáo từng lượt chạy, xóa, bật/tắt.
+            const auditBtn = document.createElement('button');
+            auditBtn.textContent = 'Audit';
+            const auditClearBtn = document.createElement('button');
+            auditClearBtn.textContent = 'Xóa audit';
+            const auditToggleBtn = document.createElement('button');
+            auditToggleBtn.textContent = 'Audit bật/tắt';
+            for (const b of [runBtn, viewsBtn, dlBtn, auditBtn, auditClearBtn, auditToggleBtn]) {
                 b.style.cssText = 'background:#45475a;color:#cdd6f4;border:0;border-radius:4px;padding:3px 8px;margin-right:6px;cursor:pointer;';
             }
             bar.appendChild(runBtn);
             bar.appendChild(viewsBtn);
             bar.appendChild(dlBtn);
+            const bar2 = document.createElement('div');
+            bar2.style.marginTop = '4px';
+            bar2.append(auditBtn, auditClearBtn, auditToggleBtn);
+            bar.appendChild(bar2);
 
             const note = document.createElement('div');
             note.style.cssText = 'color:#a6adc8;margin:6px 0;';
@@ -104,7 +115,13 @@
                 for (const e of report.errors) line('Lỗi: ' + e, '#f38ba8');
             }
 
+            function renderAudit(report) {
+                out.textContent = '';
+                (report.lines || []).forEach((t) => line(t, /CẦN XEM|✖|⛔/.test(t) ? '#f38ba8' : (/=> OK/.test(t) ? '#a6e3a1' : '')));
+            }
+
             function render(report) {
+                if (report.kind === 'audit') { renderAudit(report); return; }
                 if (report.kind === 'views') { renderViews(report); return; }
                 out.textContent = '';
                 if (report.error) { line('Lỗi: ' + report.error, '#f38ba8'); return; }
@@ -148,13 +165,28 @@
                 setTimeout(() => { if (!probeBest) line('Không nhận được kết quả từ frame game.', '#f38ba8'); }, 3000);
             });
 
+            const sendAudit = (kind) => {
+                probeBest = null;
+                out.textContent = '';
+                line('Đang đọc audit...');
+                const req = { source: PROBE_SOURCE_REQ, kind };
+                document.querySelectorAll('iframe').forEach((f) => {
+                    try { f.contentWindow.postMessage(req, '*'); } catch (e) { }
+                });
+                try { window.postMessage(req, '*'); } catch (e) { }
+                setTimeout(() => { if (!probeBest) line('Không nhận được kết quả từ frame game.', '#f38ba8'); }, 3000);
+            };
+            auditBtn.addEventListener('click', () => sendAudit('audit'));
+            auditClearBtn.addEventListener('click', () => sendAudit('auditClear'));
+            auditToggleBtn.addEventListener('click', () => sendAudit('auditToggle'));
+
             dlBtn.addEventListener('click', () => {
                 if (!probeBest) return;
                 const blob = new Blob([JSON.stringify(probeBest, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = probeBest.kind === 'views' ? 'tn-open-views.json' : 'tn-exposure-probe.json';
+                a.download = probeBest.kind === 'views' ? 'tn-open-views.json' : (probeBest.kind === 'audit' ? 'tn-run-audit.json' : 'tn-exposure-probe.json');
                 a.click();
                 setTimeout(() => URL.revokeObjectURL(url), 1000);
             });
@@ -164,6 +196,7 @@
                 if (!data || data.source !== PROBE_SOURCE_RES || !data.report) return;
                 const frames = [...document.querySelectorAll('iframe')].map((f) => f.contentWindow);
                 if (event.source !== window && !frames.includes(event.source)) return;
+                if (data.report.kind === 'audit') { probeBest = data.report; render(probeBest); dlBtn.disabled = false; return; }
                 // Giữ báo cáo có nhiều controller nhất (frame game, không phải frame rỗng).
                 if (!probeBest || data.report.controllerCount > probeBest.controllerCount || (data.report.kind === 'views' && probeBest.kind !== data.report.kind)) {
                     probeBest = data.report;

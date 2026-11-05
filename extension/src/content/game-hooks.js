@@ -1,14 +1,30 @@
         let embattleHookState = null;      // trạng thái xếp đội hình của bộ xử lý trận đánh chung (xem embattleStep)
 
+        // Phản hồi máy chủ gần nhất theo số lệnh, đọc tại điểm phát của NetMgr (mọi phản hồi đi qua đây).
+        // Bọc hàm rvXXXXX trên prototype KHÔNG có tác dụng: game đăng ký hàm nhận một lần lúc khởi động (tham chiếu cũ).
+        const netLastReplies = {};
+        function netTapInstall() {
+            const NM = window.NetMgr;
+            if (!NM || !NM.prototype || NM.prototype.__tnNetTap) return Boolean(NM && NM.prototype && NM.prototype.__tnNetTap);
+            const orig = NM.prototype.dispatchEvent;
+            if (typeof orig !== 'function') return false;
+            NM.prototype.dispatchEvent = function tnNetTap(ev) {
+                try { if (window.NetEvent && ev instanceof window.NetEvent) netLastReplies[String(ev.type)] = { at: Date.now(), data: ev.netData }; } catch (e) { }
+                return orig.apply(this, arguments);
+            };
+            NM.prototype.__tnNetTap = true;
+            return true;
+        }
+        // { at, data } hoặc null. Chỉ dùng phản hồi có at >= lúc gửi để không đọc nhầm phản hồi cũ.
+        function netLastReply(cmd) { return netLastReplies[String(cmd)] || null; }
+
         function hookRecharge(ctx) {
             if (!ctx.RechargeCtrl) return;
             try {
                 const rcProto = ctx.RechargeCtrl.prototype;
-                if (!rcProto.__tnHooked) {
-                    rcProto.__tnHooked = true;
-                    rcProto.bBuyTermById = function (t) { return true; };
-                    rcProto.openAutoFight = function (t) { return true; };
-                }
+                // Không giả "đã mua Chiến Lệnh" (bBuyTermById/openAutoFight luôn true) nữa: game chỉ dùng hai hàm này cho nút tự đánh
+                // của Thông Thiên Tháp và chữ thưởng Chiến Lệnh ở Cực Âm Địa; khi giả, game gửi yêu cầu tự đánh mà máy chủ từ chối (161016).
+                if (!rcProto.__tnHooked) rcProto.__tnHooked = true;
             } catch (e) { }
 
             if (ctx.GlobalCtrl && ctx.GlobalCtrl.prototype) {
@@ -64,17 +80,46 @@
                             sendLog(`ℹ️ [Bỏ qua trận] Loại trận ${t.type} (${n[t.type] || '?'}) chưa có trong danh sách bỏ qua nên chạy đủ hoạt ảnh.`, "info");
                         }
                         if (isSkippable) {
-                            const showed = this.executeShowRoundFight(t, true);
-                            if (showed) {
-                                this.m_roundFightData = t;
-                                this.executeFinishFight(true);
+                            // Vấn Đạo (guildAsked): executeFinishFight đọc GuildCtrl...scmd18144Data.damage (phản hồi 18144). Khi bỏ qua trận,
+                            // khung trận đến trước phản hồi đó -> game ném lỗi 'damage' of undefined. Chờ phản hồi (tối đa 3s) rồi mới kết thúc.
+                            if (t.type === n.guildAsked && !skipGuildAskedReady(ctx)) {
+                                const self = this;
+                                let waited = 0;
+                                const later = () => {
+                                    waited += 100;
+                                    if (skipGuildAskedReady(ctx) || waited >= 3000) { skipFinishFight(self, t, origRecvFightFrame); return; }
+                                    setTimeout(later, 100);
+                                };
+                                setTimeout(later, 100);
                                 return;
                             }
+                            if (skipFinishFight(this, t, null)) return;
                         }
                     }
                 }
                 return origRecvFightFrame.apply(this, arguments);
             };
+        }
+
+        // Bỏ qua trận theo đúng thứ tự của game (FightCtrl.recvFightFrame): transRoundFightList -> executeShowRoundFight(t, true)
+        // -> executeFinishFight(true). fallback: hàm gốc để chạy trận bình thường nếu không hiển thị được.
+        function skipFinishFight(fc, t, fallback) {
+            try { if (typeof fc.transRoundFightList === 'function') fc.transRoundFightList(t); } catch (e) { }
+            const showed = fc.executeShowRoundFight(t, true);
+            if (showed) {
+                fc.m_roundFightData = t;
+                fc.executeFinishFight(true);
+                return true;
+            }
+            if (fallback) fallback.call(fc, t);
+            return false;
+        }
+
+        function skipGuildAskedReady(ctx) {
+            try {
+                const m = ctx.GuildCtrl && ctx.GuildCtrl.gInst().getCurlModel();
+                return Boolean(m && m.scmd18144Data);
+            } catch (e) { return true; }
         }
 
         // Hook đồng bộ dữ liệu Thông Thiên Tháp & Phụ Bản
@@ -147,12 +192,6 @@
         function handleBattle(ctx) {
             let acted = false;
             try {
-                if (CONFIG.autoSkipFight && ctx.DailyDungeonCtrl && ctx.DailyDungeonCtrl.gInst) {
-                    const dd = ctx.DailyDungeonCtrl.gInst();
-                    dd.openRunManAutoFight = true;
-                    dd.saveAlertRunManAutoFight = true;
-                }
-
                 if (CONFIG.maxSpeed && ctx.FightCtrl && ctx.FightCtrl.gInst) {
                     const fc = ctx.FightCtrl.gInst();
                     if (fc.speed && fc.speed < 3) fc.speed = 3;

@@ -6,6 +6,8 @@
         // Sau khi quét (hoặc nếu chưa quét được): nhận Thưởng Ải (sd20223) rồi Chiến Lệnh (sd20232), chỉ phần miễn phí đã đủ điều kiện.
         // Trả về: 'done' (đã xong / không có gì làm) | 'acted' (vừa thao tác) | 'wait' (đang chờ game).
         const UYEN_NHI_TIMEOUT_MS = 20000;
+        const UYEN_NHI_ALL_CLEARED_MSG = '218015';      // "Đã vượt hết tầng": đã vượt hết tầng, không còn gì để quét (không phải lỗi)
+        // rv20221 của game chỉ hiện toast khi thất bại: đọc phản hồi 20221 (netLastReply) để biết ngay kết quả, không chờ hết thời gian chờ.
         const UYEN_NHI_SETTLE_MS = 1500;      // chờ máy chủ trả danh sách thưởng sau khi tải
         let uyenNhiState = null;
         let uyenNhiVm = null;
@@ -36,6 +38,7 @@
             const state = uyenNhiState;
             if (state.phase === 'done') return 'done';
 
+            netTapInstall();
             const ctrl = ctx.MzCtrl.gInst();
             const vm = ctx.ViewMgr.gInst();
             uyenNhiVm = vm;
@@ -95,6 +98,19 @@
                     if (vm.viewIsVisible('mzFinish')) vm.closeView('mzFinish');
                     try { if (vm.viewIsVisible('aletNormalUi')) vm.closeView('aletNormalUi'); } catch (e) { }
                     try { ctrl.sd20201(); } catch (e) { }
+                    state.phase = 'passRw';
+                    return 'acted';
+                }
+                const last = netLastReply(20221);
+                const reply = last && last.at >= state.sentAt && last.data ? { res: last.data.res, msg: String(last.data.msg === undefined ? '' : last.data.msg) } : null;
+                if (reply && reply.res === 0) {
+                    try { if (vm.viewIsVisible('aletNormalUi')) vm.closeView('aletNormalUi'); } catch (e) { }
+                    if (reply.msg === UYEN_NHI_ALL_CLEARED_MSG) {
+                        sendLog("ℹ️ [Cửu Uyển Nhi] Đã vượt hết tầng, không còn gì để quét; chuyển sang nhận thưởng Ải và Chiến Lệnh.", "info");
+                    } else {
+                        sendLog(`❌ [Cửu Uyển Nhi] Máy chủ từ chối Quét nhanh (mã ${reply.msg}); không gửi lại, vẫn nhận thưởng.`, "error");
+                        state.failed = true;
+                    }
                     state.phase = 'passRw';
                     return 'acted';
                 }

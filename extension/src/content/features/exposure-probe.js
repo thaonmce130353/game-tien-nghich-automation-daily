@@ -112,6 +112,7 @@
         window.addEventListener('message', (event) => {
             const data = event.data;
             if (!data || data.source !== PROBE_SOURCE_REQ) return;
+            if (data.kind === 'audit' || data.kind === 'auditClear' || data.kind === 'auditToggle') return;   // features/run-audit.js
             if (event.source !== window && event.source !== window.top && event.source !== window.parent) return;
             let report;
             try {

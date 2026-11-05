@@ -148,6 +148,7 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             if (!v || !open) return 0;
             const names = open.filter((n) => !quickRun.baseViews.has(n) && !/fight|disconnect|loading|guide/i.test(n));
             names.forEach((n) => { try { v.vm.closeView(n); } catch (e) { } });
+            if (names.length && typeof auditNoteClosed === 'function') auditNoteClosed(names, 'quickReturnToMain');
             return names.length;
         }
 

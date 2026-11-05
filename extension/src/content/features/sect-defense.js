@@ -92,6 +92,13 @@
             }
             // Lần đầu chọn Buff ở giữa; nếu máy chủ từ chối ("Buff chọn bị lỗi") thì thử Buff khác (đầu, rồi cuối).
             const eId = view.exData && view.exData.eId;
+            // Bảng này đã được chọn Buff thành công (máy chủ xác nhận trận): dữ liệu cũ, KHÔNG chọn lại trên đó (máy chủ trả "Buff chọn bị lỗi").
+            // Đóng bằng hàm của game; bước khiêu chiến mở lại bảng mới (opEBuffUi -> 11033 trả danh sách Buff của màn kế tiếp).
+            if (state.acceptedBuffEIds && state.acceptedBuffEIds[eId]) {
+                try { if (typeof ctrl.clsEBuffUi === 'function') ctrl.clsEBuffUi(); else vm.closeView('eTBfUi'); } catch (e) { }
+                state.idleSince = now;
+                return false;
+            }
             state.buffTries = state.buffTries || {};
             const tried = state.buffTries[eId] || 0;
             const order = [Math.floor(buffs.length / 2), 0, buffs.length - 1];
@@ -99,7 +106,8 @@
             const buff = buffs[index];
             if (!buff || typeof buff.id !== 'number' && typeof buff.id !== 'string') return false;
             if (!tryAttemptTarget(`sect-buff-${eId}`, `[Thủ Vệ Tứ Phái] Chọn Buff màn #${eId}`)) {
-                failSect(state, 'buff-rejected', "Máy chủ từ chối cả 3 lần chọn Buff; dừng, kiểm tra lại trạng thái.", 'status');
+                // Sang nhận thưởng rồi kết thúc (không quay lại 'status': status báo "đang đánh" -> lại bảng Buff -> lặp gửi sd11030 vô hạn).
+                failSect(state, 'buff-rejected', "Máy chủ từ chối cả 3 lần chọn Buff; dừng chọn Buff, nhận thưởng còn lại rồi kết thúc.", 'claim');
                 return true;
             }
             state.buffTries[eId] = tried + 1;
@@ -129,9 +137,18 @@
             }
             if (step === 'failed') {
                 const diag = embattleDiagnose(embUi, state.emb);
+                const pressedStart = (state.emb.starts || 0) >= EMBATTLE_START_TRIES;
                 state.emb = null;
                 try { vm.closeView('embattleUi'); } catch (e) { }
-                failSect(state, 'emb-empty', "Không xếp được đội hình sau " + EMBATTLE_ARRANGE_TRIES + " lần Lên trận nhanh (" + diag + "); không khiêu chiến, dừng.", 'claim');
+                if (pressedStart && state.restarts > 0) {
+                    // "Bắt đầu lại" sau khi lượt hôm nay đã kết thúc: máy chủ không mở lượt mới (không có bảng Buff) = hôm nay không chơi thêm được.
+                    sendLog("ℹ️ [Thủ Vệ Tứ Phái] Máy chủ không mở lượt mới sau \"Bắt đầu lại\" (hôm nay đã đánh hết lượt); chuyển sang nhận thưởng.", "info");
+                    state.phase = 'stageReward';
+                    return true;
+                }
+                failSect(state, 'emb-empty', pressedStart
+                    ? "Đã bấm Bắt đầu " + EMBATTLE_START_TRIES + " lần nhưng không vào trận (" + diag + "); dừng."
+                    : "Không xếp được đội hình sau " + EMBATTLE_ARRANGE_TRIES + " lần Lên trận nhanh (" + diag + "); không khiêu chiến, dừng.", 'claim');
                 return false;
             }
             if (typeof embUi.cBtnH2 !== 'function') {
@@ -163,6 +180,11 @@
                 }
                 return false;
             }
+            // Buff đã được nhận: xóa đếm thử của bảng này, đánh dấu bảng là cũ (không chọn lại trên cùng dữ liệu).
+            state.acceptedBuffEIds = state.acceptedBuffEIds || {};
+            state.acceptedBuffEIds[state.pendingBuff.eId] = true;
+            clearTargetAttempts(`sect-buff-${state.pendingBuff.eId}`);
+            if (state.buffTries) delete state.buffTries[state.pendingBuff.eId];
             state.pendingBuff = null;
             state.battles++;
             clearTargetAttempts('sect-entry');

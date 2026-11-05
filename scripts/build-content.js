@@ -46,6 +46,7 @@ const allSourceFiles = [
     'features/skin-banner.js',
     'features/daily-reward.js',
     'features/quick-run.js',
+    'features/run-audit.js',
     'features/scheduler.js'
 ];
 
