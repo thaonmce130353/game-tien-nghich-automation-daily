@@ -9399,9 +9399,11 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
                     logTienMinh(state, `help-assist-${help.assisted}`, `✅ [Tiên Minh - Viện Trợ] Máy chủ xác nhận đã Viện trợ thành viên (${count}/${Number(data.max_count)} lượt miễn phí hôm nay).`, "action");
                 } else if (data !== pending.dataRef) {
                     // Máy chủ từ chối và game tải lại danh sách (rv18042 → send18040Msg).
+                    help.attempted.add(pending.key);
                     help.pending = null;
                     help.assistRejected++;
                 } else if (now - pending.startedAt >= TIEN_MINH_REQUEST_TIMEOUT_MS) {
+                    help.attempted.add(pending.key);
                     help.pending = null;
                     help.assistRejected++;
                 }
@@ -9471,11 +9473,14 @@ let towerDailyDidSend = false;   // nhịp này đã gửi yêu cầu thật t�
                 failTienMinhStep(state, 'help-assist-api', 'API Viện trợ thành viên chưa sẵn sàng.', 'fete');
                 return true;
             }
-            help.attempted.add(getTienMinhHelpEntryKey(target));
-            help.pending = { kind: 'assist', beforeCount: count, dataRef: data, startedAt: now };
+            // Một yêu cầu được giúp nhiều lần cho tới khi đầy (be_count = max_count, game tự bỏ khỏi danh sách);
+            // chỉ bỏ qua yêu cầu khi máy chủ từ chối / không trả lời. Tổng số lần gửi vẫn bị giới hạn bởi count < max_count.
+            const targetKey = getTienMinhHelpEntryKey(target);
+            help.pending = { kind: 'assist', key: targetKey, beforeCount: count, dataRef: data, startedAt: now };
             try {
                 gc.send18042Msg(target.id, target.pos);
             } catch (error) {
+                help.attempted.add(targetKey);
                 help.pending = null;
                 failTienMinhStep(state, 'help-assist-error', `Không thể Viện trợ thành viên: ${error.message || error}`, 'fete');
             }
@@ -12007,7 +12012,8 @@ const QUICK_ACTIVE_KEY = 'tn-quick-run-active';   // đang chạy dở khi trang
             autoMinigameDragon: ['DiceCtrl', 'EngraveCtrl', 'DevilSeaCtrl', 'ShopCtrl'],
             autoClimbYMAbyss: ['YMAbyssCtrl', 'DailyDungeonCtrl', 'RankCtrl'],
             autoArena: ['ArenaCtrl'],
-            autoMaDao: ['HangupCtrl', 'TravelCtrl', 'HeroCtrl'],
+            // DailyDungeonCtrl 11004/11008, PlatCtrl 30139, StealingHeavenCtrl 12327: truy vấn chỉ đọc do game tự gọi khi Ma Đạo chạy (audit 2026-11-07), không có trong ma-dao.js.
+            autoMaDao: ['HangupCtrl', 'TravelCtrl', 'HeroCtrl', 'DailyDungeonCtrl', 'PlatCtrl', 'StealingHeavenCtrl'],
             autoBanner: ['SuperHeroEncoreCtrl', 'NewSuperHeroCtrl', 'DesenoActivityCtrl', 'HeroCtrl', 'TransGodCtrl', 'DevilSeaCtrl', 'RankCtrl'],
             autoSkinBanner: ['FashionRecCtrl', 'DesenoActivityCtrl', 'DevilSeaCtrl'],
             autoCuoiNgay: ['EmailCtrl', 'RankCtrl', 'AcvCtrl', 'WelfareCtrl'],

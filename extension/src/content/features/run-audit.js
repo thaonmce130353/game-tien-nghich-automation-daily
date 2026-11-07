@@ -38,7 +38,8 @@
             autoMinigameDragon: ['DiceCtrl', 'EngraveCtrl', 'DevilSeaCtrl', 'ShopCtrl'],
             autoClimbYMAbyss: ['YMAbyssCtrl', 'DailyDungeonCtrl', 'RankCtrl'],
             autoArena: ['ArenaCtrl'],
-            autoMaDao: ['HangupCtrl', 'TravelCtrl', 'HeroCtrl'],
+            // DailyDungeonCtrl 11004/11008, PlatCtrl 30139, StealingHeavenCtrl 12327: truy vấn chỉ đọc do game tự gọi khi Ma Đạo chạy (audit 2026-11-07), không có trong ma-dao.js.
+            autoMaDao: ['HangupCtrl', 'TravelCtrl', 'HeroCtrl', 'DailyDungeonCtrl', 'PlatCtrl', 'StealingHeavenCtrl'],
             autoBanner: ['SuperHeroEncoreCtrl', 'NewSuperHeroCtrl', 'DesenoActivityCtrl', 'HeroCtrl', 'TransGodCtrl', 'DevilSeaCtrl', 'RankCtrl'],
             autoSkinBanner: ['FashionRecCtrl', 'DesenoActivityCtrl', 'DevilSeaCtrl'],
             autoCuoiNgay: ['EmailCtrl', 'RankCtrl', 'AcvCtrl', 'WelfareCtrl'],
